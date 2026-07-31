@@ -2368,7 +2368,8 @@ function copiarLinkAnamnese(){
 
 function enviarLinkWpp(){
   const tel = '55'+pac.telefone.replace(/\D/g,'');
-  const msg = `Olá ${pac.apelido||pac.nome.split(' ')[0]}! 😊\n\nPrecisamos que você preencha sua ficha de anamnese antes da sua próxima consulta na clínica da Dra. Anna Carolina.\n\nÉ rápido e pode ser feito no celular:\n${_anamneseLinkUrl}\n\nObrigada! 💚`;
+  const nomeClinicaMsg = (window.CLINICA_CONFIG && CLINICA_CONFIG.nome) ? `clínica da ${CLINICA_CONFIG.nome}` : 'nossa clínica';
+  const msg = `Olá ${pac.apelido||pac.nome.split(' ')[0]}! 😊\n\nPrecisamos que você preencha sua ficha de anamnese antes da sua próxima consulta na ${nomeClinicaMsg}.\n\nÉ rápido e pode ser feito no celular:\n${_anamneseLinkUrl}\n\nObrigada! 💚`;
   window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 </script>
