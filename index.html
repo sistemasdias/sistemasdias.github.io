@@ -963,6 +963,7 @@ const db={
 };
 
 let pacs=[],consultas=[];
+try{const _pacsCache=sessionStorage.getItem('pacs_cache');if(_pacsCache)pacs=JSON.parse(_pacsCache);}catch(e){}
 let _pacLimit=30; // paginação da lista de pacientes
 let mWppPac=null,mWppTipo='ret',mWppTrat=null;
 let agEditando=null,agPacId=null;
