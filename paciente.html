@@ -493,7 +493,7 @@ textarea{resize:vertical;min-height:70px}
         <select id="e-sexo"><option value="">Selecione</option><option>Feminino</option><option>Masculino</option></select>
       </div>
       <div class="fgr"><label>CEP</label><input type="text" id="e-cep" oninput="buscarCep(this)"/></div>
-      <div class="fgr full"><label>Rua / Logradouro</label><input type="text" id="e-rua"/></div>
+      <div class="fgr full"><label>Rua / Logradouro <span onclick="buscarCepReverso('e')" style="cursor:pointer;color:#2e7d5b;font-weight:400;font-size:11px;text-decoration:underline">não sei o CEP, buscar pelo endereço</span></label><input type="text" id="e-rua"/></div>
       <div class="fgr"><label>Número</label><input type="text" id="e-numero"/></div>
       <div class="fgr"><label>Bairro</label><input type="text" id="e-bairro"/></div>
       <div class="fgr"><label>Cidade</label><input type="text" id="e-cidade"/></div>
@@ -1844,6 +1844,61 @@ async function buscarCep(input){
       document.getElementById('e-cidade').value=d.localidade||'';
     }
   }catch(e){}
+}
+
+// ─── BUSCA REVERSA: RUA + CIDADE → CEP ───
+async function buscarCepReverso(prefix,uf='SP'){
+  const ruaEl=document.getElementById(prefix+'-rua');
+  const cidadeEl=document.getElementById(prefix+'-cidade');
+  const rua=(ruaEl?.value||'').trim();
+  const cidade=(cidadeEl?.value||'').trim();
+  if(cidade.length<2||rua.length<3){
+    toast('Preencha Cidade e ao menos 3 letras da Rua','vermelho');
+    return;
+  }
+  try{
+    const r=await fetch(`https://viacep.com.br/ws/${uf}/${encodeURIComponent(cidade)}/${encodeURIComponent(rua)}/json/`);
+    const d=await r.json();
+    if(!Array.isArray(d)||d.length===0){
+      toast('Nenhum CEP encontrado para esse endereço','vermelho');
+      return;
+    }
+    if(d.length===1){
+      preencherEnderecoPorCep(prefix,d[0]);
+      toast('CEP encontrado ✓','verde');
+    }else{
+      mostrarOpcoesCep(prefix,d);
+    }
+  }catch(e){
+    toast('Erro ao buscar CEP','vermelho');
+  }
+}
+
+function preencherEnderecoPorCep(prefix,item){
+  const cepEl=document.getElementById(prefix+'-cep');
+  if(cepEl) cepEl.value=item.cep;
+  document.getElementById(prefix+'-rua').value=item.logradouro;
+  document.getElementById(prefix+'-bairro').value=item.bairro;
+  document.getElementById(prefix+'-cidade').value=item.localidade;
+  document.getElementById(prefix+'-cep-opcoes')?.remove();
+}
+
+function mostrarOpcoesCep(prefix,lista){
+  document.getElementById(prefix+'-cep-opcoes')?.remove();
+  const ruaEl=document.getElementById(prefix+'-rua');
+  const box=document.createElement('div');
+  box.id=prefix+'-cep-opcoes';
+  box.style.cssText='margin-top:6px;border:1px solid #ddd;border-radius:8px;overflow:hidden;max-height:180px;overflow-y:auto';
+  lista.forEach(item=>{
+    const opt=document.createElement('div');
+    opt.style.cssText='padding:8px 10px;cursor:pointer;font-size:13px;border-bottom:1px solid #eee;background:#fff';
+    opt.textContent=`${item.logradouro} — ${item.bairro} (${item.cep})`;
+    opt.onmouseenter=()=>opt.style.background='#f5f5f5';
+    opt.onmouseleave=()=>opt.style.background='#fff';
+    opt.onclick=()=>{preencherEnderecoPorCep(prefix,item);toast('CEP preenchido ✓','verde');};
+    box.appendChild(opt);
+  });
+  ruaEl.parentElement.appendChild(box);
 }
 
 // ─── NOVO ATENDIMENTO (redireciona para index) ───
