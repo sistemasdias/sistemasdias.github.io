@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <script src="config.js"></script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
-  <title>Ficha de Anamnese</title>
+  <title>Ficha de Anamnese — Dra. Anna Carolina Dias</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -60,10 +61,10 @@
 <!-- HEADER -->
 <div class="header">
   <div class="header-logo">
-    <img src="logo.jpg" alt="Logo da clínica" id="hdr-logo-alt"/>
+    <img src="logo.jpg" alt="Dra. Anna Carolina"/>
   </div>
-  <h1 id="hdr-nome">Dra. Anna Carolina Dias</h1>
-  <p id="hdr-linha2">HARMONIZAÇÃO OROFACIAL · CRO 82281 · (17) 98211-3940</p>
+  <h1>Dra. Anna Carolina Dias</h1>
+  <p>HARMONIZAÇÃO OROFACIAL · CRO 82281 · (17) 98211-3940</p>
 </div>
 
 <!-- ESTADO: CARREGANDO -->
@@ -77,7 +78,7 @@
 <div class="state" id="st-erro">
   <div class="state-icon">❌</div>
   <h2>Link inválido ou expirado</h2>
-  <p id="msg-link-indisponivel">Este link de anamnese não está disponível. Solicite um novo link à clínica.</p>
+  <p>Este link de anamnese não está disponível. Solicite um novo link à Dra. Anna Carolina.</p>
 </div>
 
 <!-- ESTADO: JÁ PREENCHIDO -->
@@ -91,8 +92,8 @@
 <div class="state" id="st-sucesso">
   <div class="state-icon">🎉</div>
   <h2>Anamnese enviada com sucesso!</h2>
-  <p id="msg-sucesso-anamnese">Suas informações foram recebidas. A clínica terá acesso antes da sua consulta.<br><br>Obrigada pela sua confiança! 💚</p>
-  <div id="msg-endereco-sucesso" style="margin-top:1.5rem;font-size:13px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 · Tanabi/SP</div>
+  <p>Suas informações foram recebidas. A Dra. Anna Carolina terá acesso antes da sua consulta.<br><br>Obrigada pela sua confiança! 💚</p>
+  <div style="margin-top:1.5rem;font-size:13px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 · Tanabi/SP</div>
 </div>
 
 <!-- FORMULÁRIO -->
@@ -154,7 +155,7 @@
     <!-- Termos -->
     <div class="card" style="background:var(--verde-c);border-color:var(--verde)">
       <p style="font-size:13px;color:var(--verde-e);line-height:1.5">
-        Ao enviar esta ficha, declaro que as informações acima são verdadeiras e estou ciente de que serão utilizadas exclusivamente para fins de tratamento pela <span id="lgpd-clinica-nome">Dra. Anna Carolina Dias (CRO 82281)</span>, de acordo com a LGPD (Lei 13.709/2018). Li e concordo com a <a href="politica-privacidade.html" target="_blank" style="color:var(--verde-e);font-weight:700">Política de Privacidade</a> completa.
+        Ao enviar esta ficha, declaro que as informações acima são verdadeiras e estou ciente de que serão utilizadas exclusivamente para fins de tratamento pela Dra. Anna Carolina Dias (CRO 82281), de acordo com a LGPD (Lei 13.709/2018).
       </p>
       <label style="display:flex;align-items:flex-start;gap:10px;margin-top:10px;cursor:pointer">
         <input type="checkbox" id="f-aceito" style="accent-color:var(--verde);width:18px;height:18px;flex-shrink:0;margin-top:1px"/>
@@ -172,20 +173,8 @@
 </div>
 
 <script>
-const SB_URL = 'https://nathaeuqbeqlvkftbmes.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg';
 const {createClient} = supabase;
-// No-op storage + custom fetch: evita Tracking Prevention do Edge
-const _noOp={getItem:()=>null,setItem:()=>{},removeItem:()=>{}};
-const db = createClient(SB_URL, SB_KEY, {
-  auth:{storage:_noOp,persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
-  global:{fetch:(url,opts={})=>{
-    const _h=new Headers(opts.headers||{});
-    _h.set('apikey',SB_KEY);
-    // Página pública — usa anon key (RLS controla acesso)
-    return fetch(url,{...opts,headers:_h});
-  }}
-});
+const db = createClient(SB_URL, SB_KEY);
 
 const AN_PERGUNTAS = [
   {id:'trat-estetico',  label:'Já fez algum tipo de tratamento estético?'},
@@ -238,29 +227,16 @@ async function init(){
   if(!token){ setState('st-erro'); return; }
 
   // Buscar link
-  const {data:link, error} = await db.from('anamnese_links_publico').select('*').eq('token',token).single();
+  const {data:link, error} = await db.from('anamnese_links').select('*').eq('token',token).single();
   if(error || !link){ setState('st-erro'); return; }
   if(link.status === 'preenchido'){ setState('st-preenchido'); return; }
 
   linkData = link;
 
-  // Buscar paciente (via função segura — não lê a tabela pacientes diretamente)
-  const {data:pacRows} = await db.rpc('dados_paciente_anamnese', {p_token: token});
-  const pac = pacRows?.[0];
+  // Buscar paciente
+  const {data:pac} = await db.from('pacientes').select('nome,apelido,telefone,data_nascimento,cpf,rg,sexo,endereco').eq('id',link.paciente_id).single();
   if(!pac){ setState('st-erro'); return; }
   pacData = pac;
-
-  // Preencher dados da clínica no cabeçalho e mensagens
-  if(pac.clinica_nome){
-    document.getElementById('hdr-logo-alt').src = pac.clinica_logo || 'logo.jpg';
-    document.getElementById('hdr-logo-alt').alt = 'Logo — '+pac.clinica_nome;
-    document.getElementById('hdr-nome').textContent = pac.clinica_nome;
-    document.getElementById('hdr-linha2').textContent = (pac.clinica_especialidade?pac.clinica_especialidade.toUpperCase()+' · ':'')+(pac.clinica_registro?pac.clinica_registro+' · ':'')+(pac.clinica_telefone||'');
-    document.getElementById('msg-sucesso-anamnese').innerHTML = `Suas informações foram recebidas. ${pac.clinica_nome} terá acesso antes da sua consulta.<br><br>Obrigada pela sua confiança! 💚`;
-    document.getElementById('lgpd-clinica-nome').textContent = pac.clinica_nome+(pac.clinica_registro?' ('+pac.clinica_registro+')':'');
-    document.getElementById('msg-endereco-sucesso').textContent = pac.clinica_endereco || '';
-    document.title = 'Ficha de Anamnese — '+pac.clinica_nome;
-  }
 
   // Preencher header paciente
   const nome = pac.apelido || pac.nome.split(' ')[0];
@@ -314,10 +290,6 @@ async function enviarAnamnese(){
   const btn = document.getElementById('btn-enviar');
   btn.disabled = true;
   btn.textContent = 'Enviando...';
-  const _timeout=setTimeout(()=>{
-    btn.disabled=false;btn.textContent='✅ Enviar Anamnese';
-    alert('A solicitação demorou mais que o esperado. Verifique sua conexão e tente novamente.');
-  },15000);
 
   // ── Coletar dados ──
   const dados = {
@@ -350,6 +322,27 @@ async function enviarAnamnese(){
     dados.checks[i] = document.getElementById('ck-'+i)?.checked || false;
   });
 
+  // ── Salvar no Supabase ──
+  const {error: e1} = await db.from('anamnese_links').update({
+    status: 'preenchido',
+    dados: dados,
+    preenchido_em: new Date().toISOString()
+  }).eq('id', linkData.id);
+
+  if(e1){
+    btn.disabled=false;
+    btn.textContent='✅ Enviar Anamnese';
+    alert('Erro ao enviar: '+e1.message+'\nTente novamente.');
+    return;
+  }
+
+  // Salvar como documento na ficha do paciente
+  await db.from('documentos').insert({
+    paciente_id: linkData.paciente_id,
+    tipo: 'anamnese',
+    dados: dados
+  });
+
   // Atualizar cadastro com dados pessoais preenchidos
   const upd = {};
   if(dados.endereco) upd.endereco        = dados.endereco;
@@ -357,23 +350,10 @@ async function enviarAnamnese(){
   if(dados.cpf)      upd.cpf             = dados.cpf;
   if(dados.sexo)     upd.sexo            = dados.sexo;
   if(dados.nasc)     upd.data_nascimento = dados.nasc;
-
-  // ── Salvar via função segura (processa anamnese + documento + cadastro numa só chamada) ──
-  const {data: resultado, error: e1} = await db.rpc('submeter_anamnese', {
-    p_token: linkData.token,
-    p_dados: dados,
-    p_paciente_updates: upd
-  });
-
-  if(e1 || !resultado || !resultado.ok){
-    btn.disabled=false;
-    btn.textContent='✅ Enviar Anamnese';
-    clearTimeout(_timeout);
-    alert('Erro ao enviar: '+((resultado&&resultado.error)||(e1&&e1.message)||'Tente novamente.'));
-    return;
+  if(Object.keys(upd).length > 0){
+    await db.from('pacientes').update(upd).eq('id', linkData.paciente_id);
   }
 
-  clearTimeout(_timeout);
   setState('st-sucesso');
 }
 
