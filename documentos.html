@@ -3061,8 +3061,13 @@ function imprimirOrcamento(){
 
 // INICIAR
 carregar().then(()=>{
-  // Verificar parâmetros na URL
+  // Verificar parâmetros na URL — este bloco só trata o formato antigo
+  // (usado pelo index.html: doc=tipo, ver=id). Quando "tipo" também vem
+  // na URL, é o formato novo (usado pelo paciente.html: doc=id, tipo=tipo),
+  // que é tratado por outro bloco mais abaixo — não faz nada aqui pra não
+  // colidir com ele.
   const params=new URLSearchParams(window.location.search);
+  if(params.get('tipo')) return;
   const pacId=params.get('pac');
   const docTipo=params.get('doc');
   const verId=params.get('ver'); // ID do documento para carregar via Ver
@@ -3107,13 +3112,21 @@ carregar().then(()=>{
 
     await new Promise(r => setTimeout(r, 400));
 
-    const { data: doc } = await db
+    const { data: doc, error: erroDoc } = await db
       .from('documentos')
       .select('*')
       .eq('id', docId)
       .single();
 
-    if (!doc) return;
+    if (!doc) {
+      // Mesmo se não achar o documento salvo, mostra o painel (em vez de
+      // deixar a tela em branco) e avisa o que houve.
+      await abrirDoc(tipo);
+      if (typeof toast === 'function') {
+        toast('Não foi possível carregar este documento salvo'+(erroDoc?': '+erroDoc.message:'.'), 'vermelho');
+      }
+      return;
+    }
 
     await abrirDoc(tipo);
 
