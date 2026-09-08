@@ -524,6 +524,7 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug)
         <div class="info">
           <div class="nome">${escapeHtml(a.nome_cliente)} ${bloqueada ? '<span class="status-pill bloqueada">Bloqueada</span>' : ''}</div>
           <div class="detalhe">${escapeHtml(a.tenant_id)} · R$ ${Number(a.valor_mensal).toFixed(2)} · vence dia ${a.dia_vencimento}</div>
+          <div class="detalhe"><a href="https://sistemasdias.github.io/login.html?c=${encodeURIComponent(a.tenant_id)}" target="_blank" style="color:var(--accent)">🔗 sistemasdias.github.io/login.html?c=${escapeHtml(a.tenant_id)}</a></div>
         </div>
         <div class="right">
           <span class="status-pill ${status}">${label}</span>
