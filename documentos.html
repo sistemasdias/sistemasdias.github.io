@@ -1326,7 +1326,7 @@ async function abrirAtestado(){
   document.getElementById('atestado-endereco').textContent=[c.endereco,c.telefone?('Tel: '+c.telefone):''].filter(Boolean).join(' · ');
   document.getElementById('atestado-assinatura-nome').textContent=[c.nome,c.registro].filter(Boolean).join(' — ');
 
-  if(!_modoVer) limparSig('sig-atestado-pro');
+  if(typeof _modoVer==='undefined'||!_modoVer) limparSig('sig-atestado-pro');
   iniciarSig('sig-atestado-pro');
 
   atualizarTextoAtestado();
