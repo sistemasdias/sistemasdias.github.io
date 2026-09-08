@@ -5,7 +5,7 @@
   <script src="config.js"></script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
-  <title>Ficha de Anamnese — Dra. Anna Carolina Dias</title>
+  <title id="page-title">Ficha de Anamnese</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -62,10 +62,10 @@
 <!-- HEADER -->
 <div class="header">
   <div class="header-logo">
-    <img src="logo.jpg" alt="Dra. Anna Carolina"/>
+    <img id="hdr-logo" src="logo.jpg" alt="Logo da clínica"/>
   </div>
-  <h1>Dra. Anna Carolina Dias</h1>
-  <p>HARMONIZAÇÃO OROFACIAL · CRO 82281 · (17) 98211-3940</p>
+  <h1 id="hdr-nome">Carregando…</h1>
+  <p id="hdr-sub"></p>
 </div>
 
 <!-- ESTADO: CARREGANDO -->
@@ -79,7 +79,7 @@
 <div class="state" id="st-erro">
   <div class="state-icon">❌</div>
   <h2>Link inválido ou expirado</h2>
-  <p>Este link de anamnese não está disponível. Solicite um novo link à Dra. Anna Carolina.</p>
+  <p>Este link de anamnese não está disponível. Solicite um novo link à clínica <span id="erro-clinica-nome">clínica</span>.</p>
 </div>
 
 <!-- ESTADO: JÁ PREENCHIDO -->
@@ -93,8 +93,8 @@
 <div class="state" id="st-sucesso">
   <div class="state-icon">🎉</div>
   <h2>Anamnese enviada com sucesso!</h2>
-  <p>Suas informações foram recebidas. A Dra. Anna Carolina terá acesso antes da sua consulta.<br><br>Obrigada pela sua confiança! 💚</p>
-  <div style="margin-top:1.5rem;font-size:13px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 · Tanabi/SP</div>
+  <p>Suas informações foram recebidas. <span id="sucesso-clinica-nome">A clínica</span> terá acesso antes da sua consulta.<br><br>Obrigada pela sua confiança! 💚</p>
+  <div id="sucesso-endereco" style="margin-top:1.5rem;font-size:13px;color:var(--ct)"></div>
 </div>
 
 <!-- FORMULÁRIO -->
@@ -156,7 +156,7 @@
     <!-- Termos -->
     <div class="card" style="background:var(--verde-c);border-color:var(--verde)">
       <p style="font-size:13px;color:var(--verde-e);line-height:1.5">
-        Ao enviar esta ficha, declaro que as informações acima são verdadeiras e estou ciente de que serão utilizadas exclusivamente para fins de tratamento pela Dra. Anna Carolina Dias (CRO 82281), de acordo com a LGPD (Lei 13.709/2018).
+        Ao enviar esta ficha, declaro que as informações acima são verdadeiras e estou ciente de que serão utilizadas exclusivamente para fins de tratamento pela <span id="lgpd-clinica-nome">clínica</span>, de acordo com a LGPD (Lei 13.709/2018).
       </p>
       <label style="display:flex;align-items:flex-start;gap:10px;margin-top:10px;cursor:pointer">
         <input type="checkbox" id="f-aceito" style="accent-color:var(--verde);width:18px;height:18px;flex-shrink:0;margin-top:1px"/>
@@ -206,6 +206,19 @@ const AN_CHECKS = [
 let linkData = null;
 let pacData  = null;
 
+function aplicarBrandingAnamnese(){
+  const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
+  document.getElementById('page-title').textContent='Ficha de Anamnese — '+(c.nome||'Clínica');
+  document.getElementById('hdr-logo').src=c.logo||'logo.jpg';
+  document.getElementById('hdr-logo').alt=c.nome||'Clínica';
+  document.getElementById('hdr-nome').textContent=c.nome||'Clínica';
+  document.getElementById('hdr-sub').textContent=[c.especialidade,c.registro,c.telefone].filter(Boolean).join(' · ').toUpperCase();
+  document.getElementById('erro-clinica-nome').textContent=c.nome||'clínica';
+  document.getElementById('sucesso-clinica-nome').textContent=c.nome||'A clínica';
+  document.getElementById('sucesso-endereco').textContent=[c.endereco,(c.cidade&&c.uf)?`${c.cidade}/${c.uf}`:''].filter(Boolean).join(' · ');
+  document.getElementById('lgpd-clinica-nome').textContent='clínica '+(c.nome||'')+(c.registro?` (${c.registro})`:'');
+}
+
 function setState(id){
   ['st-loading','st-erro','st-preenchido','st-sucesso','st-form'].forEach(s=>{
     const el = document.getElementById(s);
@@ -223,21 +236,48 @@ function fDt(s){ if(!s) return ''; const [y,m,d]=s.split('-'); return `${d}/${m}
 function calcIdade(nasc){ if(!nasc)return null; const d=new Date(nasc+'T12:00:00'); const hoje=new Date(); let age=hoje.getFullYear()-d.getFullYear(); if(hoje<new Date(hoje.getFullYear(),d.getMonth(),d.getDate())) age--; return age; }
 
 async function init(){
+  if(window.CLINICA_CONFIG_PRONTO) await window.CLINICA_CONFIG_PRONTO;
+  aplicarBrandingAnamnese();
+
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
   if(!token){ setState('st-erro'); return; }
 
-  // Buscar link
-  const {data:link, error} = await db.from('anamnese_links').select('*').eq('token',token).single();
-  if(error || !link){ setState('st-erro'); return; }
-  if(link.status === 'preenchido'){ setState('st-preenchido'); return; }
+  // Busca segura pelo token (não acessa a tabela direto — ver anamnese_obter_por_token)
+  const {data:resultado, error} = await db.rpc('anamnese_obter_por_token', {p_token: token});
+  if(error || !resultado || resultado.erro){ setState('st-erro'); return; }
+  if(resultado.status === 'preenchido'){ setState('st-preenchido'); return; }
 
-  linkData = link;
-
-  // Buscar paciente
-  const {data:pac} = await db.from('pacientes').select('nome,apelido,telefone,data_nascimento,cpf,rg,sexo,endereco').eq('id',link.paciente_id).single();
-  if(!pac){ setState('st-erro'); return; }
+  linkData = { id: resultado.link_id, paciente_id: resultado.paciente_id, clinica_id: resultado.clinica_id };
+  const pac = resultado.paciente;
   pacData = pac;
+
+  // Reforça a marca certa mesmo em links antigos gerados sem "?c=" —
+  // busca a clínica direto pelo clinica_id do paciente, não confia só na URL.
+  if(linkData.clinica_id){
+    try{
+      const resClin=await fetch(`${SB_URL}/rest/v1/clinicas_publica?select=slug&id=eq.${linkData.clinica_id}&limit=1`,{headers:{apikey:SB_KEY}});
+      const dataClin=await resClin.json();
+      const slugReal=Array.isArray(dataClin)&&dataClin[0]?dataClin[0].slug:null;
+      if(slugReal){
+        const resCfg=await fetch(`${SB_URL}/rest/v1/config_clinica_publica?select=*&slug=eq.${encodeURIComponent(slugReal)}&limit=1`,{headers:{apikey:SB_KEY}});
+        const dataCfg=await resCfg.json();
+        const cfg=Array.isArray(dataCfg)&&dataCfg[0]?dataCfg[0]:null;
+        if(cfg&&typeof CLINICA_CONFIG!=='undefined'){
+          CLINICA_CONFIG.nome=cfg.nome||CLINICA_CONFIG.nome;
+          CLINICA_CONFIG.especialidade=cfg.especialidade||CLINICA_CONFIG.especialidade;
+          CLINICA_CONFIG.logo=cfg.logo_url||CLINICA_CONFIG.logo;
+          CLINICA_CONFIG.registro=cfg.registro_profissional||CLINICA_CONFIG.registro;
+          CLINICA_CONFIG.telefone=cfg.telefone||'';
+          CLINICA_CONFIG.endereco=cfg.endereco||'';
+          CLINICA_CONFIG.cidade=cfg.cidade||'';
+          CLINICA_CONFIG.uf=cfg.uf||'';
+          if(typeof aplicarCorClinica==='function') aplicarCorClinica(cfg.cor_principal||'#1D9E75');
+        }
+      }
+    }catch(e){ /* mantém o que já tinha resolvido */ }
+  }
+  aplicarBrandingAnamnese();
 
   // Preencher header paciente
   const nome = pac.apelido || pac.nome.split(' ')[0];
@@ -323,36 +363,22 @@ async function enviarAnamnese(){
     dados.checks[i] = document.getElementById('ck-'+i)?.checked || false;
   });
 
-  // ── Salvar no Supabase ──
-  const {error: e1} = await db.from('anamnese_links').update({
-    status: 'preenchido',
-    dados: dados,
-    preenchido_em: new Date().toISOString()
-  }).eq('id', linkData.id);
-
-  if(e1){
-    btn.disabled=false;
-    btn.textContent='✅ Enviar Anamnese';
-    alert('Erro ao enviar: '+e1.message+'\nTente novamente.');
-    return;
-  }
-
-  // Salvar como documento na ficha do paciente
-  await db.from('documentos').insert({
-    paciente_id: linkData.paciente_id,
-    tipo: 'anamnese',
-    dados: dados
+  // ── Salvar de forma segura (ver anamnese_enviar) ──
+  const {data:resultado, error: e1} = await db.rpc('anamnese_enviar', {
+    p_token: new URLSearchParams(window.location.search).get('token'),
+    p_dados: dados,
+    p_endereco: dados.endereco || null,
+    p_rg: dados.rg || null,
+    p_cpf: dados.cpf || null,
+    p_sexo: dados.sexo || null,
+    p_nasc: dados.nasc || null
   });
 
-  // Atualizar cadastro com dados pessoais preenchidos
-  const upd = {};
-  if(dados.endereco) upd.endereco        = dados.endereco;
-  if(dados.rg)       upd.rg              = dados.rg;
-  if(dados.cpf)      upd.cpf             = dados.cpf;
-  if(dados.sexo)     upd.sexo            = dados.sexo;
-  if(dados.nasc)     upd.data_nascimento = dados.nasc;
-  if(Object.keys(upd).length > 0){
-    await db.from('pacientes').update(upd).eq('id', linkData.paciente_id);
+  if(e1 || !resultado || !resultado.ok){
+    btn.disabled=false;
+    btn.textContent='✅ Enviar Anamnese';
+    alert('Erro ao enviar: '+(e1?.message||resultado?.erro||'falha desconhecida')+'\nTente novamente.');
+    return;
   }
 
   setState('st-sucesso');
