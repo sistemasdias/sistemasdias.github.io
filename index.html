@@ -249,6 +249,7 @@ textarea{resize:vertical;min-height:70px}
     <div id="inatividade-timer" title="Tempo até logout automático por inatividade" style="display:flex;align-items:center;gap:4px;padding:4px 9px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;font-size:12px;font-weight:600;color:#fff;cursor:default;min-width:62px;justify-content:center;transition:background .4s,border-color .4s">
       <span id="inatividade-icon">🟢</span><span id="inatividade-tempo">60:00</span>
     </div>
+    <a id="btn-suporte-wpp" href="#" target="_blank" class="btn-dark" aria-label="Falar com o suporte no WhatsApp" title="Suporte" style="font-size:14px;text-decoration:none;display:flex;align-items:center;gap:4px">💬 Suporte</a>
     <button class="btn-dark" aria-label="Sair" onclick="fazerLogout()" title="Sair" style="font-size:14px">🔒 Sair</button>
   </div>
 </header>
@@ -1494,6 +1495,8 @@ async function carregar(){
   document.getElementById('hdr-nome-clinica').firstChild.textContent = CLINICA_CONFIG.nome+' ';
   document.getElementById('hdr-especialidade').textContent = '· '+CLINICA_CONFIG.especialidade;
   document.title = 'Clínica '+CLINICA_CONFIG.nome;
+  const msgSuporte = encodeURIComponent(`Olá! Sou da ${CLINICA_CONFIG.nome} e preciso de ajuda com o sistema.`);
+  document.getElementById('btn-suporte-wpp').href = `https://wa.me/5517982113993?text=${msgSuporte}`;
   const{data,error}=await db.from('pacientes').select('*').order('nome');
   if(error){toast('Erro ao carregar','vermelho');return;}
   pacs=data||[];
