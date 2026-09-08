@@ -118,7 +118,8 @@ async function criarClinica(){
       Link do sistema: <code>${d.link_sistema}</code><br/>
       Link de login: <code>${d.link_login}</code><br/>
       Link de agendamento online: <code>${d.link_agendamento}</code><br/><br/>
-      Login do admin: <strong>${admin_email}</strong> / senha definida agora.
+      Login do admin: <strong>${admin_email}</strong> / senha definida agora.<br/><br/>
+      ${d.backup_disparado ? '💾 Backup imediato disparado com sucesso.' : '⚠️ Não foi possível disparar o backup imediato agora — não é urgente, ela entra no backup agendado das 3h normalmente.'}
       ${d.aviso?`<br/><br/>⚠️ ${d.aviso}`:''}`;
   }catch(e){
     msg.className='msg erro';msg.textContent='Erro de conexão: '+e.message;
