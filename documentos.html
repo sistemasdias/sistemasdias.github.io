@@ -1224,6 +1224,7 @@ function voltarDocs(){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('sec-docs').style.display='block';
   document.getElementById('sec-busca').style.display='block';
+  _modoVer=false; // reseta o "modo visualização" — senão o próximo documento aberto herda esse estado indevidamente
 }
 
 // ── RECEITUÁRIO MÉDICO ──
