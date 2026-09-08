@@ -185,6 +185,15 @@ async function carregarConfigClinica() {
       });
       const dataAuth = await resAuth.json();
       c = Array.isArray(dataAuth) ? dataAuth[0] : null;
+
+      // Sessão válida mas nenhuma config retornada: a clínica está bloqueada
+      // (RLS passa a esconder tudo quando a clínica não está mais 'ativa').
+      // Sinaliza isso em vez de cair no fallback (que mostraria os dados
+      // padrão de outra clínica) — quem chama decide como tratar.
+      if (!c) {
+        window.CLINICA_BLOQUEADA = true;
+        return;
+      }
     }
 
     if (!c) {
