@@ -145,14 +145,40 @@
   document.title = 'Acesso — ' + (CLINICA_CONFIG.nome || 'Clínica');
 })();
 
-// ── Sessão válida? Redireciona direto ──
-try {
-  const auth = JSON.parse(localStorage.getItem('clinica_auth') || '{}');
-  if (auth.ok && auth.expires > Date.now()) {
-    const params = new URLSearchParams(window.location.search);
-    window.location.href = params.get('r') || 'index.html';
-  }
-} catch(e) {}
+// ── Sessão válida? Só redireciona direto se for da MESMA clínica pedida
+// na URL — senão, encerra a sessão antiga (de outra clínica) e mostra
+// o login normal desta aqui.
+(async () => {
+  try {
+    const auth = JSON.parse(localStorage.getItem('clinica_auth') || '{}');
+    if (!auth.ok || !(auth.expires > Date.now())) return;
+
+    const slugUrl = obterSlugClinicaDaUrl();
+    const resSessao = await fetch(`${SB_URL}/rest/v1/config_clinica?select=clinica_id`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${auth.access_token}` }
+    });
+    const dataSessao = await resSessao.json();
+    const clinicaIdSessao = Array.isArray(dataSessao) && dataSessao[0] ? dataSessao[0].clinica_id : null;
+
+    if (!clinicaIdSessao) return; // sessão inválida/bloqueada — fica na tela de login
+
+    const resAlvo = await fetch(`${SB_URL}/rest/v1/clinicas_publica?select=id&slug=eq.${encodeURIComponent(slugUrl)}&limit=1`, {
+      headers: { 'apikey': SB_KEY }
+    });
+    const dataAlvo = await resAlvo.json();
+    const clinicaIdAlvo = Array.isArray(dataAlvo) && dataAlvo[0] ? dataAlvo[0].id : null;
+
+    if (clinicaIdAlvo && clinicaIdSessao === clinicaIdAlvo) {
+      // Mesma clínica: pode ir direto pro sistema
+      const params = new URLSearchParams(window.location.search);
+      window.location.href = params.get('r') || 'index.html';
+    } else {
+      // Sessão é de OUTRA clínica — encerra e deixa a tela de login normal aparecer
+      localStorage.removeItem('clinica_auth');
+      sessionStorage.removeItem('clinica_auth');
+    }
+  } catch (e) { /* em caso de erro, fica na tela de login normal */ }
+})();
 
 // ── Configurações ──
 const TAMANHO = CLINICA_CONFIG.pinLength || 4;
