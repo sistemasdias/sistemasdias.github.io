@@ -1126,26 +1126,8 @@ async function excluirDoc(id){
 }
 
 // ABRIR DOCUMENTO
-async function abrirDoc(tipo){
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('sec-docs').style.display='none';
-  document.getElementById('sec-busca').style.display='none';
-  if(tipo==='anamnese') abrirAnamnese();
-  else if(tipo==='autorizacao-imagem') abrirAutorizacaoImagem();
-  else if(tipo==='orcamento') await abrirOrcamento();
-  else if(tipo.startsWith('termo-')) abrirTermo(tipo);
-  else if(tipo==='receituario') abrirReceituario();
-  else if(tipo==='receituario-estetico') abrirReceituarioEstetico();
-  else if(tipo==='receituario-simples') abrirReceituarioSimples();
-  else if(tipo==='orcamento-simples') abrirOrcamentoSimples();
-  else if(tipo==='atestado') await abrirAtestado();
-  const panel=document.getElementById('panel-'+tipo);
-  if(panel) panel.classList.add('active');
-  // Para receituários, adicionar linha inicial após o painel estar ativo
-  if(tipo==='receituario'&&!document.querySelector('#rec-medicamentos > div')) addMedicamento();
-  if(tipo==='receituario-estetico'&&!document.querySelector('#rece-produtos > div')) addProdutoEstetico();
-  window.scrollTo(0,0);
-}
+// (a definição real e usada fica mais abaixo, perto de verDoc — essa cópia
+// antiga aqui em cima nunca era executada, JS sempre usa a última definição)
 
 function voltarDocs(){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
