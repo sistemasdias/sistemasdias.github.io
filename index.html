@@ -5380,7 +5380,7 @@ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='k'){
 // ── PWA: registrar service worker ──
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('sw.js').then(reg=>{
+    navigator.serviceWorker.register('sw.js', {updateViaCache: 'none'}).then(reg=>{
       // Notificar SW para atualizar cache quando há nova versão
       reg.addEventListener('updatefound',()=>{
         const newSW = reg.installing;
@@ -5392,6 +5392,9 @@ if('serviceWorker' in navigator){
           }
         });
       });
+      // Força uma checagem de atualização assim que a página carrega,
+      // em vez de esperar o navegador decidir sozinho quando checar.
+      reg.update();
     });
   });
 }
