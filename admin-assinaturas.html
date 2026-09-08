@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assinaturas — Sistema Dias</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #f6f5f3;
+    --panel: #ffffff;
+    --ink: #1c1b19;
+    --muted: #6b6862;
+    --line: #e5e2dc;
+    --accent: #2f6f4f;
+    --accent-ink: #ffffff;
+    --pago: #2f6f4f;
+    --pago-bg: #e7f2ea;
+    --pendente: #9a7b1f;
+    --pendente-bg: #faf1dc;
+    --atrasado: #a63d3d;
+    --atrasado-bg: #f8e6e6;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  /* ---------- Login ---------- */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #login-box {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 340px;
+  }
+  #login-box h1 {
+    font-size: 19px;
+    margin: 0 0 4px;
+  }
+  #login-box p.sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 22px;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin: 14px 0 5px;
+  }
+  input, select {
+    width: 100%;
+    padding: 10px 11px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--ink);
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  button {
+    cursor: pointer;
+    font-size: 14px;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    padding: 11px 16px;
+    width: 100%;
+    margin-top: 20px;
+    font-weight: 600;
+  }
+  .btn-primary:disabled { opacity: .6; cursor: default; }
+  #login-erro {
+    color: var(--atrasado);
+    font-size: 13px;
+    margin-top: 12px;
+    display: none;
+  }
+
+  /* ---------- App shell ---------- */
+  #app { display: none; }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 17px; margin: 0; }
+  header .actions { display: flex; gap: 10px; align-items: center; }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--line);
+    padding: 8px 13px;
+    color: var(--ink);
+  }
+  .btn-accent {
+    background: var(--accent);
+    color: var(--accent-ink);
+    padding: 8px 14px;
+    font-weight: 600;
+  }
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  /* ---------- Resumo ---------- */
+  .resumo {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .resumo .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .resumo .card .num { font-size: 22px; font-weight: 700; }
+  .resumo .card .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ---------- Lista de clientes ---------- */
+  .lista { display: flex; flex-direction: column; gap: 10px; }
+  .cliente {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .cliente .info { min-width: 180px; }
+  .cliente .nome { font-weight: 600; font-size: 14.5px; }
+  .cliente .detalhe { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .status-pill {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .status-pill.pago { background: var(--pago-bg); color: var(--pago); }
+  .status-pill.pendente { background: var(--pendente-bg); color: var(--pendente); }
+  .status-pill.atrasado { background: var(--atrasado-bg); color: var(--atrasado); }
+  .cliente .right { display: flex; align-items: center; gap: 10px; }
+
+  .vazio {
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 20px;
+    font-size: 14px;
+  }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 18, 15, 0.45);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 50;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .modal h2 { font-size: 16px; margin: 0 0 4px; }
+  .modal p.sub { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+  }
+  .modal-actions button { flex: 1; padding: 10px; }
+
+  @media (max-width: 560px) {
+    .resumo { grid-template-columns: 1fr; }
+    header { padding: 14px 16px; }
+    main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-screen">
+  <div id="login-box">
+    <h1>Assinaturas</h1>
+    <p class="sub">Painel administrativo — Sistema Dias</p>
+    <label for="login-email">E-mail</label>
+    <input type="email" id="login-email" autocomplete="username" placeholder="seu@email.com">
+    <label for="login-senha">Senha</label>
+    <input type="password" id="login-senha" autocomplete="current-password" placeholder="••••••••">
+    <button class="btn-primary" id="btn-login" onclick="fazerLogin()">Entrar</button>
+    <p id="login-erro"></p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <header>
+    <h1>Assinaturas e pagamentos</h1>
+    <div class="actions">
+      <button class="btn-accent" onclick="abrirModalCliente()">+ Novo cliente</button>
+      <button class="btn-ghost" onclick="sair()">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="resumo">
+      <div class="card">
+        <div class="num" id="resumo-total">—</div>
+        <div class="label">Clientes ativos</div>
+      </div>
+      <div class="card">
+        <div class="num" id="resumo-pagos">—</div>
+        <div class="label">Pagos este mês</div>
+      </div>
+      <div class="card">
+        <div class="num" id="resumo-pendentes">—</div>
+        <div class="label">Pendentes / atrasados</div>
+      </div>
+    </div>
+
+    <div class="lista" id="lista-clientes">
+      <div class="vazio">Carregando…</div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ MODAL: novo cliente ============ -->
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal">
+    <h2>Novo cliente</h2>
+    <p class="sub">Cadastra uma nova assinatura mensal</p>
+
+    <label for="novo-nome">Nome da clínica</label>
+    <input type="text" id="novo-nome" placeholder="Ex: Clínica Dra. Fulana">
+
+    <label for="novo-tenant">Identificador (tenant_id / slug)</label>
+    <input type="text" id="novo-tenant" placeholder="Ex: clinica-fulana">
+
+    <label for="novo-valor">Valor mensal (R$)</label>
+    <input type="number" id="novo-valor" value="250" step="0.01">
+
+    <label for="novo-dia">Dia de vencimento</label>
+    <input type="number" id="novo-dia" value="10" min="1" max="28">
+
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="fecharModal('modal-cliente')">Cancelar</button>
+      <button class="btn-accent" onclick="salvarCliente()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: registrar pagamento ============ -->
+<div class="modal-overlay" id="modal-pagamento">
+  <div class="modal">
+    <h2>Registrar pagamento</h2>
+    <p class="sub">Marca o mês corrente como pago</p>
+    <input type="hidden" id="pag-assinatura-id">
+
+    <label for="pag-data">Data do pagamento</label>
+    <input type="date" id="pag-data">
+
+    <label for="pag-forma">Forma de pagamento</label>
+    <select id="pag-forma">
+      <option value="Pix">Pix</option>
+      <option value="Boleto">Boleto</option>
+      <option value="Cartão">Cartão</option>
+      <option value="Transferência">Transferência</option>
+      <option value="Outro">Outro</option>
+    </select>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="fecharModal('modal-pagamento')">Cancelar</button>
+      <button class="btn-accent" onclick="confirmarPagamento()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Configuração — troque pela URL e anon key do projeto
+// nathaeuqbeqlvkftbmes (Settings → API no Supabase)
+// ============================================================
+const SUPABASE_URL = "https://nathaeuqbeqlvkftbmes.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg";
+
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let assinaturasCache = [];
+
+function mesRefAtual() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+// ---------------- Login ----------------
+async function fazerLogin() {
+  const email = document.getElementById("login-email").value.trim();
+  const senha = document.getElementById("login-senha").value;
+  const erroEl = document.getElementById("login-erro");
+  const btn = document.getElementById("btn-login");
+
+  erroEl.style.display = "none";
+  btn.disabled = true;
+  btn.textContent = "Entrando…";
+
+  const { error } = await supa.auth.signInWithPassword({ email, password: senha });
+
+  btn.disabled = false;
+  btn.textContent = "Entrar";
+
+  if (error) {
+    erroEl.textContent = "E-mail ou senha incorretos.";
+    erroEl.style.display = "block";
+    return;
+  }
+
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  carregarDados();
+}
+
+async function sair() {
+  await supa.auth.signOut();
+  document.getElementById("app").style.display = "none";
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("login-email").value = "";
+  document.getElementById("login-senha").value = "";
+}
+
+// ---------------- Carregar dados ----------------
+async function carregarDados() {
+  const mesRef = mesRefAtual();
+
+  const { data: assinaturas, error: errAssin } = await supa
+    .from("assinaturas")
+    .select("*")
+    .order("nome_cliente", { ascending: true });
+
+  if (errAssin) {
+    document.getElementById("lista-clientes").innerHTML =
+      `<div class="vazio">Erro ao carregar: ${errAssin.message}</div>`;
+    return;
+  }
+
+  const { data: pagamentos } = await supa
+    .from("pagamentos")
+    .select("*")
+    .eq("mes_referencia", mesRef);
+
+  const pagamentosPorAssinatura = {};
+  (pagamentos || []).forEach(p => { pagamentosPorAssinatura[p.assinatura_id] = p; });
+
+  assinaturasCache = assinaturas || [];
+  renderLista(assinaturasCache, pagamentosPorAssinatura);
+  renderResumo(assinaturasCache, pagamentosPorAssinatura);
+}
+
+function statusDoMes(assinatura, pagamento) {
+  if (pagamento && pagamento.status === "pago") return "pago";
+  const hoje = new Date();
+  if (hoje.getDate() > assinatura.dia_vencimento) return "atrasado";
+  return "pendente";
+}
+
+function renderResumo(assinaturas, pagamentosPorAssinatura) {
+  const ativos = assinaturas.filter(a => a.status === "ativo");
+  let pagos = 0, pendentes = 0;
+  ativos.forEach(a => {
+    const st = statusDoMes(a, pagamentosPorAssinatura[a.id]);
+    if (st === "pago") pagos++; else pendentes++;
+  });
+  document.getElementById("resumo-total").textContent = ativos.length;
+  document.getElementById("resumo-pagos").textContent = pagos;
+  document.getElementById("resumo-pendentes").textContent = pendentes;
+}
+
+function renderLista(assinaturas, pagamentosPorAssinatura) {
+  const container = document.getElementById("lista-clientes");
+
+  if (!assinaturas.length) {
+    container.innerHTML = `<div class="vazio">Nenhum cliente cadastrado ainda.</div>`;
+    return;
+  }
+
+  container.innerHTML = assinaturas.map(a => {
+    const pagamento = pagamentosPorAssinatura[a.id];
+    const status = statusDoMes(a, pagamento);
+    const label = { pago: "Pago", pendente: "Pendente", atrasado: "Atrasado" }[status];
+
+    return `
+      <div class="cliente">
+        <div class="info">
+          <div class="nome">${escapeHtml(a.nome_cliente)}</div>
+          <div class="detalhe">${escapeHtml(a.tenant_id)} · R$ ${Number(a.valor_mensal).toFixed(2)} · vence dia ${a.dia_vencimento}</div>
+        </div>
+        <div class="right">
+          <span class="status-pill ${status}">${label}</span>
+          ${status !== "pago"
+            ? `<button class="btn-accent" onclick="abrirModalPagamento('${a.id}')">Marcar pago</button>`
+            : ""}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str ?? "";
+  return div.innerHTML;
+}
+
+// ---------------- Modais ----------------
+function abrirModalCliente() {
+  document.getElementById("modal-cliente").classList.add("open");
+}
+
+function fecharModal(id) {
+  document.getElementById(id).classList.remove("open");
+}
+
+async function salvarCliente() {
+  const nome = document.getElementById("novo-nome").value.trim();
+  const tenant = document.getElementById("novo-tenant").value.trim();
+  const valor = parseFloat(document.getElementById("novo-valor").value);
+  const dia = parseInt(document.getElementById("novo-dia").value, 10);
+
+  if (!nome || !tenant) {
+    alert("Preencha nome e identificador do cliente.");
+    return;
+  }
+
+  const { error } = await supa.from("assinaturas").insert({
+    nome_cliente: nome,
+    tenant_id: tenant,
+    valor_mensal: valor,
+    dia_vencimento: dia,
+    status: "ativo"
+  });
+
+  if (error) {
+    alert("Erro ao salvar: " + error.message);
+    return;
+  }
+
+  fecharModal("modal-cliente");
+  document.getElementById("novo-nome").value = "";
+  document.getElementById("novo-tenant").value = "";
+  document.getElementById("novo-valor").value = "250";
+  document.getElementById("novo-dia").value = "10";
+  carregarDados();
+}
+
+function abrirModalPagamento(assinaturaId) {
+  document.getElementById("pag-assinatura-id").value = assinaturaId;
+  document.getElementById("pag-data").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("modal-pagamento").classList.add("open");
+}
+
+async function confirmarPagamento() {
+  const assinaturaId = document.getElementById("pag-assinatura-id").value;
+  const data = document.getElementById("pag-data").value;
+  const forma = document.getElementById("pag-forma").value;
+
+  const assinatura = assinaturasCache.find(a => a.id === assinaturaId);
+
+  const { error } = await supa
+    .from("pagamentos")
+    .upsert({
+      assinatura_id: assinaturaId,
+      mes_referencia: mesRefAtual(),
+      status: "pago",
+      data_pagamento: data,
+      valor_pago: assinatura ? assinatura.valor_mensal : null,
+      forma_pagamento: forma
+    }, { onConflict: "assinatura_id,mes_referencia" });
+
+  if (error) {
+    alert("Erro ao registrar pagamento: " + error.message);
+    return;
+  }
+
+  fecharModal("modal-pagamento");
+  carregarDados();
+}
+
+// se já houver uma sessão ativa, pula a tela de login
+supa.auth.getSession().then(({ data }) => {
+  if (data.session) {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    carregarDados();
+  }
+});
+</script>
+</body>
+</html>
