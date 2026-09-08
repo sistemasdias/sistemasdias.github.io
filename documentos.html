@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Documentos — Clínica Dra. Anna Carolina Dias</title>
+<title id="doc-page-title">Documentos — Clínica</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
@@ -155,7 +155,7 @@ textarea{resize:vertical}
 <header class="hdr">
   <div style="display:flex;align-items:center;gap:10px">
     <a href="javascript:history.back()" style="color:white;text-decoration:none;opacity:.8;font-size:20px">←</a>
-    <h1>📄 Documentos — Dra. Anna Carolina Dias</h1>
+    <h1>📄 Documentos — <span id="doc-h1-nome">Clínica</span></h1>
   </div>
   <div id="hdr-pac" style="font-size:12px;opacity:.8"></div>
 </header>
@@ -200,9 +200,9 @@ textarea{resize:vertical}
   <div id="panel-anamnese" class="panel">
     <div class="card">
       <div style="text-align:center;margin-bottom:1rem">
-        <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-        <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+        <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Ficha de Anamnese Avançada</div>
       </div>
       <div id="anamnese-pac-info" class="pac-info"></div>
@@ -264,9 +264,9 @@ textarea{resize:vertical}
   <div id="panel-autorizacao-imagem" class="panel">
     <div class="card">
       <div style="text-align:center;margin-bottom:1rem">
-        <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-        <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+        <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Autorização de Uso de Imagem</div>
       </div>
       <div id="imagem-pac-info" class="pac-info"></div>
@@ -312,9 +312,9 @@ textarea{resize:vertical}
   <div id="panel-orcamento" class="panel">
     <div class="card">
       <div style="text-align:center;margin-bottom:1rem">
-        <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-        <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+        <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Ficha de Orçamento</div>
       </div>
       <div id="orc-pac-info" class="pac-info"></div>
@@ -379,7 +379,7 @@ textarea{resize:vertical}
             <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Assinatura do Paciente</div>
           </div>
           <div style="text-align:center">
-            <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Dra. Anna Carolina Dias — CRO 82281</div>
+            <div class="doc-clinic-assinatura" style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px"></div>
           </div>
         </div>
         <div style="text-align:center;margin-top:1rem;font-size:10px;color:#888">
@@ -556,9 +556,9 @@ textarea{resize:vertical}
   <div id="panel-planejamento" class="panel">
     <div class="card">
       <div style="text-align:center;margin-bottom:1rem">
-        <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-        <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+        <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Planejamento de Procedimentos Faciais</div>
       </div>
       <div id="plan-pac-info" class="pac-info"></div>
@@ -597,9 +597,9 @@ textarea{resize:vertical}
   <div id="panel-odontograma" class="panel">
     <div class="card">
       <div style="text-align:center;margin-bottom:1rem">
-        <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-        <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+        <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Ficha Clínica — Odontograma</div>
       </div>
       <div id="odonto-pac-info" class="pac-info"></div>
@@ -649,9 +649,9 @@ textarea{resize:vertical}
   <div id="panel-anamnese-odonto" class="panel">
     <div class="card">
       <div style="text-align:center;margin-bottom:1rem">
-        <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-        <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+        <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Ficha de Exame / Anamnese Odontológica</div>
       </div>
       <div id="anodonto-pac-info" class="pac-info"></div>
@@ -689,9 +689,9 @@ textarea{resize:vertical}
   <div id="panel-receituario" class="panel">
     <div class="card">
       <div style="text-align:center;margin-bottom:1rem">
-        <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-        <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+        <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Receituário Médico</div>
       </div>
       <div id="rec-pac-info" class="pac-info"></div>
@@ -715,7 +715,7 @@ textarea{resize:vertical}
             <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Assinatura do Paciente</div>
           </div>
           <div style="text-align:center">
-            <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Dra. Anna Carolina Dias — CRO 82281</div>
+            <div class="doc-clinic-assinatura" style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px"></div>
           </div>
         </div>
       </div>
@@ -731,9 +731,9 @@ textarea{resize:vertical}
   <div id="panel-receituario-estetico" class="panel">
     <div class="card">
       <div style="text-align:center;margin-bottom:1rem">
-        <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-        <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+        <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Receituário de Produtos Estéticos</div>
       </div>
       <div id="rece-pac-info" class="pac-info"></div>
@@ -774,7 +774,7 @@ textarea{resize:vertical}
             <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Assinatura do Paciente</div>
           </div>
           <div style="text-align:center">
-            <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Dra. Anna Carolina Dias — CRO 82281</div>
+            <div class="doc-clinic-assinatura" style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px"></div>
           </div>
         </div>
       </div>
@@ -790,9 +790,9 @@ textarea{resize:vertical}
   <div id="panel-receituario-simples" class="panel">
     <div class="card">
       <div style="text-align:center;margin-bottom:1rem">
-        <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-        <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+        <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Receituário</div>
       </div>
       <div id="recs-pac-info" class="pac-info"></div>
@@ -806,7 +806,7 @@ textarea{resize:vertical}
             <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Assinatura do Paciente</div>
           </div>
           <div style="text-align:center">
-            <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Dra. Anna Carolina Dias — CRO 82281</div>
+            <div class="doc-clinic-assinatura" style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px"></div>
           </div>
         </div>
       </div>
@@ -822,9 +822,9 @@ textarea{resize:vertical}
   <div id="panel-orcamento-simples" class="panel">
     <div class="card">
       <div style="text-align:center;margin-bottom:1rem">
-        <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-        <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-        <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+        <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Orçamento</div>
       </div>
       <div id="orcs-pac-info" class="pac-info"></div>
@@ -856,7 +856,7 @@ textarea{resize:vertical}
             <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Assinatura do Paciente</div>
           </div>
           <div style="text-align:center">
-            <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Dra. Anna Carolina Dias — CRO 82281</div>
+            <div class="doc-clinic-assinatura" style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px"></div>
           </div>
         </div>
         <div style="text-align:center;margin-top:1rem;font-size:10px;color:#888">
@@ -963,6 +963,29 @@ async function carregar(){
   const{data}=await db.from('pacientes').select('*').order('nome');
   pacs=data||[];
   await carregarProdutosEstoque();
+  await aplicarBrandingDocumentos();
+}
+
+// Preenche a marca da clínica (logo, especialidade/CRO, endereço, assinatura)
+// em todos os documentos de uma vez, puxando do cadastro — não fica mais preso
+// à Dra. Anna Carolina. Roda no carregamento da página, e de novo sempre que
+// um termo de consentimento é gerado dinamicamente (abrirTermo).
+async function aplicarBrandingDocumentos(){
+  if(window.CLINICA_CONFIG_PRONTO) await window.CLINICA_CONFIG_PRONTO;
+  const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
+  document.querySelectorAll('.doc-clinic-logo').forEach(el=>{
+    el.src=c.logo||'logo.jpg';
+    el.alt=c.nome||'Clínica';
+  });
+  const subline=[c.especialidade,c.registro,c.telefone?('Tel: '+c.telefone):''].filter(Boolean).join(' · ').toUpperCase();
+  document.querySelectorAll('.doc-clinic-subline').forEach(el=>{ el.textContent=subline; });
+  document.querySelectorAll('.doc-clinic-endereco').forEach(el=>{ el.textContent=c.endereco||''; });
+  document.querySelectorAll('.doc-clinic-assinatura').forEach(el=>{
+    el.textContent=[c.nome,c.registro].filter(Boolean).join(' — ');
+  });
+  document.title='Documentos — '+(c.nome||'Clínica');
+  const h1=document.getElementById('doc-h1-nome');
+  if(h1) h1.textContent=c.nome||'Clínica';
 }
 
 // BUSCA PACIENTE
@@ -1452,18 +1475,18 @@ function abrirTermo(tipo){
   const t=TERMOS[tipo];const p=pacSelecionada;
   const html=`<div class="card">
     <div style="text-align:center;margin-bottom:1rem">
-      <img src="logo.jpg" alt="Dra. Anna Carolina" style="height:70px;object-fit:contain;margin-bottom:4px"/>
-      <div style="font-size:11px;color:var(--ct);margin-top:2px">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
-      <div style="font-size:10px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP · CEP: 15170-027</div>
+      <img class="doc-clinic-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+      <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+      <div class="doc-clinic-endereco" style="font-size:10px;color:var(--ct)"></div>
       <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">${t.titulo}</div>
     </div>
     <div class="pac-info"><div><div class="pac-info-nome">${escapeHtml(p.nome)}${p.apelido?` (${escapeHtml(p.apelido)})`:''}</div><div class="pac-info-sub">${escapeHtml(p.telefone)}</div></div></div>
     <div class="fg" style="margin-bottom:1rem">
       <div class="fgr"><label>CPF do Paciente</label><input type="text" id="${tipo}-cpf" value="${p.cpf||''}" placeholder="000.000.000-00"/></div>
-      <div class="fgr"><label>CPF do Profissional</label><input type="text" value="296.114.268-79" readonly/></div>
+      <div class="fgr"><label>CPF/CNPJ do Profissional</label><input type="text" value="${escapeHtml((typeof CLINICA_CONFIG!=='undefined'&&CLINICA_CONFIG.cnpjCpf)||'')}" readonly/></div>
     </div>
     <div class="termo-texto">
-      <p>Eu, <strong>${escapeHtml(p.nome)}</strong>, declaro estar ciente e concordo em realizar o procedimento de <strong>${escapeHtml(t.procedimento)}</strong>, conforme orientação e esclarecimentos prestados pela profissional responsável Dra. Anna Carolina Dias.</p>
+      <p>Eu, <strong>${escapeHtml(p.nome)}</strong>, declaro estar ciente e concordo em realizar o procedimento de <strong>${escapeHtml(t.procedimento)}</strong>, conforme orientação e esclarecimentos prestados pela profissional responsável ${escapeHtml((typeof CLINICA_CONFIG!=='undefined'&&CLINICA_CONFIG.nome)||'Clínica')}.</p>
       <p>Declaro que recebi informações adequadas sobre o procedimento e suas possíveis complicações, riscos e benefícios. Entendo que ${t.descricao}</p>
       <p><strong>Natureza do procedimento:</strong> Compreendo que o procedimento de ${escapeHtml(t.procedimento)} será realizado através de injeções nas áreas específicas acordadas com o(a) profissional responsável.</p>
       <p><strong>Benefícios e resultados esperados:</strong> Fui informado(a) de que ${t.beneficios} No entanto, entendo que os resultados podem variar de pessoa para pessoa, e não há garantia de resultados completos ou permanentes.</p>
@@ -1485,6 +1508,7 @@ function abrirTermo(tipo){
     </div>
   </div>`;
   document.getElementById('conteudo-'+tipo).innerHTML=html;
+  aplicarBrandingDocumentos();
   iniciarSig(`sig-${tipo}-pac`);iniciarSig(`sig-${tipo}-pro`);
 }
 
