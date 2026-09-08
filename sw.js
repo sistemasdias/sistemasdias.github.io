@@ -3,7 +3,7 @@
 // v3 — cache inteligente + notificações + instalação PWA
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'clinica-cache-v38';
+const CACHE_NAME = 'clinica-cache-v39';
 
 // Arquivos do app que ficam em cache (shell do app)
 const APP_SHELL = [
@@ -97,7 +97,7 @@ self.addEventListener('message', (event) => {
 
   if (data.type === 'SHOW_NOTIFICATION') {
     const { title, body, tag, url } = data;
-    self.registration.showNotification(title || 'Clínica Anna Carolina', {
+    self.registration.showNotification(title || 'Clínica', {
       body: body || '',
       tag: tag || 'clinica-notif',
       icon: './logo.jpg',
@@ -122,7 +122,7 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes('clinicaannacarolina') && 'focus' in client) {
+        if ('focus' in client) {
           client.focus();
           client.navigate(targetUrl);
           return;
