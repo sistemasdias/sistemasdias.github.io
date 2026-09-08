@@ -2408,7 +2408,8 @@ async function gerarLinkAnamnese(){
   }
 
   const baseUrl = window.location.href.replace('paciente.html','').replace(/\?.*$/,'');
-  _anamneseLinkUrl = `${baseUrl}anamnese-link.html?token=${token}`;
+  const slugAtual = (()=>{ try { return localStorage.getItem('clinica_slug'); } catch(e){ return null; } })();
+  _anamneseLinkUrl = `${baseUrl}anamnese-link.html?token=${token}`+(slugAtual?`&c=${encodeURIComponent(slugAtual)}`:'');
 
   document.getElementById('anamnese-link-url').textContent = _anamneseLinkUrl;
   document.getElementById('anamnese-link-status').style.display='none';
