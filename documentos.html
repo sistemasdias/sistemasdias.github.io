@@ -888,11 +888,14 @@ textarea{resize:vertical}
       <div class="fg" style="margin-bottom:1rem">
         <div class="fgr"><label>CID (opcional)</label><input type="text" id="atestado-cid" placeholder="Ex: K08.9" oninput="atualizarTextoAtestado()"/></div>
         <div class="fgr"><label>Finalidade</label>
-          <select id="atestado-finalidade" onchange="atualizarTextoAtestado()">
+          <select id="atestado-finalidade" onchange="onMudarFinalidadeAtestado()">
             <option value="atividades laborais">Atividades laborais</option>
             <option value="atividades escolares">Atividades escolares</option>
-            <option value="suas atividades">Geral / não especificado</option>
+            <option value="atividades físicas">Atividades físicas / esportivas</option>
+            <option value="suas atividades habituais">Atividades habituais (geral)</option>
+            <option value="__outro__">Outro (digitar)</option>
           </select>
+          <input type="text" id="atestado-finalidade-outro" placeholder="Digite a finalidade..." style="display:none;margin-top:6px" oninput="atualizarTextoAtestado()"/>
         </div>
       </div>
       <div class="sec-title">Observações (opcional)</div>
@@ -1239,6 +1242,8 @@ async function abrirAtestado(){
   document.getElementById('atestado-dias').value='';
   document.getElementById('atestado-cid').value='';
   document.getElementById('atestado-finalidade').value='atividades laborais';
+  document.getElementById('atestado-finalidade-outro').value='';
+  document.getElementById('atestado-finalidade-outro').style.display='none';
   document.getElementById('atestado-obs').value='';
 
   if(window.CLINICA_CONFIG_PRONTO) await window.CLINICA_CONFIG_PRONTO;
@@ -1251,13 +1256,29 @@ async function abrirAtestado(){
   atualizarTextoAtestado();
 }
 
+function onMudarFinalidadeAtestado(){
+  const sel=document.getElementById('atestado-finalidade');
+  const outro=document.getElementById('atestado-finalidade-outro');
+  outro.style.display=(sel.value==='__outro__')?'block':'none';
+  if(sel.value==='__outro__') outro.focus();
+  atualizarTextoAtestado();
+}
+
+function finalidadeAtestadoAtual(){
+  const sel=document.getElementById('atestado-finalidade')?.value||'atividades laborais';
+  if(sel==='__outro__'){
+    return document.getElementById('atestado-finalidade-outro')?.value.trim()||'suas atividades';
+  }
+  return sel;
+}
+
 function atualizarTextoAtestado(){
   const p=pacSelecionada; if(!p) return;
   const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
   const data=document.getElementById('atestado-data')?.value||HOJE;
   const dias=document.getElementById('atestado-dias')?.value||'';
   const cid=document.getElementById('atestado-cid')?.value||'';
-  const finalidade=document.getElementById('atestado-finalidade')?.value||'atividades laborais';
+  const finalidade=finalidadeAtestadoAtual();
   const obs=document.getElementById('atestado-obs')?.value||'';
 
   let texto=`Atesto, para os devidos fins, que o(a) paciente <strong>${escapeHtml(p.nome)}</strong>${p.cpf?`, portador(a) do CPF <strong>${escapeHtml(p.cpf)}</strong>,`:''} foi atendido(a) nesta clínica em <strong>${fDt(data)}</strong>`;
@@ -1963,7 +1984,7 @@ async function salvarDoc(tipo){
     dados.data=document.getElementById('atestado-data')?.value||'';
     dados.dias=document.getElementById('atestado-dias')?.value||'';
     dados.cid=document.getElementById('atestado-cid')?.value||'';
-    dados.finalidade=document.getElementById('atestado-finalidade')?.value||'';
+    dados.finalidade=finalidadeAtestadoAtual();
     dados.obs=document.getElementById('atestado-obs')?.value||'';
   }
 
@@ -2202,7 +2223,17 @@ async function verDoc(id,tipo){
     if(d.data) document.getElementById('atestado-data').value=d.data;
     if(d.dias) document.getElementById('atestado-dias').value=d.dias;
     if(d.cid) document.getElementById('atestado-cid').value=d.cid;
-    if(d.finalidade) document.getElementById('atestado-finalidade').value=d.finalidade;
+    if(d.finalidade){
+      const opcoes=Array.from(document.getElementById('atestado-finalidade').options).map(o=>o.value);
+      if(opcoes.includes(d.finalidade)){
+        document.getElementById('atestado-finalidade').value=d.finalidade;
+        document.getElementById('atestado-finalidade-outro').style.display='none';
+      } else {
+        document.getElementById('atestado-finalidade').value='__outro__';
+        document.getElementById('atestado-finalidade-outro').value=d.finalidade;
+        document.getElementById('atestado-finalidade-outro').style.display='block';
+      }
+    }
     if(d.obs) document.getElementById('atestado-obs').value=d.obs;
     atualizarTextoAtestado();
   }
