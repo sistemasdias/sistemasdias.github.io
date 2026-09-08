@@ -911,7 +911,9 @@ textarea{resize:vertical}
             <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Assinatura do Paciente</div>
           </div>
           <div style="text-align:center">
-            <div id="atestado-assinatura-nome" style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px"></div>
+            <div class="sig-area" style="margin:0 auto"><canvas id="sig-atestado-pro" width="280" height="90"></canvas><span class="sig-label">Assine aqui</span></div>
+            <button class="btn" style="margin-top:6px;font-size:12px" onclick="limparSig('sig-atestado-pro')">Limpar assinatura</button>
+            <div id="atestado-assinatura-nome" style="border-top:1px solid #333;padding-top:8px;margin-top:.5rem;font-size:12px"></div>
           </div>
         </div>
       </div>
@@ -1237,6 +1239,9 @@ async function abrirAtestado(){
   document.getElementById('atestado-esp-cro').textContent=[c.especialidade,c.registro].filter(Boolean).join(' · ');
   document.getElementById('atestado-endereco').textContent=[c.endereco,c.telefone?('Tel: '+c.telefone):''].filter(Boolean).join(' · ');
   document.getElementById('atestado-assinatura-nome').textContent=[c.nome,c.registro].filter(Boolean).join(' — ');
+
+  if(!_modoVer) limparSig('sig-atestado-pro');
+  iniciarSig('sig-atestado-pro');
 
   atualizarTextoAtestado();
 }
