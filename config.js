@@ -177,7 +177,7 @@ async function carregarConfigClinica() {
     const auth = JSON.parse(localStorage.getItem('clinica_auth') || '{}');
     let c = null;
 
-    if (auth.ok && auth.access_token) {
+    if (auth.ok && auth.access_token && !window.PAGINA_PUBLICA) {
       // Usuário logado: busca a config da PRÓPRIA clínica automaticamente —
       // a segurança do banco (RLS) já filtra sozinha, sem precisar saber o slug.
       const resAuth = await fetch(`${SB_URL}/rest/v1/config_clinica?select=*&limit=1`, {
