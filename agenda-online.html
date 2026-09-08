@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
-  <title>Agendar Consulta — Dra. Anna Carolina Dias</title>
+  <title id="page-title">Agendar Consulta</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
   <style>
     :root{
       --verde:#2D9B6F;--verde-c:#e8f5f0;--verde-e:#1a6e4a;
@@ -65,10 +66,10 @@
 
 <div class="header">
   <div class="header-logo">
-    <img src="logo.jpg" alt="Dra. Anna Carolina"/>
+    <img id="hdr-logo" src="logo.jpg" alt="Logo da clínica"/>
   </div>
-  <h1>Dra. Anna Carolina Dias</h1>
-  <p>HARMONIZAÇÃO OROFACIAL · CRO 82281 · (17) 98211-3940</p>
+  <h1 id="hdr-nome">Carregando…</h1>
+  <p id="hdr-sub"></p>
 </div>
 
 <!-- ESTADO: INATIVO -->
@@ -76,14 +77,14 @@
   <div class="state-icon">🔒</div>
   <h2>Agendamento indisponível</h2>
   <p style="color:var(--ct);font-size:14px;max-width:280px">O agendamento online está temporariamente desativado. Entre em contato diretamente com a clínica.</p>
-  <a href="https://wa.me/5517982113993" target="_blank" style="margin-top:1rem;padding:12px 24px;background:var(--verde);color:white;border-radius:12px;text-decoration:none;font-weight:600;font-size:14px">💬 WhatsApp</a>
+  <a id="wa-inativo" href="#" target="_blank" style="margin-top:1rem;padding:12px 24px;background:var(--verde);color:white;border-radius:12px;text-decoration:none;font-weight:600;font-size:14px">💬 WhatsApp</a>
 </div>
 
 <!-- ESTADO: SUCESSO -->
 <div class="state" id="st-sucesso">
   <div class="state-icon">🎉</div>
   <h2>Solicitação enviada!</h2>
-  <p style="color:var(--ct);font-size:14px;line-height:1.6;max-width:300px">Sua solicitação de agendamento foi recebida. A Dra. Anna Carolina confirmará em breve pelo WhatsApp.</p>
+  <p id="msg-sucesso" style="color:var(--ct);font-size:14px;line-height:1.6;max-width:300px">Sua solicitação de agendamento foi recebida. A clínica confirmará em breve pelo WhatsApp.</p>
   <div id="st-suc-resumo" style="margin-top:1.25rem;background:var(--verde-c);border-radius:12px;padding:14px 18px;text-align:left;width:100%;max-width:320px;font-size:13px"></div>
   <a id="btn-salvar-agenda" href="#" style="margin-top:1rem;display:flex;align-items:center;gap:8px;padding:13px 24px;background:var(--verde);color:white;border-radius:12px;text-decoration:none;font-weight:700;font-size:15px">📆 Salvar na minha agenda</a>
 </div>
@@ -157,7 +158,7 @@
       <div style="background:#f0f9f4;border:1.5px solid var(--verde);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start">
         <input type="checkbox" id="lgpd-ok" style="margin-top:3px;width:16px;height:16px;flex-shrink:0;accent-color:var(--verde)"/>
         <label for="lgpd-ok" style="font-size:12px;color:var(--txt);line-height:1.5;cursor:pointer">
-          Autorizo o uso dos meus dados pessoais (nome e telefone) pela clínica da Dra. Anna Carolina Dias exclusivamente para fins de agendamento e contato relacionado ao atendimento, conforme a <strong>Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)</strong>.
+          Autorizo o uso dos meus dados pessoais (nome e telefone) pela <span id="lgpd-clinica-nome">clínica</span> exclusivamente para fins de agendamento e contato relacionado ao atendimento, conforme a <strong>Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)</strong>.
         </label>
       </div>
       <button class="btn-pri" aria-label="Confirmar" id="btn-confirmar" onclick="confirmarAgendamento()">✅ Confirmar solicitação</button>
@@ -170,10 +171,36 @@
 </div>
 
 <script>
-const SB_URL='https://nathaeuqbeqlvkftbmes.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg';
+// SB_URL e SB_KEY já vêm declarados globalmente pelo config.js
 const{createClient}=supabase;
 const db=createClient(SB_URL,SB_KEY);
+
+// ── Resolve o clinica_id real a partir do slug da URL (?c=slug) ──
+// Necessário porque a policy de RLS que permite o agendamento anônimo
+// exige um clinica_id válido explícito no insert (clinica_e_valida()).
+let CLINICA_ID = null;
+async function resolverClinicaId() {
+  const slug = obterSlugClinicaDaUrl();
+  const res = await fetch(`${SB_URL}/rest/v1/clinicas_publica?select=id&slug=eq.${encodeURIComponent(slug)}&limit=1`, {
+    headers: { 'apikey': SB_KEY }
+  });
+  const data = await res.json();
+  CLINICA_ID = Array.isArray(data) && data[0] ? data[0].id : null;
+}
+
+function aplicarBrandingClinica() {
+  document.getElementById('page-title').textContent = `Agendar Consulta — ${CLINICA_CONFIG.nome}`;
+  document.getElementById('hdr-logo').src = CLINICA_CONFIG.logo || 'logo.jpg';
+  document.getElementById('hdr-logo').alt = CLINICA_CONFIG.nome;
+  document.getElementById('hdr-nome').textContent = CLINICA_CONFIG.nome;
+  const sub = [CLINICA_CONFIG.especialidade, CLINICA_CONFIG.registro, CLINICA_CONFIG.telefone]
+    .filter(Boolean).join(' · ');
+  document.getElementById('hdr-sub').textContent = sub.toUpperCase();
+  document.getElementById('lgpd-clinica-nome').textContent = 'clínica ' + CLINICA_CONFIG.nome;
+  document.getElementById('msg-sucesso').textContent = `Sua solicitação de agendamento foi recebida. ${CLINICA_CONFIG.nome} confirmará em breve pelo WhatsApp.`;
+  const waNum = (CLINICA_CONFIG.whatsapp || '').replace(/\D/g,'');
+  if (waNum) document.getElementById('wa-inativo').href = `https://wa.me/55${waNum}`;
+}
 
 // Config padrão — lida do localStorage (configurada no painel da clínica)
 const rawConf=JSON.parse(localStorage.getItem('conf_ag_online')||'{}');
@@ -217,6 +244,15 @@ function setState(id){
 
 // ── Iniciar ──
 async function init(){
+  await window.CLINICA_CONFIG_PRONTO;
+  await resolverClinicaId();
+  aplicarBrandingClinica();
+  if(!CLINICA_ID){
+    setState('st-inativo');
+    document.querySelector('#st-inativo h2').textContent='Clínica não encontrada';
+    document.querySelector('#st-inativo p').textContent='O link de agendamento está incorreto ou a clínica não está mais ativa.';
+    return;
+  }
   if(!CONF.ativo){setState('st-inativo');return;}
   calMes=new Date();
   calMes.setDate(1);
@@ -224,7 +260,7 @@ async function init(){
   const hoje=new Date().toISOString().split('T')[0];
   const fim=new Date();fim.setDate(fim.getDate()+CONF.max_dias);
   const fimStr=fim.toISOString().split('T')[0];
-  const{data}=await db.from('agenda').select('data,hora,status').gte('data',hoje).lte('data',fimStr).neq('status','cancelado');
+  const{data}=await db.from('agenda').select('data,hora,status').eq('clinica_id',CLINICA_ID).gte('data',hoje).lte('data',fimStr).neq('status','cancelado');
   consultasExist=data||[];
   setState('st-form');
   renderCal();
@@ -374,6 +410,7 @@ async function confirmarAgendamento(){
   const obs=document.getElementById('p-obs').value.trim();
   try{
     const{error}=await db.from('agenda').insert({
+      clinica_id:CLINICA_ID,
       nome,
       telefone:tel||null,
       procedimento:proc||null,
@@ -397,7 +434,7 @@ async function confirmarAgendamento(){
   document.getElementById('st-suc-resumo').innerHTML=`
     <div style="font-weight:700;font-size:15px;margin-bottom:8px">📅 ${fDtLong(dataSel)} às ${horaSel}</div>
     ${proc?`<div style="color:var(--verde-e);margin-bottom:4px">💉 ${escapeHtml(proc)}</div>`:''}
-    <div style="color:var(--ct);font-size:12px;margin-top:8px">Rua Capitão Daniel da Cunha Morais, 632 · Tanabi/SP</div>
+    ${CLINICA_CONFIG.endereco?`<div style="color:var(--ct);font-size:12px;margin-top:8px">${escapeHtml(CLINICA_CONFIG.endereco)}</div>`:''}
   `;
   // Link para salvar na agenda
   const dAdd=dataSel.replace(/-/g,'');
