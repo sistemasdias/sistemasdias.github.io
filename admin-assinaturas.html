@@ -130,7 +130,7 @@
   /* ---------- Resumo ---------- */
   .resumo {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
     margin-bottom: 20px;
   }
@@ -283,10 +283,17 @@
   </header>
 
   <main>
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 14px">
+      Bloqueio automático: quem não pagar o mês corrente é bloqueado sozinho no último dia do mês. Desbloqueio continua sendo manual.
+    </p>
     <div class="resumo">
       <div class="card">
         <div class="num" id="resumo-total">—</div>
         <div class="label">Clientes ativos</div>
+      </div>
+      <div class="card">
+        <div class="num" id="resumo-mrr">—</div>
+        <div class="label">Receita mensal (MRR)</div>
       </div>
       <div class="card">
         <div class="num" id="resumo-pagos">—</div>
@@ -455,20 +462,35 @@ async function carregarDados() {
     .select("*")
     .eq("mes_referencia", mesRef);
 
-  // Status de bloqueio de cada clínica (tenant_id == clinicas.slug)
+  // Status de bloqueio + plano/trial de cada clínica (tenant_id == clinicas.slug)
   const { data: clinicas } = await supa
     .from("clinicas")
-    .select("slug,status");
+    .select("slug,status,plano,criado_em");
   const statusClinicaPorSlug = {};
-  (clinicas || []).forEach(c => { statusClinicaPorSlug[c.slug] = c.status; });
+  const infoClinicaPorSlug = {};
+  (clinicas || []).forEach(c => {
+    statusClinicaPorSlug[c.slug] = c.status;
+    infoClinicaPorSlug[c.slug] = { plano: c.plano, criado_em: c.criado_em };
+  });
 
   const pagamentosPorAssinatura = {};
   (pagamentos || []).forEach(p => { pagamentosPorAssinatura[p.assinatura_id] = p; });
 
   assinaturasCache = assinaturas || [];
   clinicasCache = statusClinicaPorSlug;
-  renderLista(assinaturasCache, pagamentosPorAssinatura, statusClinicaPorSlug);
+  renderLista(assinaturasCache, pagamentosPorAssinatura, statusClinicaPorSlug, infoClinicaPorSlug);
   renderResumo(assinaturasCache, pagamentosPorAssinatura);
+}
+
+const TRIAL_DIAS = 14;
+
+function infoTrial(info) {
+  if (!info || info.plano !== "trial") return null;
+  const inicio = new Date(info.criado_em);
+  const hoje = new Date();
+  const diasPassados = Math.floor((hoje - inicio) / (1000 * 60 * 60 * 24));
+  const restam = TRIAL_DIAS - diasPassados;
+  return { restam, vencido: restam < 0 };
 }
 
 function diasEmAtraso(assinatura) {
@@ -487,17 +509,19 @@ function statusDoMes(assinatura, pagamento) {
 
 function renderResumo(assinaturas, pagamentosPorAssinatura) {
   const ativos = assinaturas.filter(a => a.status === "ativo");
-  let pagos = 0, pendentes = 0;
+  let pagos = 0, pendentes = 0, mrr = 0;
   ativos.forEach(a => {
     const st = statusDoMes(a, pagamentosPorAssinatura[a.id]);
     if (st === "pago") pagos++; else pendentes++;
+    mrr += Number(a.valor_mensal) || 0;
   });
   document.getElementById("resumo-total").textContent = ativos.length;
+  document.getElementById("resumo-mrr").textContent = "R$ " + mrr.toFixed(2);
   document.getElementById("resumo-pagos").textContent = pagos;
   document.getElementById("resumo-pendentes").textContent = pendentes;
 }
 
-function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug) {
+function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug, infoClinicaPorSlug) {
   const container = document.getElementById("lista-clientes");
 
   if (!assinaturas.length) {
@@ -512,6 +536,12 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug)
     const atraso = status === "atrasado" ? diasEmAtraso(a) : 0;
     const clinicaStatus = statusClinicaPorSlug[a.tenant_id] || "ativa";
     const bloqueada = clinicaStatus !== "ativa";
+    const trial = infoTrial((infoClinicaPorSlug || {})[a.tenant_id]);
+    const badgeTrial = trial
+      ? (trial.vencido
+          ? `<span class="status-pill atrasado">Trial vencido</span>`
+          : `<span class="status-pill pendente">Trial · ${trial.restam}d restantes</span>`)
+      : "";
 
     const avisoAtraso = atraso >= 15 && !bloqueada ? `
       <div class="aviso-atraso">
@@ -522,7 +552,7 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug)
     return `
       <div class="cliente">
         <div class="info">
-          <div class="nome">${escapeHtml(a.nome_cliente)} ${bloqueada ? '<span class="status-pill bloqueada">Bloqueada</span>' : ''}</div>
+          <div class="nome">${escapeHtml(a.nome_cliente)} ${bloqueada ? '<span class="status-pill bloqueada">Bloqueada</span>' : ''} ${badgeTrial}</div>
           <div class="detalhe">${escapeHtml(a.tenant_id)} · R$ ${Number(a.valor_mensal).toFixed(2)} · vence dia ${a.dia_vencimento}</div>
           <div class="detalhe"><a href="https://sistemasdias.github.io/login.html?c=${encodeURIComponent(a.tenant_id)}" target="_blank" style="color:var(--accent)">🔗 sistemasdias.github.io/login.html?c=${escapeHtml(a.tenant_id)}</a></div>
         </div>
