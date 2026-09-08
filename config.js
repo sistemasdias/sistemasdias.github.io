@@ -212,9 +212,38 @@ async function carregarConfigClinica() {
       CLINICA_CONFIG.cidade        = c.cidade || '';
       CLINICA_CONFIG.uf            = c.uf || '';
       CLINICA_CONFIG._id           = c.id;
-      document.documentElement.style.setProperty('--verde', c.cor_principal || '#1D9E75');
+      aplicarCorClinica(c.cor_principal || '#1D9E75');
     }
   } catch(e) { /* usa fallback */ }
+}
+
+// ── Aplica a cor da clínica em TODAS as variáveis de tema do sistema ──
+// O sistema usa 3 tons derivados de uma cor base: o tom principal (--verde),
+// um tom escuro (--verde-e, usado no cabeçalho e textos de destaque) e um
+// tom bem claro (--verde-c, usado em fundos suaves). Antes, só --verde era
+// trocado pela cor da clínica, deixando cabeçalho e fundos sempre na cor
+// padrão (verde) mesmo quando a clínica escolhia outra cor.
+function _hexParaRgb(hex) {
+  const h = hex.replace('#','');
+  const n = h.length === 3 ? h.split('').map(c=>c+c).join('') : h;
+  return [parseInt(n.slice(0,2),16), parseInt(n.slice(2,4),16), parseInt(n.slice(4,6),16)];
+}
+function _rgbParaHex(r,g,b) {
+  return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+}
+function _escurecer(hex, pct) {
+  const [r,g,b] = _hexParaRgb(hex);
+  return _rgbParaHex(r*(1-pct), g*(1-pct), b*(1-pct));
+}
+function _clarear(hex, pct) {
+  const [r,g,b] = _hexParaRgb(hex);
+  return _rgbParaHex(r+(255-r)*pct, g+(255-g)*pct, b+(255-b)*pct);
+}
+function aplicarCorClinica(corBase) {
+  const root = document.documentElement.style;
+  root.setProperty('--verde', corBase);
+  root.setProperty('--verde-e', _escurecer(corBase, 0.3));
+  root.setProperty('--verde-c', _clarear(corBase, 0.88));
 }
 
 // ── Função auxiliar para criar cliente Supabase autenticado ──
