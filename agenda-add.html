@@ -5,7 +5,7 @@
   <script src="config.js"></script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Salvar na Agenda — Dra. Anna Carolina Dias</title>
+  <title id="page-title">Salvar na Agenda</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     :root{--verde:#2D9B6F;--verde-c:#e8f5f0;--verde-e:#1a6e4a;--txt:#1a1a2e;--ct:#6b7280;--bg:#f5f7fa;--card:#fff;--borda:#e5e7eb}
@@ -34,10 +34,10 @@
 
 <div class="header">
   <div class="header-logo">
-    <img src="logo.jpg" alt="Dra. Anna Carolina"/>
+    <img id="hdr-logo" src="logo.jpg" alt="Logo da clínica"/>
   </div>
-  <h1>Dra. Anna Carolina Dias</h1>
-  <p>HARMONIZAÇÃO OROFACIAL · CRO 82281 · (17) 98211-3940</p>
+  <h1 id="hdr-nome">Carregando…</h1>
+  <p id="hdr-sub"></p>
 </div>
 
 <div class="main">
@@ -50,7 +50,7 @@
       <div class="info-row"><span class="info-icon">📅</span><span id="i-data">—</span></div>
       <div class="info-row"><span class="info-icon">🕐</span><span id="i-hora">—</span></div>
       <div class="info-row" id="row-proc" style="display:none"><span class="info-icon">💉</span><span id="i-proc"></span></div>
-      <div class="info-row"><span class="info-icon">📍</span><span style="font-size:12px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 — Tanabi/SP</span></div>
+      <div class="info-row" id="row-local" style="display:none"><span class="info-icon">📍</span><span id="i-local" style="font-size:12px;color:var(--ct)"></span></div>
     </div>
 
     <a class="btn-cal" id="btn-google" target="_blank">
@@ -68,10 +68,9 @@
   </div>
 </div>
 
-<div class="footer">Dra. Anna Carolina Dias · Tanabi/SP</div>
+<div class="footer" id="footer-clinica"></div>
 
 <script>
-const LOCAL='Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP, CEP 15170-027';
 const MESES_N=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const DIAS_SEM=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
 
@@ -80,9 +79,24 @@ const d=params.get('d')||'';   // formato: 20260617
 const h=params.get('h')||'';   // formato: 1100
 const p=params.get('p')||'';   // procedimento
 
-let dataOk=false, dtIni=null, dtFim=null;
+let dataOk=false, dtIni=null, dtFim=null, LOCAL='';
 
-function init(){
+async function init(){
+  if(window.CLINICA_CONFIG_PRONTO) await window.CLINICA_CONFIG_PRONTO;
+  const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
+
+  document.getElementById('page-title').textContent='Salvar na Agenda — '+(c.nome||'Clínica');
+  document.getElementById('hdr-logo').src=c.logo||'logo.jpg';
+  document.getElementById('hdr-logo').alt=c.nome||'Clínica';
+  document.getElementById('hdr-nome').textContent=c.nome||'Clínica';
+  document.getElementById('hdr-sub').textContent=[c.especialidade,c.registro,c.telefone].filter(Boolean).join(' · ').toUpperCase();
+  document.getElementById('footer-clinica').textContent=[c.nome,(c.cidade&&c.uf)?`${c.cidade}/${c.uf}`:''].filter(Boolean).join(' · ');
+  LOCAL=c.endereco||'';
+  if(LOCAL){
+    document.getElementById('row-local').style.display='flex';
+    document.getElementById('i-local').textContent=LOCAL;
+  }
+
   if(d.length===8 && h.length===4){
     const ano=d.slice(0,4), mes=d.slice(4,6), dia=d.slice(6,8);
     const hh=h.slice(0,2), mm=h.slice(2,4);
@@ -107,8 +121,9 @@ function init(){
     document.getElementById('i-data').textContent='Dados da consulta não encontrados';
   }
 
-  const titulo='Consulta - Dra. Anna Carolina Dias'+(p?' ('+p+')':'');
-  const detalhes='Consulta na clínica da Dra. Anna Carolina Dias (CRO 82281). Telefone: (17) 98211-3940';
+  const nomeClinica=c.nome||'Clínica';
+  const titulo='Consulta - '+nomeClinica+(p?' ('+p+')':'');
+  const detalhes='Consulta na clínica '+nomeClinica+(c.registro?' ('+c.registro+')':'')+(c.telefone?'. Telefone: '+c.telefone:'.');
 
   // Google Calendar
   const gcal=`https://calendar.google.com/calendar/render?action=TEMPLATE`+
@@ -135,23 +150,26 @@ function init(){
 
 function baixarICS(){
   if(!dataOk){alert('Dados da consulta não encontrados.');return;}
-  const titulo='Consulta - Dra. Anna Carolina Dias'+(p?' ('+p+')':'');
+  const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
+  const nomeClinica=c.nome||'Clínica';
+  const slug=(typeof obterSlugClinicaDaUrl==='function')?obterSlugClinicaDaUrl():'clinica';
+  const titulo='Consulta - '+nomeClinica+(p?' ('+p+')':'');
   const ics=[
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Clinica Anna Carolina//Agendamento//PT',
+    'PRODID:-//'+slug+'//Agendamento//PT',
     'BEGIN:VEVENT',
-    'UID:'+Date.now()+'@clinica-anna-carolina',
+    'UID:'+Date.now()+'@'+slug,
     'DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z',
     'DTSTART;TZID=America/Sao_Paulo:'+dtIni,
     'DTEND;TZID=America/Sao_Paulo:'+dtFim,
     'SUMMARY:'+titulo,
-    'DESCRIPTION:Consulta na clínica da Dra. Anna Carolina Dias (CRO 82281). Tel: (17) 98211-3940',
+    'DESCRIPTION:Consulta na clínica '+nomeClinica+(c.registro?' ('+c.registro+')':'')+(c.telefone?'. Tel: '+c.telefone:'.'),
     'LOCATION:'+LOCAL,
     'BEGIN:VALARM',
     'TRIGGER:-PT2H',
     'ACTION:DISPLAY',
-    'DESCRIPTION:Consulta Dra. Anna Carolina em 2 horas',
+    'DESCRIPTION:Consulta '+nomeClinica+' em 2 horas',
     'END:VALARM',
     'END:VEVENT',
     'END:VCALENDAR'
@@ -159,7 +177,7 @@ function baixarICS(){
   const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download='consulta-dra-anna-carolina.ics';
+  a.href=url;a.download='consulta-'+slug+'.ics';
   document.body.appendChild(a);a.click();
   document.body.removeChild(a);URL.revokeObjectURL(url);
 }
