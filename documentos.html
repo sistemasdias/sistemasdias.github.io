@@ -186,6 +186,7 @@ textarea{resize:vertical}
       <div class="doc-card" onclick="abrirDoc('receituario-estetico')"><div class="doc-icon">✨</div><div class="doc-titulo">Receituário</div><div class="doc-sub">Produtos Estéticos</div></div>
       <div class="doc-card" onclick="abrirDoc('receituario-simples')"><div class="doc-icon">📝</div><div class="doc-titulo">Receituário</div><div class="doc-sub">Em Branco (Simples)</div></div>
       <div class="doc-card" onclick="abrirDoc('orcamento-simples')"><div class="doc-icon">🧾</div><div class="doc-titulo">Orçamento</div><div class="doc-sub">Simples</div></div>
+      <div class="doc-card" onclick="abrirDoc('atestado')"><div class="doc-icon">🩺</div><div class="doc-titulo">Atestado</div><div class="doc-sub">Comparecimento / Afastamento</div></div>
     </div>
 
     <!-- DOCUMENTOS SALVOS -->
@@ -869,6 +870,52 @@ textarea{resize:vertical}
       </div>
     </div>
   </div>
+
+  <!-- PAINEL: ATESTADO -->
+  <div id="panel-atestado" class="panel">
+    <div class="card">
+      <div style="text-align:center;margin-bottom:1rem">
+        <img id="atestado-logo" src="logo.jpg" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
+        <div id="atestado-esp-cro" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
+        <div id="atestado-endereco" style="font-size:10px;color:var(--ct)"></div>
+        <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Atestado</div>
+      </div>
+      <div id="atestado-pac-info" class="pac-info"></div>
+      <div class="fg" style="margin-bottom:1rem">
+        <div class="fgr"><label>Data</label><input type="date" id="atestado-data" oninput="atualizarTextoAtestado()"/></div>
+        <div class="fgr"><label>Dias de afastamento</label><input type="number" id="atestado-dias" min="0" placeholder="Ex: 2" oninput="atualizarTextoAtestado()"/></div>
+      </div>
+      <div class="fg" style="margin-bottom:1rem">
+        <div class="fgr"><label>CID (opcional)</label><input type="text" id="atestado-cid" placeholder="Ex: K08.9" oninput="atualizarTextoAtestado()"/></div>
+        <div class="fgr"><label>Finalidade</label>
+          <select id="atestado-finalidade" onchange="atualizarTextoAtestado()">
+            <option value="atividades laborais">Atividades laborais</option>
+            <option value="atividades escolares">Atividades escolares</option>
+            <option value="suas atividades">Geral / não especificado</option>
+          </select>
+        </div>
+      </div>
+      <div class="sec-title">Observações (opcional)</div>
+      <textarea id="atestado-obs" rows="2" placeholder="Alguma observação adicional a incluir no texto..." oninput="atualizarTextoAtestado()"></textarea>
+      <div class="sec-title">Prévia do texto</div>
+      <div id="atestado-preview" style="border:1px solid #ddd;border-radius:8px;padding:16px;background:#fafafa;font-size:14px;line-height:1.7;margin-bottom:1rem"></div>
+      <div class="orc-print-footer" style="margin-top:2rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:3rem;padding-top:1rem;border-top:1px solid #ddd">
+          <div style="text-align:center">
+            <div style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px">Assinatura do Paciente</div>
+          </div>
+          <div style="text-align:center">
+            <div id="atestado-assinatura-nome" style="border-top:1px solid #333;padding-top:8px;margin-top:3rem;font-size:12px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="br no-print">
+        <button class="btn" onclick="voltarDocs()">← Voltar</button>
+        <button class="btn" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn pri" onclick="salvarDoc('atestado')">✓ Salvar documento</button>
+      </div>
+    </div>
+  </div>
 <script>
 const {createClient}=supabase;
 const db=sbClient();
@@ -947,7 +994,7 @@ async function carregarDocsSalvos(){
   const{data}=await db.from('documentos').select('*').eq('paciente_id',pacSelecionada.id).order('criado_em',{ascending:false});
   const el=document.getElementById('docs-salvos');
   if(!data||!data.length){el.innerHTML='<div style="color:var(--ct);font-size:13px">Nenhum documento salvo ainda.</div>';return;}
-  const nomes={anamnese:'📋 Ficha de Anamnese','termo-botox':'💉 Termo - Toxina Botulínica','termo-preenchimento':'💉 Termo - Preenchimento Facial','termo-bioestimulador':'💉 Termo - Bioestimuladores','autorizacao-imagem':'📸 Autorização de Imagem',orcamento:'💰 Ficha de Orçamento',planejamento:'📐 Planejamento de Procedimentos',odontograma:'🦷 Ficha Clínica / Odontograma','anamnese-odonto':'📋 Anamnese Odontológica',receituario:'💊 Receituário Médico','receituario-estetico':'✨ Receituário Estético','receituario-simples':'📝 Receituário Simples','orcamento-simples':'🧾 Orçamento Simples'};
+  const nomes={anamnese:'📋 Ficha de Anamnese','termo-botox':'💉 Termo - Toxina Botulínica','termo-preenchimento':'💉 Termo - Preenchimento Facial','termo-bioestimulador':'💉 Termo - Bioestimuladores','autorizacao-imagem':'📸 Autorização de Imagem',orcamento:'💰 Ficha de Orçamento',planejamento:'📐 Planejamento de Procedimentos',odontograma:'🦷 Ficha Clínica / Odontograma','anamnese-odonto':'📋 Anamnese Odontológica',receituario:'💊 Receituário Médico','receituario-estetico':'✨ Receituário Estético','receituario-simples':'📝 Receituário Simples','orcamento-simples':'🧾 Orçamento Simples',atestado:'🩺 Atestado'};
   el.innerHTML=data.map(d=>`<div class="doc-salvo"><div><div class="doc-salvo-info">${nomes[d.tipo]||d.tipo}</div><div class="doc-salvo-sub">Salvo em ${fDt(d.data_assinatura||d.criado_em?.split('T')[0])}</div></div><div style="display:flex;gap:6px"><button class="btn" aria-label="Ver documento" style="padding:6px 10px;font-size:12px" onclick="verDoc('${d.id}','${d.tipo}')">👁 Ver</button><button class="btn dan" aria-label="Excluir: ${nomes[d.tipo]||d.tipo}" style="padding:6px 10px;font-size:12px" onclick="excluirDoc('${d.id}')" title="Excluir: ${nomes[d.tipo]||d.tipo}">🗑</button></div></div>`).join('');
 }
 
@@ -1065,6 +1112,7 @@ async function abrirDoc(tipo){
   else if(tipo==='receituario-estetico') abrirReceituarioEstetico();
   else if(tipo==='receituario-simples') abrirReceituarioSimples();
   else if(tipo==='orcamento-simples') abrirOrcamentoSimples();
+  else if(tipo==='atestado') await abrirAtestado();
   const panel=document.getElementById('panel-'+tipo);
   if(panel) panel.classList.add('active');
   // Para receituários, adicionar linha inicial após o painel estar ativo
@@ -1158,6 +1206,48 @@ function abrirOrcamentoSimples(){
   addItemOrcSimples();
   addItemOrcSimples();
   calcTotalOrcSimples();
+}
+
+// ── ATESTADO ──
+async function abrirAtestado(){
+  const p=pacSelecionada; if(!p) return;
+  document.getElementById('atestado-pac-info').innerHTML=`<div><div class="pac-info-nome">${escapeHtml(p.nome)}</div><div class="pac-info-sub">${escapeHtml(p.telefone)}${p.cpf?' · CPF: '+escapeHtml(p.cpf):''}</div></div>`;
+  document.getElementById('atestado-data').value=HOJE;
+  document.getElementById('atestado-dias').value='';
+  document.getElementById('atestado-cid').value='';
+  document.getElementById('atestado-finalidade').value='atividades laborais';
+  document.getElementById('atestado-obs').value='';
+
+  if(window.CLINICA_CONFIG_PRONTO) await window.CLINICA_CONFIG_PRONTO;
+  const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
+  document.getElementById('atestado-logo').src=c.logo||'logo.jpg';
+  document.getElementById('atestado-esp-cro').textContent=[c.especialidade,c.registro].filter(Boolean).join(' · ');
+  document.getElementById('atestado-endereco').textContent=[c.endereco,c.telefone?('Tel: '+c.telefone):''].filter(Boolean).join(' · ');
+  document.getElementById('atestado-assinatura-nome').textContent=[c.nome,c.registro].filter(Boolean).join(' — ');
+
+  atualizarTextoAtestado();
+}
+
+function atualizarTextoAtestado(){
+  const p=pacSelecionada; if(!p) return;
+  const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
+  const data=document.getElementById('atestado-data')?.value||HOJE;
+  const dias=document.getElementById('atestado-dias')?.value||'';
+  const cid=document.getElementById('atestado-cid')?.value||'';
+  const finalidade=document.getElementById('atestado-finalidade')?.value||'atividades laborais';
+  const obs=document.getElementById('atestado-obs')?.value||'';
+
+  let texto=`Atesto, para os devidos fins, que o(a) paciente <strong>${escapeHtml(p.nome)}</strong>${p.cpf?`, portador(a) do CPF <strong>${escapeHtml(p.cpf)}</strong>,`:''} foi atendido(a) nesta clínica em <strong>${fDt(data)}</strong>`;
+  if(dias&&parseInt(dias)>0){
+    texto+=`, necessitando de afastamento de suas ${finalidade} pelo período de <strong>${dias} dia(s)</strong> a contar desta data`;
+  }
+  texto+='.';
+  if(cid) texto+=` CID: <strong>${escapeHtml(cid)}</strong>.`;
+  if(obs) texto+=` ${escapeHtml(obs)}`;
+  texto+=`<br/><br/>Por ser verdade, firmo o presente atestado.`;
+
+  const preview=document.getElementById('atestado-preview');
+  if(preview) preview.innerHTML=`<p>${texto}</p>`;
 }
 
 function addItemOrcSimples(dados){
@@ -1845,6 +1935,12 @@ async function salvarDoc(tipo){
     dados.obs=document.getElementById('orcs-obs')?.value||'';
     dados.validade=document.getElementById('orcs-validade')?.value||'';
     dados.validadeDias=document.getElementById('orcs-validade-dias')?.value||'';
+  } else if(tipo==='atestado'){
+    dados.data=document.getElementById('atestado-data')?.value||'';
+    dados.dias=document.getElementById('atestado-dias')?.value||'';
+    dados.cid=document.getElementById('atestado-cid')?.value||'';
+    dados.finalidade=document.getElementById('atestado-finalidade')?.value||'';
+    dados.obs=document.getElementById('atestado-obs')?.value||'';
   }
 
 
@@ -2078,6 +2174,13 @@ async function verDoc(id,tipo){
     if(!itens.length){addItemOrcSimples();addItemOrcSimples();}
     else itens.forEach(item=>addItemOrcSimples(item));
     calcTotalOrcSimples();
+  } else if(tipo==='atestado'){
+    if(d.data) document.getElementById('atestado-data').value=d.data;
+    if(d.dias) document.getElementById('atestado-dias').value=d.dias;
+    if(d.cid) document.getElementById('atestado-cid').value=d.cid;
+    if(d.finalidade) document.getElementById('atestado-finalidade').value=d.finalidade;
+    if(d.obs) document.getElementById('atestado-obs').value=d.obs;
+    atualizarTextoAtestado();
   }
 
   // Restaurar assinaturas - iniciarSig não limpa mais o canvas, então pode fazer direto
@@ -2374,6 +2477,7 @@ async function abrirDoc(tipo){
   else if(tipo==='receituario-estetico') abrirReceituarioEstetico();
   else if(tipo==='receituario-simples') abrirReceituarioSimples();
   else if(tipo==='orcamento-simples') abrirOrcamentoSimples();
+  else if(tipo==='atestado') await abrirAtestado();
   else if(tipo.startsWith('termo-')) abrirTermo(tipo);
   const panel=document.getElementById('panel-'+tipo);
   if(panel)panel.classList.add('active');
