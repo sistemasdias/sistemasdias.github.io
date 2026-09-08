@@ -167,6 +167,10 @@ let usuariosDisponiveis = [];
 async function carregarUsuarios() {
   try {
     const slugAtual = obterSlugClinicaDaUrl();
+    // Guarda o slug atual — útil depois pro "voltar ao login" funcionar
+    // corretamente mesmo se a clínica for bloqueada (quando a config dela
+    // deixa de ser acessível via sessão autenticada).
+    try { localStorage.setItem('clinica_slug', slugAtual); } catch(e) {}
     const res = await fetch(`${SB_URL}/rest/v1/usuarios_publico?select=*&slug=eq.${encodeURIComponent(slugAtual)}`, {
       headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
     });
