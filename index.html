@@ -1466,8 +1466,29 @@ function urlGcal(c){const ini2=c.data.replace(/-/g,'')+`T${c.hora.replace(':',''
 // ALTER TABLE financeiro ENABLE ROW LEVEL SECURITY;
 // CREATE POLICY "acesso_total" ON financeiro FOR ALL USING (true) WITH CHECK (true);
 
+// Tela mostrada quando a clínica logada está bloqueada (inadimplência).
+// Substitui todo o conteúdo da página por um aviso claro, sem misturar
+// com dados ou marca de outra clínica.
+function mostrarTelaBloqueada(){
+  localStorage.removeItem('clinica_auth');
+  sessionStorage.removeItem('clinica_auth');
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:'DM Sans',sans-serif;background:#f5f7fa">
+      <div style="max-width:380px;text-align:center;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:2rem 1.75rem">
+        <div style="font-size:44px;margin-bottom:.75rem">🔒</div>
+        <h1 style="font-size:19px;margin-bottom:8px">Acesso temporariamente bloqueado</h1>
+        <p style="color:#6b7280;font-size:14px;line-height:1.6">
+          O acesso ao sistema desta clínica está suspenso no momento.
+          Entre em contato com o suporte para regularizar a situação.
+        </p>
+        <a href="login.html" style="display:inline-block;margin-top:1.25rem;padding:11px 22px;background:#1D9E75;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">Voltar ao login</a>
+      </div>
+    </div>`;
+}
+
 async function carregar(){
   await window.CLINICA_CONFIG_PRONTO;
+  if(window.CLINICA_BLOQUEADA){ mostrarTelaBloqueada(); return; }
   document.getElementById('hdr-nome-clinica').firstChild.textContent = CLINICA_CONFIG.nome+' ';
   document.getElementById('hdr-especialidade').textContent = '· '+CLINICA_CONFIG.especialidade;
   document.title = 'Clínica '+CLINICA_CONFIG.nome;
