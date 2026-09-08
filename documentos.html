@@ -95,6 +95,7 @@ textarea{resize:vertical}
   body{background:white}
   .card{border:none;box-shadow:none;padding:0}
   .sig-area canvas{border:1px solid #ccc}
+  #atestado-preview{border:none!important;background:none!important;padding:0!important}
   /* Força a impressão de cores de fundo (odontograma, legendas, destaques) independente
      da opção "Gráficos em segundo plano" do navegador estar marcada ou não */
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
@@ -881,26 +882,28 @@ textarea{resize:vertical}
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Atestado</div>
       </div>
       <div id="atestado-pac-info" class="pac-info"></div>
-      <div class="fg" style="margin-bottom:1rem">
-        <div class="fgr"><label>Data</label><input type="date" id="atestado-data" oninput="atualizarTextoAtestado()"/></div>
-        <div class="fgr"><label>Dias de afastamento</label><input type="number" id="atestado-dias" min="0" placeholder="Ex: 2" oninput="atualizarTextoAtestado()"/></div>
-      </div>
-      <div class="fg" style="margin-bottom:1rem">
-        <div class="fgr"><label>CID (opcional)</label><input type="text" id="atestado-cid" placeholder="Ex: K08.9" oninput="atualizarTextoAtestado()"/></div>
-        <div class="fgr"><label>Finalidade</label>
-          <select id="atestado-finalidade" onchange="onMudarFinalidadeAtestado()">
-            <option value="atividades laborais">Atividades laborais</option>
-            <option value="atividades escolares">Atividades escolares</option>
-            <option value="atividades físicas">Atividades físicas / esportivas</option>
-            <option value="suas atividades habituais">Atividades habituais (geral)</option>
-            <option value="__outro__">Outro (digitar)</option>
-          </select>
-          <input type="text" id="atestado-finalidade-outro" placeholder="Digite a finalidade..." style="display:none;margin-top:6px" oninput="atualizarTextoAtestado()"/>
+      <div class="no-print">
+        <div class="fg" style="margin-bottom:1rem">
+          <div class="fgr"><label>Data</label><input type="date" id="atestado-data" oninput="atualizarTextoAtestado()"/></div>
+          <div class="fgr"><label>Dias de afastamento</label><input type="number" id="atestado-dias" min="0" placeholder="Ex: 2" oninput="atualizarTextoAtestado()"/></div>
         </div>
+        <div class="fg" style="margin-bottom:1rem">
+          <div class="fgr"><label>CID (opcional)</label><input type="text" id="atestado-cid" placeholder="Ex: K08.9" oninput="atualizarTextoAtestado()"/></div>
+          <div class="fgr"><label>Finalidade</label>
+            <select id="atestado-finalidade" onchange="onMudarFinalidadeAtestado()">
+              <option value="atividades laborais">Atividades laborais</option>
+              <option value="atividades escolares">Atividades escolares</option>
+              <option value="atividades físicas">Atividades físicas / esportivas</option>
+              <option value="suas atividades habituais">Atividades habituais (geral)</option>
+              <option value="__outro__">Outro (digitar)</option>
+            </select>
+            <input type="text" id="atestado-finalidade-outro" placeholder="Digite a finalidade..." style="display:none;margin-top:6px" oninput="atualizarTextoAtestado()"/>
+          </div>
+        </div>
+        <div class="sec-title">Observações (opcional)</div>
+        <textarea id="atestado-obs" rows="2" placeholder="Alguma observação adicional a incluir no texto..." oninput="atualizarTextoAtestado()"></textarea>
+        <div class="sec-title">Prévia do texto (é isto que sai impresso)</div>
       </div>
-      <div class="sec-title">Observações (opcional)</div>
-      <textarea id="atestado-obs" rows="2" placeholder="Alguma observação adicional a incluir no texto..." oninput="atualizarTextoAtestado()"></textarea>
-      <div class="sec-title">Prévia do texto</div>
       <div id="atestado-preview" style="border:1px solid #ddd;border-radius:8px;padding:16px;background:#fafafa;font-size:14px;line-height:1.7;margin-bottom:1rem"></div>
       <div class="orc-print-footer" style="margin-top:2rem">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:3rem;padding-top:1rem;border-top:1px solid #ddd">
