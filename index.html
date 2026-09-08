@@ -1471,6 +1471,8 @@ function urlGcal(c){const ini2=c.data.replace(/-/g,'')+`T${c.hora.replace(':',''
 // Substitui todo o conteúdo da página por um aviso claro, sem misturar
 // com dados ou marca de outra clínica.
 function mostrarTelaBloqueada(){
+  const slugSalvo = (()=>{ try { return localStorage.getItem('clinica_slug'); } catch(e){ return null; } })();
+  const linkLogin = slugSalvo ? `login.html?c=${encodeURIComponent(slugSalvo)}` : 'login.html';
   localStorage.removeItem('clinica_auth');
   sessionStorage.removeItem('clinica_auth');
   document.body.innerHTML = `
@@ -1484,7 +1486,7 @@ function mostrarTelaBloqueada(){
         </p>
         <a href="https://wa.me/5517982113993?text=${encodeURIComponent('Olá! Meu acesso ao sistema está bloqueado, gostaria de regularizar.')}" target="_blank" style="display:inline-block;margin-top:1.25rem;padding:11px 22px;background:#25D366;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">💬 Falar no WhatsApp</a>
         <br/>
-        <a href="login.html" style="display:inline-block;margin-top:10px;color:#6b7280;text-decoration:underline;font-size:13px">Voltar ao login</a>
+        <a href="${linkLogin}" style="display:inline-block;margin-top:10px;color:#6b7280;text-decoration:underline;font-size:13px">Voltar ao login</a>
       </div>
     </div>`;
 }
