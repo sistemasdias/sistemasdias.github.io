@@ -151,10 +151,10 @@
     border-radius: var(--radius);
     padding: 14px 16px;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    flex-wrap: wrap;
   }
   .cliente .info { min-width: 180px; }
   .cliente .nome { font-weight: 600; font-size: 14.5px; }
@@ -168,7 +168,51 @@
   .status-pill.pago { background: var(--pago-bg); color: var(--pago); }
   .status-pill.pendente { background: var(--pendente-bg); color: var(--pendente); }
   .status-pill.atrasado { background: var(--atrasado-bg); color: var(--atrasado); }
-  .cliente .right { display: flex; align-items: center; gap: 10px; }
+  .status-pill.bloqueada { background: #3a3a3a; color: #fff; }
+  .cliente .right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .btn-icon {
+    background: transparent;
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    color: var(--ink);
+    font-size: 12px;
+  }
+  .btn-danger {
+    background: #fff;
+    border: 1px solid var(--atrasado);
+    color: var(--atrasado);
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .btn-danger.ativo { background: var(--atrasado); color: #fff; }
+
+  /* ---------- Aviso de atraso ---------- */
+  .aviso-atraso {
+    background: var(--atrasado-bg);
+    border: 1px solid var(--atrasado);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--atrasado);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .aviso-atraso a {
+    background: var(--atrasado);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
 
   .vazio {
     text-align: center;
@@ -311,6 +355,33 @@
   </div>
 </div>
 
+<!-- ============ MODAL: editar cliente ============ -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal">
+    <h2>Editar assinatura</h2>
+    <p class="sub" id="editar-nome-cliente"></p>
+    <input type="hidden" id="editar-id">
+
+    <label for="editar-valor">Valor mensal (R$)</label>
+    <input type="number" id="editar-valor" step="0.01">
+
+    <label for="editar-dia">Dia de vencimento</label>
+    <input type="number" id="editar-dia" min="1" max="28">
+
+    <label for="editar-status">Status da assinatura</label>
+    <select id="editar-status">
+      <option value="ativo">Ativo</option>
+      <option value="suspenso">Suspenso</option>
+      <option value="cancelado">Cancelado</option>
+    </select>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="fecharModal('modal-editar')">Cancelar</button>
+      <button class="btn-accent" onclick="salvarEdicao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // Configuração — troque pela URL e anon key do projeto
@@ -322,6 +393,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let assinaturasCache = [];
+let clinicasCache = {};
 
 function mesRefAtual() {
   const d = new Date();
@@ -383,12 +455,27 @@ async function carregarDados() {
     .select("*")
     .eq("mes_referencia", mesRef);
 
+  // Status de bloqueio de cada clínica (tenant_id == clinicas.slug)
+  const { data: clinicas } = await supa
+    .from("clinicas")
+    .select("slug,status");
+  const statusClinicaPorSlug = {};
+  (clinicas || []).forEach(c => { statusClinicaPorSlug[c.slug] = c.status; });
+
   const pagamentosPorAssinatura = {};
   (pagamentos || []).forEach(p => { pagamentosPorAssinatura[p.assinatura_id] = p; });
 
   assinaturasCache = assinaturas || [];
-  renderLista(assinaturasCache, pagamentosPorAssinatura);
+  clinicasCache = statusClinicaPorSlug;
+  renderLista(assinaturasCache, pagamentosPorAssinatura, statusClinicaPorSlug);
   renderResumo(assinaturasCache, pagamentosPorAssinatura);
+}
+
+function diasEmAtraso(assinatura) {
+  const hoje = new Date();
+  const venc = new Date(hoje.getFullYear(), hoje.getMonth(), assinatura.dia_vencimento);
+  if (hoje <= venc) return 0;
+  return Math.floor((hoje - venc) / (1000 * 60 * 60 * 24));
 }
 
 function statusDoMes(assinatura, pagamento) {
@@ -410,7 +497,7 @@ function renderResumo(assinaturas, pagamentosPorAssinatura) {
   document.getElementById("resumo-pendentes").textContent = pendentes;
 }
 
-function renderLista(assinaturas, pagamentosPorAssinatura) {
+function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug) {
   const container = document.getElementById("lista-clientes");
 
   if (!assinaturas.length) {
@@ -422,11 +509,20 @@ function renderLista(assinaturas, pagamentosPorAssinatura) {
     const pagamento = pagamentosPorAssinatura[a.id];
     const status = statusDoMes(a, pagamento);
     const label = { pago: "Pago", pendente: "Pendente", atrasado: "Atrasado" }[status];
+    const atraso = status === "atrasado" ? diasEmAtraso(a) : 0;
+    const clinicaStatus = statusClinicaPorSlug[a.tenant_id] || "ativa";
+    const bloqueada = clinicaStatus !== "ativa";
+
+    const avisoAtraso = atraso >= 15 && !bloqueada ? `
+      <div class="aviso-atraso">
+        <span>⚠️ ${atraso} dias em atraso — considere avisar antes de bloquear</span>
+        <a href="${linkWhatsAppCobranca(a, atraso)}" target="_blank">💬 Enviar aviso</a>
+      </div>` : "";
 
     return `
       <div class="cliente">
         <div class="info">
-          <div class="nome">${escapeHtml(a.nome_cliente)}</div>
+          <div class="nome">${escapeHtml(a.nome_cliente)} ${bloqueada ? '<span class="status-pill bloqueada">Bloqueada</span>' : ''}</div>
           <div class="detalhe">${escapeHtml(a.tenant_id)} · R$ ${Number(a.valor_mensal).toFixed(2)} · vence dia ${a.dia_vencimento}</div>
         </div>
         <div class="right">
@@ -434,10 +530,18 @@ function renderLista(assinaturas, pagamentosPorAssinatura) {
           ${status !== "pago"
             ? `<button class="btn-accent" onclick="abrirModalPagamento('${a.id}')">Marcar pago</button>`
             : ""}
+          <button class="btn-icon" onclick='abrirModalEditar(${JSON.stringify(a)})'>✏️ Editar</button>
+          <button class="btn-danger ${bloqueada ? 'ativo' : ''}" onclick="alternarBloqueio('${a.tenant_id}','${escapeHtml(a.nome_cliente)}',${bloqueada})">${bloqueada ? '🔓 Desbloquear' : '🔒 Bloquear'}</button>
         </div>
+        ${avisoAtraso}
       </div>
     `;
   }).join("");
+}
+
+function linkWhatsAppCobranca(assinatura, diasAtraso) {
+  const msg = `Olá, ${assinatura.nome_cliente}! Tudo bem? Passando para avisar que a mensalidade do sistema (venc. dia ${assinatura.dia_vencimento}) está em aberto há ${diasAtraso} dias. Para evitar o bloqueio do acesso ao final do mês, poderia regularizar o pagamento? Qualquer dúvida, me chama por aqui. Obrigado!`;
+  return `https://wa.me/?text=${encodeURIComponent(msg)}`;
 }
 
 function escapeHtml(str) {
@@ -491,6 +595,58 @@ function abrirModalPagamento(assinaturaId) {
   document.getElementById("pag-assinatura-id").value = assinaturaId;
   document.getElementById("pag-data").value = new Date().toISOString().slice(0, 10);
   document.getElementById("modal-pagamento").classList.add("open");
+}
+
+// ---------------- Editar assinatura ----------------
+function abrirModalEditar(assinatura) {
+  document.getElementById("editar-id").value = assinatura.id;
+  document.getElementById("editar-nome-cliente").textContent = assinatura.nome_cliente;
+  document.getElementById("editar-valor").value = assinatura.valor_mensal;
+  document.getElementById("editar-dia").value = assinatura.dia_vencimento;
+  document.getElementById("editar-status").value = assinatura.status;
+  document.getElementById("modal-editar").classList.add("open");
+}
+
+async function salvarEdicao() {
+  const id = document.getElementById("editar-id").value;
+  const valor = parseFloat(document.getElementById("editar-valor").value);
+  const dia = parseInt(document.getElementById("editar-dia").value, 10);
+  const status = document.getElementById("editar-status").value;
+
+  const { error } = await supa
+    .from("assinaturas")
+    .update({ valor_mensal: valor, dia_vencimento: dia, status })
+    .eq("id", id);
+
+  if (error) {
+    alert("Erro ao salvar: " + error.message);
+    return;
+  }
+
+  fecharModal("modal-editar");
+  carregarDados();
+}
+
+// ---------------- Bloquear / desbloquear clínica ----------------
+async function alternarBloqueio(tenantSlug, nomeCliente, estaBloqueada) {
+  const acao = estaBloqueada ? "desbloquear" : "bloquear";
+  const confirmMsg = estaBloqueada
+    ? `Desbloquear o acesso de ${nomeCliente}? Ela volta a acessar o sistema normalmente.`
+    : `Bloquear o acesso de ${nomeCliente}? Ela não vai conseguir mais entrar no sistema até você desbloquear.`;
+  if (!confirm(confirmMsg)) return;
+
+  const novoStatus = estaBloqueada ? "ativa" : "bloqueada";
+  const { error } = await supa
+    .from("clinicas")
+    .update({ status: novoStatus })
+    .eq("slug", tenantSlug);
+
+  if (error) {
+    alert(`Erro ao ${acao}: ` + error.message);
+    return;
+  }
+
+  carregarDados();
 }
 
 async function confirmarPagamento() {
