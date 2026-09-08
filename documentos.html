@@ -3091,6 +3091,7 @@ carregar().then(()=>{
   const pacId  = params.get('pac');
   const docId  = params.get('doc');
   const tipo   = params.get('tipo');
+  const wa     = params.get('wa'); // '1' = já veio pra enviar por WhatsApp direto
 
   if (!pacId) return;
 
@@ -3135,6 +3136,12 @@ carregar().then(()=>{
     preencherDocSalvo(tipo, doc.dados || {});
 
     window.scrollTo(0, 0);
+
+    if (wa === '1') {
+      // Espera as imagens (logo etc.) carregarem antes de tirar a "foto" do documento
+      await new Promise(r => setTimeout(r, 500));
+      compartilharWhatsApp(tipo);
+    }
   }, 300);
 })();
 
