@@ -58,6 +58,14 @@ h1{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:4px}
   </div>
 
   <div class="card">
+    <h2>Assinatura mensal</h2>
+    <div class="linha2">
+      <div class="fgr"><label>Valor mensal (R$)</label><input type="text" id="f-valor-mensal" placeholder="250"/></div>
+      <div class="fgr"><label>Dia de vencimento</label><input type="text" id="f-dia-vencimento" placeholder="10"/></div>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Autorização</h2>
     <div class="fgr"><label>Senha de administração *</label><input type="password" id="f-admin-secret" placeholder="Senha que só você conhece"/></div>
   </div>
@@ -84,6 +92,8 @@ async function criarClinica(){
   const admin_email=document.getElementById('f-admin-email').value.trim();
   const admin_senha=document.getElementById('f-admin-senha').value;
   const admin_secret=document.getElementById('f-admin-secret').value;
+  const valor_mensal=parseFloat(document.getElementById('f-valor-mensal').value)||undefined;
+  const dia_vencimento=parseInt(document.getElementById('f-dia-vencimento').value)||undefined;
 
   if(!nome_clinica||!admin_nome||!admin_email||!admin_senha||!admin_secret){
     msg.className='msg erro';msg.textContent='Preencha todos os campos obrigatórios (*).';return;
@@ -95,7 +105,7 @@ async function criarClinica(){
     const res=await fetch(`${SB_URL}/functions/v1/criar-clinica`,{
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`},
-      body:JSON.stringify({admin_secret,nome_clinica,slug,especialidade,telefone,cor_principal,admin_nome,admin_email,admin_senha})
+      body:JSON.stringify({admin_secret,nome_clinica,slug,especialidade,telefone,cor_principal,admin_nome,admin_email,admin_senha,valor_mensal,dia_vencimento})
     });
     const d=await res.json();
     if(!res.ok){
@@ -108,7 +118,8 @@ async function criarClinica(){
       Link do sistema: <code>${d.link_sistema}</code><br/>
       Link de login: <code>${d.link_login}</code><br/>
       Link de agendamento online: <code>${d.link_agendamento}</code><br/><br/>
-      Login do admin: <strong>${admin_email}</strong> / senha definida agora.`;
+      Login do admin: <strong>${admin_email}</strong> / senha definida agora.
+      ${d.aviso?`<br/><br/>⚠️ ${d.aviso}`:''}`;
   }catch(e){
     msg.className='msg erro';msg.textContent='Erro de conexão: '+e.message;
   }finally{
