@@ -124,7 +124,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
 .doc-info{flex:1;min-width:0}
 .doc-nome{font-size:14px;font-weight:500;color:var(--txt)}
 .doc-sub2{font-size:12px;color:var(--ct);margin-top:2px}
-.doc-acoes{display:flex;gap:6px}
+.doc-acoes{display:flex;gap:6px;flex-wrap:wrap}
 
 /* LEMBRETES */
 .lembrete-item{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:10px;margin-bottom:7px;border-left:4px solid}
@@ -1538,6 +1538,7 @@ async function renderDocumentos(){
       </div>
       <div class="doc-acoes">
         <a href="documentos.html?pac=${pac.id}&doc=${d.id}&tipo=${d.tipo}" class="btn sm" aria-label="Ver documento">👁 Ver</a>
+        <a href="documentos.html?pac=${pac.id}&doc=${d.id}&tipo=${d.tipo}&wa=1" class="btn sm" aria-label="Enviar por WhatsApp: ${nomes[d.tipo]||d.tipo}" style="color:#25D366;border-color:#25D366" title="Enviar por WhatsApp">📲 WhatsApp</a>
         <button class="btn sm dan" aria-label="Excluir: ${nomes[d.tipo]||d.tipo}" onclick="excluirDoc('${d.id}')" title="Excluir: ${nomes[d.tipo]||d.tipo}">🗑 Excluir</button>
       </div>
     </div>
