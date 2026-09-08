@@ -3136,11 +3136,21 @@ carregar().then(()=>{
 
     preencherDocSalvo(tipo, doc.dados || {});
 
+    // Restaurar assinaturas salvas (mesma lógica do "Ver" de dentro da tela de Documentos)
+    const sigIds = {
+      pac: [`sig-${tipo}-pac`, `sig-an-pac`, `sig-img-pac`],
+      pro: [`sig-${tipo}-pro`, `sig-an-pro`, `sig-img-pro`]
+    };
+    setTimeout(() => {
+      if (doc.assinatura_paciente) sigIds.pac.forEach(id => restaurarSig(id, doc.assinatura_paciente));
+      if (doc.assinatura_profissional) sigIds.pro.forEach(id => restaurarSig(id, doc.assinatura_profissional));
+    }, 150);
+
     window.scrollTo(0, 0);
 
     if (wa === '1') {
-      // Espera as imagens (logo etc.) carregarem antes de tirar a "foto" do documento
-      await new Promise(r => setTimeout(r, 500));
+      // Espera as imagens (logo, assinatura etc.) carregarem antes de tirar a "foto" do documento
+      await new Promise(r => setTimeout(r, 700));
       compartilharWhatsApp(tipo);
     }
   }, 300);
@@ -3267,6 +3277,36 @@ function preencherDocSalvo(tipo, dados) {
       if (dados.cuidados) {
         dados.cuidados.forEach((v,i)=>{ const el=document.getElementById('rece-c'+(i+1)); if(el) el.checked=v; });
       }
+    } else if (tipo === 'receituario-simples') {
+      if (dados.data) setVal('recs-data', dados.data);
+    } else if (tipo === 'orcamento-simples') {
+      if (dados.data)         setVal('orcs-data', dados.data);
+      if (dados.pagamento)    setVal('orcs-pagamento', dados.pagamento);
+      if (dados.obs)          setVal('orcs-obs', dados.obs);
+      if (dados.validade)     setVal('orcs-validade', dados.validade);
+      if (dados.validadeDias) setVal('orcs-validade-dias', dados.validadeDias);
+      if (dados.itens && dados.itens.length) {
+        document.getElementById('orcs-itens').innerHTML = '';
+        dados.itens.forEach(item => addItemOrcSimples(item));
+        if (typeof calcTotalOrcSimples === 'function') calcTotalOrcSimples();
+      }
+    } else if (tipo === 'atestado') {
+      if (dados.data) setVal('atestado-data', dados.data);
+      if (dados.dias) setVal('atestado-dias', dados.dias);
+      if (dados.cid)  setVal('atestado-cid', dados.cid);
+      if (dados.obs)  setVal('atestado-obs', dados.obs);
+      if (dados.finalidade) {
+        const opcoes = Array.from(document.getElementById('atestado-finalidade').options).map(o => o.value);
+        if (opcoes.includes(dados.finalidade)) {
+          setVal('atestado-finalidade', dados.finalidade);
+          document.getElementById('atestado-finalidade-outro').style.display = 'none';
+        } else {
+          setVal('atestado-finalidade', '__outro__');
+          setVal('atestado-finalidade-outro', dados.finalidade);
+          document.getElementById('atestado-finalidade-outro').style.display = 'block';
+        }
+      }
+      if (typeof atualizarTextoAtestado === 'function') atualizarTextoAtestado();
     }
     if (typeof toast === 'function') toast('Documento carregado ✅', 'verde');
   } catch(e) {
