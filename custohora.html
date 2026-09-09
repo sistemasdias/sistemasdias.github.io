@@ -660,7 +660,7 @@ function toast(msg,tipo='ok'){
   toastT=setTimeout(()=>el.classList.remove('show'),2500);
 }
 
-init();
+(async()=>{ if(!(await exigirPermissao('custohora'))) return; init(); })();
 </script>
 </body>
 </html>

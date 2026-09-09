@@ -363,8 +363,10 @@
 
       <div id="form-funcionario" style="display:none;margin-top:1rem">
         <div class="divider"></div>
-        <div class="label-sec">Novo funcionário</div>
+        <div class="label-sec" id="func-form-titulo">Novo funcionário</div>
+        <input type="hidden" id="func-edit-id"/>
         <div class="fg">
+          <div id="func-campos-criacao" style="display:contents">
           <div class="fi">
             <label>Nome completo</label>
             <input type="text" id="func-nome" placeholder="Ex: Maria da Recepção"/>
@@ -381,6 +383,27 @@
             <label>Senha inicial (mín. 4 dígitos)</label>
             <input type="password" id="func-senha" placeholder="••••"/>
           </div>
+          </div>
+          <div class="fi" style="grid-column:1/-1">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="func-admin" onchange="toggleFuncPermissoes()" style="width:auto"/>
+              Administrador (acesso total a todas as telas)
+            </label>
+          </div>
+          <div class="fi" style="grid-column:1/-1">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="func-paga-comissao" onchange="toggleFuncComissao()" style="width:auto"/>
+              💰 Paga comissão
+            </label>
+          </div>
+          <div class="fi" id="func-comissao-bloco" style="display:none">
+            <label>Comissão (%)</label>
+            <input type="number" id="func-comissao" min="0" max="100" step="0.1" placeholder="Ex: 30"/>
+          </div>
+        </div>
+        <div id="func-permissoes-bloco" style="margin-top:.75rem">
+          <div class="label-sec" style="font-size:12px">Telas que este funcionário pode acessar</div>
+          <div id="func-permissoes-checks" style="display:flex;flex-wrap:wrap;gap:.5rem 1rem;font-size:13px"></div>
         </div>
         <div id="func-msg" style="font-size:12px;margin:.5rem 0"></div>
         <button class="pkey conf" style="width:auto;padding:.6rem 1.2rem;margin-right:.5rem" id="btn-salvar-func" onclick="salvarFuncionario()">Salvar</button>
@@ -650,6 +673,7 @@ function wzEnviarMensagem(telefone, mensagem, tipoNotif){
 
 // ── Init ──
 async function init(){
+  if(!(await exigirPermissao('configuracoes'))) return;
   const {data} = await sb.from('config_clinica').select('*').limit(1);
   if(data && data.length){
     const c = data[0];
@@ -687,23 +711,69 @@ async function init(){
 }
 
 // ── Equipe ──
+let _equipeCache = [];
 async function carregarEquipe(){
   const div = document.getElementById('lista-equipe');
   const {data, error} = await sb.from('usuarios').select('*').order('criado_em');
   if(error){ div.textContent = 'Erro ao carregar equipe.'; return; }
+  _equipeCache = data || [];
   if(!data || !data.length){ div.textContent = 'Nenhum funcionário cadastrado ainda.'; return; }
   div.innerHTML = data.map(u => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--borda)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--borda);gap:8px">
       <div>
-        <strong>${u.nome}</strong>${u.cargo ? ' · '+u.cargo : ''}
-        <div style="font-size:11px;color:var(--ct)">${u.email}${u.ativo ? '' : ' · INATIVO'}</div>
+        <strong>${u.nome}</strong>${u.cargo ? ' · '+u.cargo : ''}${u.eh_admin ? ' · <span style="color:var(--verde-e,#1a6e4a)">admin</span>' : ''}
+        <div style="font-size:11px;color:var(--ct)">${u.email}${u.ativo ? '' : ' · INATIVO'}${u.comissao_percentual ? ' · comissão '+u.comissao_percentual+'%' : ''}</div>
       </div>
+      <button class="pkey" style="width:auto;padding:.4rem .8rem;font-size:12px;flex-shrink:0" onclick="abrirFormFuncionario('${u.id}')">⚙️ Permissões</button>
     </div>
   `).join('');
 }
 
-function abrirFormFuncionario(){
+function renderFuncPermissoesChecks(permissoesAtuais){
+  const cont = document.getElementById('func-permissoes-checks');
+  permissoesAtuais = permissoesAtuais || {};
+  cont.innerHTML = SECOES_PERMISSAO.map(s => `
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+      <input type="checkbox" class="func-perm-check" data-secao="${s.chave}" ${permissoesAtuais[s.chave]===true?'checked':''} style="width:auto"/>
+      ${s.emoji} ${s.label}
+    </label>
+  `).join('');
+}
+
+function toggleFuncPermissoes(){
+  const ehAdmin = document.getElementById('func-admin').checked;
+  document.getElementById('func-permissoes-bloco').style.display = ehAdmin ? 'none' : 'block';
+}
+
+function toggleFuncComissao(){
+  const paga = document.getElementById('func-paga-comissao').checked;
+  document.getElementById('func-comissao-bloco').style.display = paga ? 'block' : 'none';
+  if(!paga) document.getElementById('func-comissao').value = '';
+}
+
+function abrirFormFuncionario(usuarioId){
   document.getElementById('form-funcionario').style.display = 'block';
+  renderFuncPermissoesChecks({});
+  document.getElementById('func-edit-id').value = usuarioId || '';
+  const usuario = usuarioId ? _equipeCache.find(u => u.id === usuarioId) : null;
+  const tituloEl = document.getElementById('func-form-titulo');
+  const camposCriacao = document.getElementById('func-campos-criacao');
+  if(usuario){
+    if(tituloEl) tituloEl.textContent = 'Permissões de ' + usuario.nome;
+    if(camposCriacao) camposCriacao.style.display = 'none';
+    document.getElementById('func-admin').checked = !!usuario.eh_admin;
+    document.getElementById('func-paga-comissao').checked = usuario.comissao_percentual !== null && usuario.comissao_percentual !== undefined;
+    document.getElementById('func-comissao').value = usuario.comissao_percentual ?? '';
+    renderFuncPermissoesChecks(usuario.permissoes || {});
+  } else {
+    if(tituloEl) tituloEl.textContent = 'Novo funcionário';
+    if(camposCriacao) camposCriacao.style.display = '';
+    document.getElementById('func-admin').checked = false;
+    document.getElementById('func-paga-comissao').checked = false;
+    document.getElementById('func-comissao').value = '';
+  }
+  toggleFuncPermissoes();
+  toggleFuncComissao();
 }
 function fecharFormFuncionario(){
   document.getElementById('form-funcionario').style.display = 'none';
@@ -711,16 +781,50 @@ function fecharFormFuncionario(){
   document.getElementById('func-cargo').value = '';
   document.getElementById('func-email').value = '';
   document.getElementById('func-senha').value = '';
+  document.getElementById('func-admin').checked = false;
+  document.getElementById('func-paga-comissao').checked = false;
+  document.getElementById('func-comissao-bloco').style.display = 'none';
+  document.getElementById('func-comissao').value = '';
+  document.getElementById('func-edit-id').value = '';
   document.getElementById('func-msg').textContent = '';
+  renderFuncPermissoesChecks({});
+}
+
+function _lerPermissoesForm(){
+  const permissoes = {};
+  document.querySelectorAll('.func-perm-check').forEach(chk => {
+    if(chk.checked) permissoes[chk.dataset.secao] = true;
+  });
+  return permissoes;
 }
 
 async function salvarFuncionario(){
+  const editId = document.getElementById('func-edit-id').value;
+  const ehAdmin = document.getElementById('func-admin').checked;
+  const pagaComissao = document.getElementById('func-paga-comissao').checked;
+  const comissaoVal = document.getElementById('func-comissao').value;
+  const comissao = (!pagaComissao || comissaoVal === '') ? null : parseFloat(comissaoVal);
+  const permissoes = ehAdmin ? {} : _lerPermissoesForm();
+  const msg = document.getElementById('func-msg');
+  const btn = document.getElementById('btn-salvar-func');
+
+  // ── Modo edição: só atualiza admin/permissões/comissão de quem já existe ──
+  if(editId){
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    const {error} = await sb.from('usuarios').update({eh_admin: ehAdmin, permissoes, comissao_percentual: comissao}).eq('id', editId);
+    btn.disabled = false; btn.textContent = 'Salvar';
+    if(error){ msg.textContent = 'Erro: '+error.message; msg.style.color = '#c0392b'; return; }
+    toast('Permissões atualizadas!','ok');
+    fecharFormFuncionario();
+    carregarEquipe();
+    return;
+  }
+
+  // ── Modo criação: cria login novo ──
   const nome  = document.getElementById('func-nome').value.trim();
   const cargo = document.getElementById('func-cargo').value.trim();
   const email = document.getElementById('func-email').value.trim();
   const senha = document.getElementById('func-senha').value;
-  const msg = document.getElementById('func-msg');
-  const btn = document.getElementById('btn-salvar-func');
 
   if(!nome || !email || !senha){
     msg.textContent = 'Preencha nome, e-mail e senha.';
@@ -742,7 +846,7 @@ async function salvarFuncionario(){
         'Authorization': `Bearer ${token}`,
         'apikey': SB_KEY
       },
-      body: JSON.stringify({ nome, cargo, email, senha })
+      body: JSON.stringify({ nome, cargo, email, senha, eh_admin: ehAdmin, permissoes, comissao_percentual: comissao })
     });
     const d = await res.json();
     if(!res.ok){

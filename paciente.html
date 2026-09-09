@@ -509,6 +509,7 @@ textarea{resize:vertical;min-height:70px}
           <option>Evento / Feira</option><option>Já era paciente</option><option>Outro</option>
         </select>
       </div>
+      <div class="fgr"><label>Convênio / Plano</label><select id="e-convenio"><option value="">Particular (sem convênio)</option></select></div>
       <div class="fgr full"><label>Observações</label><textarea id="e-obs"></textarea></div>
     </div>
     <div class="br">
@@ -1744,10 +1745,19 @@ function delLembrAtual(){
 }
 
 // ─── EDITAR DADOS ───
-const _CAMPOS_EDIT_PACIENTE=['e-nome','e-apelido','e-tel','e-resp','e-nasc','e-cpf','e-rg','e-sexo','e-cep','e-rua','e-numero','e-bairro','e-cidade','e-drive','e-indic','e-instagram','e-facebook','e-conheceu','e-obs'];
+const _CAMPOS_EDIT_PACIENTE=['e-nome','e-apelido','e-tel','e-resp','e-nasc','e-cpf','e-rg','e-sexo','e-cep','e-rua','e-numero','e-bairro','e-cidade','e-drive','e-indic','e-instagram','e-facebook','e-conheceu','e-obs','e-convenio'];
+
+async function carregarConveniosSelectEdit(valorAtual){
+  const sel=document.getElementById('e-convenio');
+  if(!sel) return;
+  const{data}=await db.from('convenios').select('id,nome').eq('ativo',true).order('nome');
+  sel.innerHTML='<option value="">Particular (sem convênio)</option>'+(data||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
+  sel.value=valorAtual||'';
+}
 
 function abrirEditarDados(){
   const p=pac;
+  carregarConveniosSelectEdit(p.convenio_id||'');
   document.getElementById('e-nome').value=p.nome||'';
   document.getElementById('e-apelido').value=p.apelido||'';
   document.getElementById('e-tel').value=p.telefone||'';
@@ -1819,6 +1829,7 @@ async function salvarEdit(){
     observacoes:document.getElementById('e-obs').value||null,
     responsavel:document.getElementById('e-resp').value.trim()||null,
     responsavel_id:document.getElementById('e-resp-id').value||null,
+    convenio_id:document.getElementById('e-convenio').value||null,
   };
   const{error}=await db.from('pacientes').update(updates).eq('id',pac.id);
   if(error){toast('Erro ao salvar','vermelho');return;}

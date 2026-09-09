@@ -152,6 +152,7 @@ textarea{resize:vertical}
 }
 .orc-print-produtos { display: none; margin-top: 1rem; }
 .orc-print-footer { display: none; margin-top: 2rem; }
+#recs-area:empty:before { content: attr(data-placeholder); color: #aaa; }
 </style>
 </head>
 <body>
@@ -810,7 +811,7 @@ textarea{resize:vertical}
       <div class="fgr" style="margin-bottom:1rem;max-width:220px">
         <label>Data</label><input type="date" id="recs-data"/>
       </div>
-      <div id="recs-area" style="border:1px solid #ddd;border-radius:8px;min-height:420px;padding:16px 16px 0;background-image:repeating-linear-gradient(transparent,transparent 31px,#dcdcdc 32px);margin-bottom:1rem"></div>
+      <div id="recs-area" contenteditable="true" spellcheck="false" style="border:1px solid #ddd;border-radius:8px;min-height:420px;padding:16px 16px 0;background-image:repeating-linear-gradient(transparent,transparent 31px,#dcdcdc 32px);margin-bottom:1rem;outline:none;cursor:text;line-height:32px" data-placeholder="Digite aqui o conteúdo do receituário..."></div>
       <div class="orc-print-footer" style="margin-top:2rem">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:3rem;padding-top:1rem;border-top:1px solid #ddd">
           <div style="text-align:center">
@@ -1291,6 +1292,7 @@ function abrirReceituarioSimples(){
   const p=pacSelecionada; if(!p) return;
   document.getElementById('recs-pac-info').innerHTML=`<div><div class="pac-info-nome">${escapeHtml(p.nome)}</div><div class="pac-info-sub">${escapeHtml(p.telefone)}${p.data_nascimento?' · Nasc: '+fDt(p.data_nascimento):''}${p.cpf?' · CPF: '+escapeHtml(p.cpf):''}</div></div>`;
   document.getElementById('recs-data').value=HOJE;
+  const recsArea=document.getElementById('recs-area'); if(recsArea) recsArea.innerHTML='';
 }
 
 // ── ORÇAMENTO SIMPLES ──
@@ -1680,10 +1682,30 @@ function addItemOrc(){
       <option value="Odontologia" ${ehDente?'selected':''}>🦷 Dente</option>
     </select>
     <input type="text" class="orc-dente" placeholder="Dente" style="width:64px;flex-shrink:0;display:${ehDente?'block':'none'}"/>
-    <input type="text" class="orc-trat" list="${ehDente?'lista-trats-dente':'lista-trats-harmonizacao'}" placeholder="Tratamento..." style="flex:1"/>
+    <input type="text" class="orc-trat" list="${ehDente?'lista-trats-dente':'lista-trats-harmonizacao'}" placeholder="Tratamento..." style="flex:1" onchange="autoPrecoConvenio(this)"/>
     <input type="number" class="orc-val" placeholder="R$" min="0" step="0.01" oninput="calcTotal()" style="width:110px;text-align:right;flex-shrink:0"/>
     <button class="btn dan" aria-label="Remover item" style="padding:6px 8px;flex-shrink:0" onclick="this.closest('.orc-linha').remove();calcTotal()" title="Remover item">✕</button>`;
   el.appendChild(d);
+}
+
+// Se o paciente tem convênio e existe um preço cadastrado para esse procedimento,
+// preenche automaticamente o valor (só quando o campo valor ainda está vazio,
+// para nunca sobrescrever algo que a Dra. já digitou).
+async function autoPrecoConvenio(inputTrat){
+  try{
+    const convenioId=pacSelecionada?.convenio_id;
+    if(!convenioId) return;
+    const nomeProc=(inputTrat.value||'').trim();
+    if(!nomeProc) return;
+    const linha=inputTrat.closest('.orc-linha')||inputTrat.closest('tr');
+    const inputVal=linha?.querySelector('.orc-val');
+    if(!inputVal||inputVal.value) return;
+    const{data}=await db.from('convenio_precos').select('valor').eq('convenio_id',convenioId).ilike('procedimento',nomeProc).limit(1);
+    if(data&&data[0]){
+      inputVal.value=data[0].valor;
+      calcTotal();
+    }
+  }catch(e){console.warn('[auto-preco-convenio]',e);}
 }
 
 // Categoria padrão usada apenas para pré-marcar uma linha recém-criada — cada
@@ -2051,6 +2073,7 @@ async function salvarDoc(tipo){
     dados.cuidados=Array.from({length:8},(_,i)=>document.getElementById('rece-c'+(i+1))?.checked||false);
   } else if(tipo==='receituario-simples'){
     dados.data=document.getElementById('recs-data')?.value||'';
+    dados.conteudo=document.getElementById('recs-area')?.innerHTML||'';
   } else if(tipo==='orcamento-simples'){
     dados.data=document.getElementById('orcs-data')?.value||'';
     dados.itens=getOrcsItens();
@@ -2286,6 +2309,7 @@ async function verDoc(id,tipo){
     }
   } else if(tipo==='receituario-simples'){
     if(d.data) document.getElementById('recs-data').value=d.data;
+    document.getElementById('recs-area').innerHTML=d.conteudo||'';
   } else if(tipo==='orcamento-simples'){
     if(d.data) document.getElementById('orcs-data').value=d.data;
     if(d.pagamento) document.getElementById('orcs-pagamento').value=d.pagamento;
@@ -3279,6 +3303,7 @@ function preencherDocSalvo(tipo, dados) {
       }
     } else if (tipo === 'receituario-simples') {
       if (dados.data) setVal('recs-data', dados.data);
+      const recsArea=document.getElementById('recs-area'); if (recsArea) recsArea.innerHTML = dados.conteudo || '';
     } else if (tipo === 'orcamento-simples') {
       if (dados.data)         setVal('orcs-data', dados.data);
       if (dados.pagamento)    setVal('orcs-pagamento', dados.pagamento);

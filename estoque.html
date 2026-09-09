@@ -1108,7 +1108,7 @@ document.querySelectorAll('.mb').forEach(m=>{
 });
 
 // ── INIT ──
-carregar();
+(async()=>{ if(!(await exigirPermissao('estoque'))) return; carregar(); })();
 </script>
 </body>
 </html>

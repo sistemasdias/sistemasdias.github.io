@@ -557,6 +557,10 @@ textarea{resize:vertical;min-height:70px}
       <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">💰 Faturamento estimado</div>
       <div id="rel-fat"></div>
     </div>
+    <div class="card" id="rel-comissoes-card" style="display:none">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">💼 Comissões por profissional</div>
+      <div id="rel-comissoes"></div>
+    </div>
     <div class="card">
       <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">🏅 Programa de Indicação — Embaixadoras</div>
       <div id="rel-embaixadoras"></div>
@@ -627,6 +631,7 @@ textarea{resize:vertical;min-height:70px}
         <div class="fgr"><label>Como conheceu a clínica</label><select id="f-conheceu"><option value="">Selecione...</option><option>Indicação de paciente</option><option>Instagram</option><option>Facebook</option><option>Google</option><option>WhatsApp</option><option>Panfleto / Material impresso</option><option>Evento / Feira</option><option>Já era paciente</option><option>Outro</option></select></div>
         <div class="fgr"><label>📷 Instagram</label><input type="text" id="f-instagram" placeholder="@perfil_instagram"/></div>
         <div class="fgr"><label>👥 Facebook</label><input type="text" id="f-facebook" placeholder="Nome ou link do perfil"/></div>
+        <div class="fgr"><label>Convênio / Plano</label><select id="f-convenio"><option value="">Particular (sem convênio)</option></select></div>
         <div class="fgr full"><label>Observações</label><textarea id="f-obs" placeholder="Anotações..."></textarea></div>
       </div>
       <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--borda)">
@@ -860,6 +865,11 @@ textarea{resize:vertical;min-height:70px}
           <option>Profilaxia (limpeza dental)</option><option>Consulta / avaliação</option><option>Outro</option>
         </select>
       </div>
+      <div class="fgr"><label>Profissional</label>
+        <select id="ag-prof">
+          <option value="">— Não especificado —</option>
+        </select>
+      </div>
       <div class="fgr"><label>Data *</label><input type="date" id="ag-data"/></div>
       <div class="fgr"><label>Horário *</label><input type="time" id="ag-hora"/></div>
       <div class="fgr full"><label>Observação</label><textarea id="ag-obs" style="min-height:55px"></textarea></div>
@@ -963,7 +973,20 @@ const db={
   }
 };
 
-let pacs=[],consultas=[];
+let pacs=[],consultas=[],profissionais=[],convenios=[];
+async function carregarProfissionais(){
+  const{data}=await db.from('usuarios').select('id,nome,comissao_percentual').eq('ativo',true).order('nome');
+  profissionais=data||[];
+  const opts='<option value="">— Não especificado —</option>'+profissionais.map(u=>`<option value="${u.id}">${u.nome}</option>`).join('');
+  const selAg=document.getElementById('ag-prof'); if(selAg) selAg.innerHTML=opts;
+  const selFin=document.getElementById('fin-prof'); if(selFin) selFin.innerHTML=opts;
+}
+async function carregarConvenios(){
+  const{data}=await db.from('convenios').select('id,nome').eq('ativo',true).order('nome');
+  convenios=data||[];
+  const opts='<option value="">Particular (sem convênio)</option>'+convenios.map(c=>`<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
+  const selF=document.getElementById('f-convenio'); if(selF) selF.innerHTML=opts;
+}
 try{const _pacsCache=sessionStorage.getItem('pacs_cache');if(_pacsCache)pacs=JSON.parse(_pacsCache);}catch(e){}
 let _pacLimit=30; // paginação da lista de pacientes
 let mWppPac=null,mWppTipo='ret',mWppTrat=null;
@@ -1831,6 +1854,7 @@ async function renderRel(){
 
   // Faturamento
   document.getElementById('rel-fat').innerHTML=totalFat===0?`<div class="empty"><p>Adicione valores nos atendimentos para ver o faturamento.</p></div>`:`<div style="font-size:28px;font-weight:600;color:var(--verde);margin-bottom:4px">${fmtBRL(totalFat)}</div><div style="font-size:13px;color:var(--ct)">em ${totalAtend} atendimento${totalAtend>1?'s':''} · média de ${fmtBRL(totalFat/totalAtend)} por atendimento</div>`;
+  renderComissoes(cutoff);
 
   // ── Programa de Indicação — Embaixadoras ──
   // Cruzar p.indicacao com nomes reais de pacientes
@@ -1998,6 +2022,36 @@ function toggleRelExec(btn){
   btn.style.color = _relExecAtivo ? 'white' : '';
   btn.style.borderColor = _relExecAtivo ? 'var(--verde)' : '';
   if(_relExecAtivo) renderRelExec();
+}
+
+// ── Comissões por profissional (revenue recebido no período × % de comissão) ──
+async function renderComissoes(cutoff){
+  const card=document.getElementById('rel-comissoes-card');
+  const div=document.getElementById('rel-comissoes');
+  const comProf=profissionais.filter(p=>p.comissao_percentual!==null&&p.comissao_percentual!==undefined&&parseFloat(p.comissao_percentual)>0);
+  if(!comProf.length){ card.style.display='none'; return; }
+  card.style.display='block';
+  try{
+    const ini=cutoff?cutoff.toISOString().split('T')[0]:'2000-01-01';
+    const{data:finData}=await db.from('financeiro').select('valor,status,profissional_id').eq('tipo','receita').gte('data',ini);
+    const recebidos=(finData||[]).filter(l=>l.status==='recebido'&&l.profissional_id);
+    const porProf={};
+    recebidos.forEach(l=>{ porProf[l.profissional_id]=(porProf[l.profissional_id]||0)+(l.valor||0); });
+    const linhas=comProf.map(p=>{
+      const fat=porProf[p.id]||0;
+      const com=fat*(parseFloat(p.comissao_percentual)/100);
+      return{nome:p.nome,pct:p.comissao_percentual,fat,com};
+    }).filter(l=>l.fat>0);
+    if(!linhas.length){ div.innerHTML='<div class="empty"><p>Nenhum recebimento vinculado a profissional com comissão configurada neste período.</p></div>'; return; }
+    div.innerHTML=linhas.sort((a,b)=>b.com-a.com).map(l=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--borda)">
+        <div>
+          <div style="font-weight:600;font-size:13px">${l.nome}</div>
+          <div style="font-size:11px;color:var(--ct)">${fmtBRL(l.fat)} recebido · ${l.pct}% de comissão</div>
+        </div>
+        <div style="font-weight:700;color:var(--verde-e,#1a6e4a);font-size:15px">${fmtBRL(l.com)}</div>
+      </div>`).join('');
+  }catch(e){ console.warn('[comissoes]',e); div.innerHTML='<div class="empty"><p>Erro ao calcular comissões.</p></div>'; }
 }
 
 async function renderRelExec(){
@@ -3221,6 +3275,7 @@ function abrirLancamento(tipo, dados=null){
   document.getElementById('fin-valor').value = dados?.valor||'';
   document.getElementById('fin-obs').value = dados?.obs||'';
   document.getElementById('fin-status').value = dados?.status||'recebido';
+  document.getElementById('fin-prof').value = dados?.profissional_id||'';
   
   // Categorias
   const cats = tipo==='receita'?CAT_RECEITA:CAT_DESPESA;
@@ -3269,6 +3324,7 @@ async function salvarLancamento(){
     valor, forma_pagamento: pgto,
     status: document.getElementById('fin-status').value,
     obs: document.getElementById('fin-obs').value.trim()||null,
+    profissional_id: document.getElementById('fin-prof').value||null,
   };
   
   const btn = document.getElementById('fin-btn-salvar');
@@ -3436,6 +3492,7 @@ function limpar(){
   document.getElementById('f-resp-id').value='';document.getElementById('f-resp-sug').innerHTML='';
   document.getElementById('f-sexo').value='';
   document.getElementById('f-data').value=HOJE_STR;document.getElementById('f-trats').innerHTML='';addTrat('f-trats');
+  const _selConv=document.getElementById('f-convenio'); if(_selConv) _selConv.value='';
   rascunhoLimpar('novo_paciente');
 }
 
@@ -3643,7 +3700,7 @@ async function salvar(){
   if(dupTel) toast('⚠️ Telefone já usado por: '+dupTel.nome+' — prosseguindo','amarelo');
   const dataAtend=document.getElementById('f-data').value;const tc=tratsComDatas(trats,dataAtend);
   const btn=document.getElementById('btn-salvar');btn.disabled=true;btn.textContent='Salvando...';
-  const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:[document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():''),document.getElementById('f-bairro').value.trim(),document.getElementById('f-cidade').value.trim()].filter(Boolean).join(', ')||null,rua:(document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():'')).trim()||null,bairro:document.getElementById('f-bairro').value.trim()||null,cidade:document.getElementById('f-cidade').value.trim()||null,cep:document.getElementById('f-cep').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,como_conheceu:document.getElementById('f-conheceu').value||null,instagram:document.getElementById('f-instagram').value.trim()||null,facebook:document.getElementById('f-facebook').value.trim()||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null,responsavel:document.getElementById('f-resp').value.trim()||null,responsavel_id:document.getElementById('f-resp-id').value||null});
+  const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:[document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():''),document.getElementById('f-bairro').value.trim(),document.getElementById('f-cidade').value.trim()].filter(Boolean).join(', ')||null,rua:(document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():'')).trim()||null,bairro:document.getElementById('f-bairro').value.trim()||null,cidade:document.getElementById('f-cidade').value.trim()||null,cep:document.getElementById('f-cep').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,como_conheceu:document.getElementById('f-conheceu').value||null,instagram:document.getElementById('f-instagram').value.trim()||null,facebook:document.getElementById('f-facebook').value.trim()||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null,responsavel:document.getElementById('f-resp').value.trim()||null,responsavel_id:document.getElementById('f-resp-id').value||null,convenio_id:document.getElementById('f-convenio').value||null});
   btn.disabled=false;btn.innerHTML='✓ Salvar paciente';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   toast(`${nome} cadastrado!`,'verde');limpar();await carregar();aba('hoje',document.querySelector('.tb'));
@@ -3866,7 +3923,7 @@ function abrAg(data){
   if(mOnline){mOnline.classList.remove('open');mOnline.style.display='';}
   agEditando=null;agPacId=null;
   desvincularPacAg();
-  document.getElementById('ag-titulo').textContent='📅 Nova consulta';document.getElementById('ag-id').value='';document.getElementById('ag-nome').value='';document.getElementById('ag-tel').value='';document.getElementById('ag-proc').value='';document.getElementById('ag-data').value=data||agDia;document.getElementById('ag-hora').value='09:00';document.getElementById('ag-obs').value='';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display='none';
+  document.getElementById('ag-titulo').textContent='📅 Nova consulta';document.getElementById('ag-id').value='';document.getElementById('ag-nome').value='';document.getElementById('ag-tel').value='';document.getElementById('ag-proc').value='';document.getElementById('ag-data').value=data||agDia;document.getElementById('ag-hora').value='09:00';document.getElementById('ag-obs').value='';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display='none';document.getElementById('ag-prof').value='';
   document.getElementById('ag-canc-serie-btn').style.display='none';
   document.getElementById('ag-rec-freq').value='';document.getElementById('ag-rec-qtd-bloco').style.display='none';document.getElementById('ag-rec-bloco').style.display='block';
   const mAg=document.getElementById('m-ag');
@@ -3886,7 +3943,7 @@ function editCons(c){
   if(mOnline2){mOnline2.classList.remove('open');mOnline2.style.display='';}
   agEditando=c;agPacId=null;
   desvincularPacAg();
-  document.getElementById('ag-titulo').textContent='✏️ Editar consulta';document.getElementById('ag-id').value=c.id;document.getElementById('ag-nome').value=c.nome;document.getElementById('ag-tel').value=c.telefone||'';document.getElementById('ag-proc').value=c.procedimento||'';document.getElementById('ag-data').value=c.data;document.getElementById('ag-hora').value=c.hora.slice(0,5);document.getElementById('ag-obs').value=c.observacao||'';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display=c.status!=='cancelado'?'inline-flex':'none';
+  document.getElementById('ag-titulo').textContent='✏️ Editar consulta';document.getElementById('ag-id').value=c.id;document.getElementById('ag-nome').value=c.nome;document.getElementById('ag-tel').value=c.telefone||'';document.getElementById('ag-proc').value=c.procedimento||'';document.getElementById('ag-data').value=c.data;document.getElementById('ag-hora').value=c.hora.slice(0,5);document.getElementById('ag-obs').value=c.observacao||'';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display=c.status!=='cancelado'?'inline-flex':'none';document.getElementById('ag-prof').value=c.profissional_id||'';
   document.getElementById('ag-canc-serie-btn').style.display=(c.serie_id&&c.status!=='cancelado')?'inline-flex':'none';
   document.getElementById('ag-rec-bloco').style.display='none';
   const mAgE=document.getElementById('m-ag');
@@ -3929,7 +3986,7 @@ async function salvarConsulta(){
   const serieId=ehRecorrente?(crypto.randomUUID?crypto.randomUUID():'serie-'+Date.now()+'-'+Math.random().toString(36).slice(2)):null;
   // BUG FIX: ao editar (aid existe), não sobrescrever status nem serie_id
   // Manter status e serie_id originais para não resetar consultas confirmadas/em série
-  const payloadBase={nome,telefone:tel||null,procedimento:document.getElementById('ag-proc').value||null,data,hora,observacao:document.getElementById('ag-obs').value.trim()||null,paciente_id:agPacId||null};
+  const payloadBase={nome,telefone:tel||null,procedimento:document.getElementById('ag-proc').value||null,data,hora,observacao:document.getElementById('ag-obs').value.trim()||null,paciente_id:agPacId||null,profissional_id:document.getElementById('ag-prof').value||null};
   const payload=aid
     ? payloadBase  // edição: não altera status nem serie_id
     : {...payloadBase,status:'agendado',serie_id:serieId};  // novo: define status e serie_id
@@ -4110,7 +4167,15 @@ document.addEventListener('click',e=>{
 });
 
 // TABS
-function aba(id,btn){
+const _SECOES_RESTRITAS_ABA = ['financeiro','relatorio','auditoria'];
+async function aba(id,btn){
+  if(_SECOES_RESTRITAS_ABA.includes(id)){
+    const _u = await usuarioAtual();
+    if(!temPermissao(_u,id)){
+      toast('Sem permissão para acessar esta seção','vermelho');
+      return;
+    }
+  }
   document.querySelectorAll('.tb').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');document.getElementById('p-'+id).classList.add('active');
@@ -5441,6 +5506,8 @@ async function instalarPWA(){
 addTrat('f-trats');
 carregar();
 carregarAgenda();
+carregarProfissionais();
+carregarConvenios();
 
 // Verificar se veio de redirect de módulo de gestão
 (function(){
@@ -5528,6 +5595,12 @@ document.getElementById('modal-inf').addEventListener('click',function(e){if(e.t
         <select id="fin-status" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
           <option value="recebido">✅ Recebido / Pago</option>
           <option value="pendente">⏳ A receber</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Profissional (p/ comissão)</label>
+        <select id="fin-prof" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
+          <option value="">— Não especificado —</option>
         </select>
       </div>
       <div>

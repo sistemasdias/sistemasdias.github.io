@@ -310,8 +310,7 @@ function renderHist(){
 }
 
 // Init
-contarRegistros();
-renderHist();
+(async()=>{ if(!(await exigirPermissao('backup'))) return; contarRegistros(); renderHist(); })();
 </script>
 </body>
 </html>

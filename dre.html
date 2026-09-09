@@ -261,8 +261,7 @@ async function carregarDRE(){
   }
 }
 
-initFiltro();
-carregarDRE();
+(async()=>{ if(!(await exigirPermissao('dre'))) return; initFiltro(); carregarDRE(); })();
 </script>
 </body>
 </html>

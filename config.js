@@ -291,6 +291,85 @@ async function authLogin(pin, email) {
   }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// PERMISSÕES POR FUNCIONÁRIO
+// ══════════════════════════════════════════════════════════════════
+// Seções que podem ser restritas por funcionário. eh_admin=true sempre
+// tem acesso a tudo, independente do que está em `permissoes`.
+// IMPORTANTE: isto é uma camada de UX/organização — quem tem login na
+// clínica continua com acesso ao banco daquela clínica (mesma regra de
+// sempre); isto evita que a tela mostre financeiro/configurações pra
+// quem não deveria ver no dia a dia, não é um cofre contra uso indevido
+// deliberado de alguém com a senha.
+const SECOES_PERMISSAO = [
+  {chave:'financeiro',label:'Financeiro',emoji:'💰'},
+  {chave:'relatorio',label:'Relatório geral',emoji:'📊'},
+  {chave:'auditoria',label:'Auditoria',emoji:'🔍'},
+  {chave:'dre',label:'DRE',emoji:'📈'},
+  {chave:'custohora',label:'Custo-hora',emoji:'⏱️'},
+  {chave:'estoque',label:'Estoque',emoji:'📦'},
+  {chave:'configuracoes',label:'Configurações',emoji:'⚙️'},
+  {chave:'backup',label:'Backup',emoji:'🗄️'},
+  {chave:'ficha_tecnica',label:'Ficha técnica',emoji:'📋'},
+  {chave:'convenios',label:'Convênios',emoji:'💳'},
+];
+
+let _usuarioAtualCache=null;
+// Busca o usuário logado (linha da tabela `usuarios`) a partir do JWT da sessão.
+// Resultado fica em cache na aba (sessionStorage) até o login mudar.
+async function usuarioAtual(){
+  if(_usuarioAtualCache) return _usuarioAtualCache;
+  try{
+    const cache=sessionStorage.getItem('usuario_atual_cache');
+    if(cache){ _usuarioAtualCache=JSON.parse(cache); return _usuarioAtualCache; }
+  }catch(e){}
+  try{
+    const auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+    if(!auth.access_token) return null;
+    const resAuth=await fetch(`${SB_URL}/auth/v1/user`,{headers:{'Authorization':`Bearer ${auth.access_token}`,'apikey':SB_KEY}});
+    if(!resAuth.ok) return null;
+    const authUser=await resAuth.json();
+    if(!authUser || !authUser.id) return null;
+    const resUsu=await fetch(`${SB_URL}/rest/v1/usuarios?select=id,nome,cargo,eh_admin,permissoes,comissao_percentual&id=eq.${authUser.id}`,{
+      headers:{'Authorization':`Bearer ${auth.access_token}`,'apikey':SB_KEY}
+    });
+    if(!resUsu.ok) return null;
+    const linhas=await resUsu.json();
+    const usuario=Array.isArray(linhas)&&linhas[0]?linhas[0]:null;
+    if(usuario){
+      _usuarioAtualCache=usuario;
+      try{sessionStorage.setItem('usuario_atual_cache',JSON.stringify(usuario));}catch(e){}
+    }
+    return usuario;
+  }catch(e){ console.warn('[usuarioAtual]',e); return null; }
+}
+// Limpa o cache (chamar ao trocar de usuário/logout)
+function limparUsuarioAtualCache(){ _usuarioAtualCache=null; try{sessionStorage.removeItem('usuario_atual_cache');}catch(e){} }
+
+function temPermissao(usuario,secao){
+  if(!usuario) return false;
+  if(usuario.eh_admin) return true;
+  return !!(usuario.permissoes && usuario.permissoes[secao]===true);
+}
+
+// Guarda de página: chama no topo de uma tela restrita.
+// Se não tiver permissão, mostra aviso e manda pra agenda. Retorna o usuário (ou null se bloqueou).
+async function exigirPermissao(secao){
+  const usuario=await usuarioAtual();
+  if(!usuario){
+    window.location.replace('login.html');
+    return null;
+  }
+  if(temPermissao(usuario,secao)) return usuario;
+  document.body.innerHTML=`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;background:#F7F6F3;flex-direction:column;gap:.75rem;padding:2rem;text-align:center">
+    <div style="font-size:44px">🔒</div>
+    <div style="font-size:16px;font-weight:700;color:#1a1a2e">Sem permissão para acessar esta tela</div>
+    <div style="font-size:13px;color:#6B6860">Fale com o administrador da clínica se você precisa desse acesso.</div>
+    <a href="index.html" style="margin-top:.5rem;color:#1D9E75;font-weight:600;text-decoration:none">← Voltar</a>
+  </div>`;
+  return null;
+}
+
 // ── Dispara a busca da configuração da clínica assim que este arquivo carrega ──
 // Qualquer página pode fazer: await window.CLINICA_CONFIG_PRONTO;
 // antes de mostrar nome/logo/registro na tela, garantindo que já veio o dado certo.

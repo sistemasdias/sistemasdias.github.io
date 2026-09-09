@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Convênios — Clínica</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --verde:#1D9E75;--verde-c:#E1F5EE;--verde-e:#0F6E56;
+      --vermelho:#E24B4A;--txt:#1a1916;--ct:#6B6860;
+      --bg:#F7F6F3;--card:#fff;--borda:#E8E6E1;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);font-size:15px}
+
+    .hdr{background:var(--verde-e);color:#fff;padding:0 1.5rem;display:flex;align-items:center;gap:1rem;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+    .hdr a{color:rgba(255,255,255,.75);text-decoration:none;font-size:13px}
+    .hdr a:hover{color:#fff}
+    .hdr h1{font-size:15px;font-weight:600;flex:1}
+    .badge{background:rgba(255,255,255,.2);font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px}
+
+    .wrap{max-width:780px;margin:0 auto;padding:1.5rem}
+    .secao{background:var(--card);border-radius:14px;border:1px solid var(--borda);margin-bottom:1.25rem;overflow:hidden}
+    .sec-hdr{padding:1rem 1.25rem;border-bottom:1px solid var(--borda);display:flex;align-items:center;gap:.625rem}
+    .sec-icon{font-size:18px}
+    .sec-title{font-size:14px;font-weight:700;color:var(--txt)}
+    .sec-sub{font-size:12px;color:var(--ct);margin-left:auto}
+    .sec-body{padding:1.25rem}
+
+    .fg{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    .fg.full{grid-template-columns:1fr}
+    @media(max-width:600px){.fg{grid-template-columns:1fr}}
+    .fi{display:flex;flex-direction:column;gap:.375rem}
+    .fi label{font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.05em}
+    .fi input,.fi textarea,.fi select{
+      padding:.55rem .875rem;border:1.5px solid var(--borda);border-radius:8px;
+      font-size:14px;font-family:inherit;color:var(--txt);background:var(--card);
+      transition:.15s;
+    }
+    .fi input:focus,.fi textarea:focus,.fi select:focus{outline:none;border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+
+    .bsalvar{
+      background:var(--verde);color:#fff;border:none;border-radius:10px;
+      padding:.7rem 1.5rem;font-size:14px;font-weight:700;cursor:pointer;
+      font-family:inherit;transition:.15s;
+    }
+    .bsalvar:hover{background:var(--verde-e)}
+    .bsalvar:disabled{opacity:.5;cursor:not-allowed}
+
+    .btn2{
+      background:var(--bg);color:var(--txt);border:1.5px solid var(--borda);border-radius:8px;
+      padding:.5rem 1rem;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;
+    }
+    .btn2:hover{border-color:var(--verde);color:var(--verde-e)}
+    .btn2.dan{color:var(--vermelho)}
+    .btn2.dan:hover{border-color:var(--vermelho)}
+
+    .divider{height:1px;background:var(--borda);margin:1rem 0}
+
+    /* Lista de convênios */
+    .conv-item{border:1.5px solid var(--borda);border-radius:10px;margin-bottom:.75rem;overflow:hidden}
+    .conv-cab{display:flex;align-items:center;gap:.75rem;padding:.875rem 1rem;cursor:pointer;background:var(--card)}
+    .conv-cab:hover{background:var(--bg)}
+    .conv-nome{font-size:14px;font-weight:700;flex:1}
+    .conv-nome.inativo{color:var(--ct);text-decoration:line-through}
+    .conv-status{font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px}
+    .conv-status.ativo{background:var(--verde-c);color:var(--verde-e)}
+    .conv-status.inativo{background:var(--bg);color:var(--ct)}
+    .conv-seta{font-size:12px;color:var(--ct);transition:.15s}
+    .conv-seta.aberto{transform:rotate(90deg)}
+    .conv-corpo{display:none;padding:1rem;border-top:1px solid var(--borda);background:var(--bg)}
+    .conv-corpo.aberto{display:block}
+
+    .preco-linha{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+    .preco-linha input{flex:1}
+    .preco-linha input.valor{width:120px;flex:none;text-align:right}
+    .preco-tbl{margin-bottom:.75rem}
+    .preco-vazio{font-size:12px;color:var(--ct);padding:.5rem 0}
+
+    .form-novo{display:flex;gap:8px;margin-top:.25rem}
+    .form-novo input{flex:1}
+
+    .empty{text-align:center;padding:2rem 1rem;color:var(--ct);font-size:13px}
+
+    .toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:999;background:var(--txt);color:#fff;padding:.625rem 1.25rem;border-radius:10px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:.25s;transform:translateY(8px)}
+    .toast.show{opacity:1;transform:none}
+    .toast.err{background:var(--vermelho)}
+  </style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="index.html">← Início</a>
+  <h1>🩺 Convênios / Planos de Saúde</h1>
+  <span class="badge">Administração</span>
+</div>
+
+<div class="wrap">
+
+  <div class="secao">
+    <div class="sec-hdr">
+      <span class="sec-icon">➕</span>
+      <span class="sec-title">Novo convênio</span>
+    </div>
+    <div class="sec-body">
+      <div class="form-novo">
+        <input type="text" id="nc-nome" placeholder="Nome do convênio (ex: Amil, Bradesco Saúde, Particular Empresa X)"/>
+        <button class="bsalvar" onclick="criarConvenio()">Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="secao">
+    <div class="sec-hdr">
+      <span class="sec-icon">📋</span>
+      <span class="sec-title">Convênios cadastrados</span>
+      <span class="sec-sub" id="conv-contagem"></span>
+    </div>
+    <div class="sec-body">
+      <div id="lista-convenios"><div class="empty">Carregando...</div></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const sb = sbClient();
+let convenios=[];
+let precosCache={}; // convenio_id -> array de {id,procedimento,valor}
+let abertoId=null;
+
+let toastT;
+function toast(msg, tipo='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=(tipo==='err'?'⚠️ ':'✅ ')+msg;
+  el.className='toast show '+(tipo==='err'?'err':'');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>el.classList.remove('show'),3000);
+}
+function escapeHtml(s){if(s===null||s===undefined)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function carregarConvenios(){
+  const{data,error}=await sb.from('convenios').select('*').order('nome');
+  if(error){ toast('Erro ao carregar convênios: '+error.message,'err'); return; }
+  convenios=data||[];
+  renderLista();
+}
+
+function renderLista(){
+  const el=document.getElementById('lista-convenios');
+  document.getElementById('conv-contagem').textContent=convenios.length?`${convenios.length} cadastrado(s)`:'';
+  if(!convenios.length){
+    el.innerHTML='<div class="empty">Nenhum convênio cadastrado ainda.<br>Convênios cadastrados aqui ficam disponíveis no cadastro do paciente e no orçamento.</div>';
+    return;
+  }
+  el.innerHTML=convenios.map(c=>{
+    const aberto=abertoId===c.id;
+    return `<div class="conv-item">
+      <div class="conv-cab" onclick="toggleConvenio('${c.id}')">
+        <span class="conv-seta ${aberto?'aberto':''}">▶</span>
+        <span class="conv-nome ${c.ativo?'':'inativo'}">${escapeHtml(c.nome)}</span>
+        <span class="conv-status ${c.ativo?'ativo':'inativo'}">${c.ativo?'Ativo':'Inativo'}</span>
+        <button class="btn2" onclick="event.stopPropagation();toggleAtivo('${c.id}',${!c.ativo})">${c.ativo?'Desativar':'Reativar'}</button>
+        <button class="btn2 dan" onclick="event.stopPropagation();excluirConvenio('${c.id}','${escapeHtml(c.nome).replace(/'/g,"\\'")}')">Excluir</button>
+      </div>
+      <div class="conv-corpo ${aberto?'aberto':''}" id="corpo-${c.id}"></div>
+    </div>`;
+  }).join('');
+  if(abertoId) renderTabelaPrecos(abertoId);
+}
+
+async function toggleConvenio(id){
+  abertoId = abertoId===id ? null : id;
+  renderLista();
+  if(abertoId && !precosCache[abertoId]){
+    await carregarPrecos(abertoId);
+  }
+}
+
+async function carregarPrecos(convenioId){
+  const{data,error}=await sb.from('convenio_precos').select('*').eq('convenio_id',convenioId).order('procedimento');
+  if(error){ toast('Erro ao carregar tabela de preços: '+error.message,'err'); return; }
+  precosCache[convenioId]=data||[];
+  if(abertoId===convenioId) renderTabelaPrecos(convenioId);
+}
+
+function renderTabelaPrecos(convenioId){
+  const corpo=document.getElementById('corpo-'+convenioId);
+  if(!corpo) return;
+  const precos=precosCache[convenioId];
+  if(!precos){
+    corpo.innerHTML='<div class="preco-vazio">Carregando tabela de preços...</div>';
+    return;
+  }
+  const linhas = precos.length
+    ? precos.map(p=>`<div class="preco-linha">
+        <input type="text" value="${escapeHtml(p.procedimento)}" disabled/>
+        <input type="number" class="valor" value="${p.valor}" step="0.01" min="0" onchange="atualizarPreco('${p.id}',this.value)"/>
+        <button class="btn2 dan" onclick="removerPreco('${convenioId}','${p.id}')">✕</button>
+      </div>`).join('')
+    : '<div class="preco-vazio">Nenhum preço cadastrado para este convênio. Os itens do orçamento usarão o valor manual até que um preço seja definido aqui.</div>';
+  corpo.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem">Tabela de preços</div>
+    <div class="preco-tbl">${linhas}</div>
+    <div class="form-novo">
+      <input type="text" id="np-proc-${convenioId}" placeholder="Nome do procedimento (igual ao usado no orçamento)"/>
+      <input type="number" class="valor" id="np-val-${convenioId}" placeholder="R$" step="0.01" min="0" style="width:120px;flex:none"/>
+      <button class="bsalvar" onclick="adicionarPreco('${convenioId}')">Adicionar</button>
+    </div>`;
+}
+
+async function criarConvenio(){
+  const input=document.getElementById('nc-nome');
+  const nome=input.value.trim();
+  if(!nome){ toast('Digite o nome do convênio','err'); return; }
+  const{error}=await sb.from('convenios').insert({nome});
+  if(error){ toast('Erro ao criar convênio: '+error.message,'err'); return; }
+  input.value='';
+  toast('Convênio adicionado!');
+  await carregarConvenios();
+}
+
+async function toggleAtivo(id,novoStatus){
+  const{error}=await sb.from('convenios').update({ativo:novoStatus}).eq('id',id);
+  if(error){ toast('Erro ao atualizar: '+error.message,'err'); return; }
+  await carregarConvenios();
+}
+
+async function excluirConvenio(id,nome){
+  if(!confirm(`Excluir o convênio "${nome}"?\n\nIsso também apaga a tabela de preços dele. Pacientes vinculados a este convênio ficarão sem convênio (não são excluídos).`)) return;
+  const{error}=await sb.from('convenios').delete().eq('id',id);
+  if(error){ toast('Erro ao excluir: '+error.message,'err'); return; }
+  if(abertoId===id) abertoId=null;
+  delete precosCache[id];
+  toast('Convênio excluído.');
+  await carregarConvenios();
+}
+
+async function adicionarPreco(convenioId){
+  const inpProc=document.getElementById('np-proc-'+convenioId);
+  const inpVal=document.getElementById('np-val-'+convenioId);
+  const procedimento=inpProc.value.trim();
+  const valor=parseFloat(inpVal.value);
+  if(!procedimento){ toast('Digite o nome do procedimento','err'); return; }
+  if(isNaN(valor)||valor<0){ toast('Digite um valor válido','err'); return; }
+  const{error}=await sb.from('convenio_precos').insert({convenio_id:convenioId,procedimento,valor});
+  if(error){
+    toast(error.code==='23505' ? 'Já existe um preço cadastrado para esse procedimento neste convênio.' : 'Erro ao adicionar: '+error.message,'err');
+    return;
+  }
+  toast('Preço adicionado!');
+  await carregarPrecos(convenioId);
+}
+
+async function atualizarPreco(id,valor){
+  const v=parseFloat(valor);
+  if(isNaN(v)||v<0){ toast('Valor inválido','err'); return; }
+  const{error}=await sb.from('convenio_precos').update({valor:v}).eq('id',id);
+  if(error){ toast('Erro ao atualizar: '+error.message,'err'); return; }
+  toast('Preço atualizado!');
+  if(abertoId) await carregarPrecos(abertoId);
+}
+
+async function removerPreco(convenioId,id){
+  if(!confirm('Remover este preço da tabela?')) return;
+  const{error}=await sb.from('convenio_precos').delete().eq('id',id);
+  if(error){ toast('Erro ao remover: '+error.message,'err'); return; }
+  toast('Preço removido.');
+  await carregarPrecos(convenioId);
+}
+
+async function init(){
+  if(!(await exigirPermissao('convenios'))) return;
+  await carregarConvenios();
+}
+init();
+</script>
+</body>
+</html>

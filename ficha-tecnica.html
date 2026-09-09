@@ -334,7 +334,7 @@ async function excluirProcedimento(){
   await carregarTudo();
 }
 
-carregarTudo();
+(async()=>{ if(!(await exigirPermissao('ficha_tecnica'))) return; carregarTudo(); })();
 </script>
 </body>
 </html>
