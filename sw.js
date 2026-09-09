@@ -3,7 +3,7 @@
 // v3 — cache inteligente + notificações + instalação PWA
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'clinica-cache-v56';
+const CACHE_NAME = 'clinica-cache-v57';
 
 // Arquivos do app que ficam em cache (shell do app)
 const APP_SHELL = [
