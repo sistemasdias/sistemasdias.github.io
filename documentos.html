@@ -150,7 +150,10 @@ textarea{resize:vertical}
   #orcs-itens input {
     border: none !important; background: none !important; padding: 2px 0 !important;
   }
-  #rec-medicamentos label, #rece-produtos label { display: none !important; }
+  /* Mantém os rótulos (Medicamento, Quantidade, Posologia, Produto, Frequência,
+     Orientação) na impressão — sem eles a receita fica sem indicar o que é cada
+     informação. O '*' de campo obrigatório não faz sentido impresso, então some. */
+  #rec-medicamentos label .req-asterisco, #rece-produtos label .req-asterisco { display: none !important; }
   #rec-medicamentos > div, #rece-produtos > div {
     border: none !important; background: none !important; padding: 0 0 10px 0 !important;
   }
@@ -1292,7 +1295,7 @@ function addMedicamento(dados){
   div.style.cssText='padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--borda);margin-bottom:8px';
   div.innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:start;margin-bottom:6px">
-      <div><label style="font-size:11px;font-weight:600;color:var(--ct)">MEDICAMENTO *</label>
+      <div><label style="font-size:11px;font-weight:600;color:var(--ct)">MEDICAMENTO <span class="req-asterisco">*</span></label>
         <input type="text" class="rec-med-nome" placeholder="Ex: Ibuprofeno 600mg" value="${dados?.nome||''}" style="margin-top:2px"/></div>
       <div><label style="font-size:11px;font-weight:600;color:var(--ct)">QUANTIDADE</label>
         <input type="text" class="rec-med-qtd" placeholder="Ex: 10 comprimidos" value="${dados?.qtd||''}" style="margin-top:2px"/></div>
@@ -1323,7 +1326,7 @@ function addProdutoEstetico(dados){
   div.style.cssText='padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--borda);margin-bottom:8px';
   div.innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:start;margin-bottom:6px">
-      <div><label style="font-size:11px;font-weight:600;color:var(--ct)">PRODUTO *</label>
+      <div><label style="font-size:11px;font-weight:600;color:var(--ct)">PRODUTO <span class="req-asterisco">*</span></label>
         <input type="text" class="rece-prod-nome" placeholder="Ex: Protetor Solar FPS 50+" value="${dados?.nome||''}" style="margin-top:2px"/></div>
       <div><label style="font-size:11px;font-weight:600;color:var(--ct)">FREQUÊNCIA DE USO</label>
         <input type="text" class="rece-prod-freq" placeholder="Ex: 2x ao dia, manhã e noite" value="${dados?.freq||''}" style="margin-top:2px"/></div>
