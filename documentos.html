@@ -469,6 +469,14 @@ textarea{resize:vertical}
       <input type="date" id="modal-data" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px" oninput="calcDataVerificacao()"/>
     </div>
 
+    <!-- Profissional responsável (para relatório de comissão) -->
+    <div>
+      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Profissional responsável</label>
+      <select id="modal-prof" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
+        <option value="">— Não especificado —</option>
+      </select>
+    </div>
+
     <!-- Tratamentos -->
     <div>
       <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:8px">Tratamentos realizados</label>
@@ -1022,6 +1030,15 @@ const db=sbClient();
 
 let pacs=[], pacSelecionada=null;
 const HOJE=new Date().toISOString().split('T')[0];
+let profissionaisDoc=[];
+// Lista de profissionais (funcionários ativos) para vincular o atendimento realizado
+// ao relatório de comissão em index.html (financeiro.profissional_id)
+async function carregarProfissionaisDoc(){
+  const{data}=await db.from('usuarios').select('id,nome').eq('ativo',true).order('nome');
+  profissionaisDoc=data||[];
+  const sel=document.getElementById('modal-prof');
+  if(sel) sel.innerHTML='<option value="">— Não especificado —</option>'+profissionaisDoc.map(u=>`<option value="${u.id}">${escapeHtml(u.nome)}</option>`).join('');
+}
 
 // UTILS
 function toast(m,t=''){const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+t;setTimeout(()=>el.className='toast',3000);}
@@ -1036,6 +1053,7 @@ async function carregar(){
   pacs=data||[];
   await carregarProdutosEstoque();
   await aplicarBrandingDocumentos();
+  await carregarProfissionaisDoc();
 }
 
 // Preenche a marca da clínica (logo, especialidade/CRO, endereço, assinatura)
@@ -3720,6 +3738,7 @@ window.confirmarRealizado = async function() {
   const isParcial = document.getElementById('modal-parcial-check')?.checked;
   const entrada = parseFloat(document.getElementById('modal-entrada')?.value) || 0;
   const lembrData = document.getElementById('modal-lembrete-data')?.value;
+  const profId = document.getElementById('modal-prof')?.value || null;
   
   const totalReal = realizados.reduce((s, t) => s + t.val, 0);
   const valorPago = isParcial ? entrada : (statusPgto === 'recebido' ? totalReal : 0);
@@ -3817,7 +3836,8 @@ window.confirmarRealizado = async function() {
           valor: valorPagoGrupo,
           forma_pagamento: pgto,
           status: 'recebido',
-          obs: obs
+          obs: obs,
+          profissional_id: profId
         });
       } else if (totalGrupo > 0 && statusPgto === 'pendente' && !isParcial) {
         // Status marcado como A receber sem parcial
@@ -3831,7 +3851,8 @@ window.confirmarRealizado = async function() {
           valor: totalGrupo,
           forma_pagamento: pgto,
           status: 'pendente',
-          obs: obs
+          obs: obs,
+          profissional_id: profId
         });
       }
 
@@ -3848,7 +3869,8 @@ window.confirmarRealizado = async function() {
           valor: valorPendenteGrupo,
           forma_pagamento: pgto,
           status: 'pendente',
-          obs: obs
+          obs: obs,
+          profissional_id: profId
         });
       }
     }
