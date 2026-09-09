@@ -140,6 +140,23 @@ textarea{resize:vertical}
   #rece-cuidados label:has(input:checked) { display: flex !important; }
   /* Esconder botões de remover */
   #rece-produtos button, #rec-medicamentos button { display: none !important; }
+  /* Receituário médico / estético / simples e orçamento simples — impressão limpa,
+     no mesmo espírito do Atestado: esconde a "cara de formulário" (caixas, bordas,
+     legendas de campo) e mostra só o conteúdo preenchido */
+  #rec-medicamentos input, #rec-medicamentos textarea,
+  #rece-produtos input,
+  #panel-receituario .fg input, #panel-receituario-estetico .fg input,
+  #panel-orcamento-simples .fgr input, #panel-orcamento-simples .fg input,
+  #orcs-itens input {
+    border: none !important; background: none !important; padding: 2px 0 !important;
+  }
+  #rec-medicamentos label, #rece-produtos label { display: none !important; }
+  #rec-medicamentos > div, #rece-produtos > div {
+    border: none !important; background: none !important; padding: 0 0 10px 0 !important;
+  }
+  /* Receituário simples (em branco) — mesma limpeza aplicada ao Atestado */
+  #recs-area { border: none !important; background: none !important; padding: 0 !important; }
+  #panel-receituario-simples .fgr input { border: none !important; background: none !important; padding: 2px 0 !important; }
   /* Anamnese — imprimir só perguntas respondidas (Sim ou Não), ocultar "—" não respondidas */
   .resp-row:has(input[value="naoresp"]:checked) { display: none !important; }
   /* Esconder o título do grupo (e o campo extra, se houver) quando nenhuma pergunta do grupo foi respondida */
@@ -841,7 +858,7 @@ textarea{resize:vertical}
         <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Orçamento</div>
       </div>
       <div id="orcs-pac-info" class="pac-info"></div>
-      <div class="fgr" style="margin-bottom:1rem;max-width:220px">
+      <div class="fgr no-print" style="margin-bottom:1rem;max-width:220px">
         <label>Data</label><input type="date" id="orcs-data"/>
       </div>
       <div class="sec-title">Itens do Orçamento</div>
@@ -855,7 +872,7 @@ textarea{resize:vertical}
       <textarea id="orcs-pagamento" rows="3" placeholder="Ex: À vista com 10% de desconto. Parcelado em até 6x sem juros no cartão."></textarea>
       <div class="sec-title">Observações</div>
       <textarea id="orcs-obs" rows="2" placeholder="Observações importantes..."></textarea>
-      <div class="fg" style="margin-top:1rem">
+      <div class="fg no-print" style="margin-top:1rem">
         <div class="fgr"><label>Válido por (dias)</label><input type="number" id="orcs-validade-dias" placeholder="Ex: 30" min="0" oninput="calcValidadeOrcSimples()"/></div>
         <div class="fgr"><label>Data de validade</label><input type="date" id="orcs-validade"/></div>
       </div>
