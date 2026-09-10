@@ -847,6 +847,7 @@ textarea{resize:vertical;min-height:70px}
       <div>
         <div style="font-size:12px;font-weight:700;color:var(--verde-e)">✅ Paciente cadastrada vinculada:</div>
         <div style="font-size:13px;font-weight:600;color:var(--txt)" id="ag-pac-vinculado-nome"></div>
+        <div style="font-size:12px;color:var(--ct);margin-top:2px;display:none" id="ag-pac-vinculado-convenio"></div>
       </div>
       <button onclick="desvincularPacAg()" style="background:none;border:none;cursor:pointer;color:var(--vermelho);font-size:18px" title="Desvincular">✕</button>
     </div>
@@ -2422,17 +2423,19 @@ async function salvarAtend(){
       }));
       if(itens.length){ const{error:eItIns}=await db.from('plano_itens').insert(itens); if(eItIns) console.warn('[it-ins]',eItIns); }
       // 4. Lançar receita no financeiro vinculada ao plano
-      const{error:eFinAtend}=await db.from('financeiro').insert({
-        tipo:'receita',data:dataAtend,
-        descricao:`${descProcedimentos} — ${pacNome}`,
-        categoria:'Harmonização Orofacial',
-        valor:valorTotal,
-        forma_pagamento:'pix',
-        status:'pendente',
-        paciente_id:id,
-        orcamento_id:plano.id,
-        obs:'Entrada — aguardando pagamento',
-        profissional_id: document.getElementById('a-prof')?.value||null
+      // RPC (SECURITY DEFINER): permite lançar receita de atendimento mesmo
+      // sem a permissão 'financeiro' — não é um INSERT direto na tabela.
+      const{error:eFinAtend}=await db.rpc('lancar_financeiro_atendimento',{
+        p_tipo:'receita',p_data:dataAtend,
+        p_descricao:`${descProcedimentos} — ${pacNome}`,
+        p_categoria:'Harmonização Orofacial',
+        p_valor:valorTotal,
+        p_forma_pagamento:'pix',
+        p_status:'pendente',
+        p_paciente_id:id,
+        p_orcamento_id:plano.id,
+        p_obs:'Entrada — aguardando pagamento',
+        p_profissional_id: document.getElementById('a-prof')?.value||null
       });
     }
   }
@@ -4095,6 +4098,13 @@ function mostrarVinculado(p){
   agPacId=p.id;
   const banner=document.getElementById('ag-pac-vinculado');
   document.getElementById('ag-pac-vinculado-nome').textContent=p.nome+(p.apelido?` (${escapeHtml(p.apelido)})`:'');
+  // Convênio — só informativo (não afeta cálculo/gravação da consulta)
+  const elConv=document.getElementById('ag-pac-vinculado-convenio');
+  const conv=p.convenio_id?convenios.find(c=>c.id===p.convenio_id):null;
+  if(elConv){
+    if(conv){ elConv.textContent='💳 Convênio: '+conv.nome; elConv.style.display='block'; }
+    else { elConv.textContent=''; elConv.style.display='none'; }
+  }
   banner.style.display='flex';
 }
 
@@ -4102,6 +4112,8 @@ function desvincularPacAg(){
   agPacId=null;
   document.getElementById('ag-pac-vinculado').style.display='none';
   document.getElementById('ag-pac-vinculado-nome').textContent='';
+  const elConv=document.getElementById('ag-pac-vinculado-convenio');
+  if(elConv){ elConv.textContent=''; elConv.style.display='none'; }
 }
 
 function sugPacAg(){
@@ -4699,49 +4711,30 @@ async function marcarStatus(id, status){
 
 async function baixarEstoquePorProcedimento(consulta){
   if(!consulta.procedimento) return;
-  const nomeBusca=consulta.procedimento.trim().toLowerCase();
-  const {data:tiposTodos}=await db.from('tipos_procedimento').select('id,nome');
-  const tipo=(tiposTodos||[]).find(t=>(t.nome||'').trim().toLowerCase()===nomeBusca);
-  if(!tipo){
-    toast(`⚠️ Sem Ficha Técnica para "${consulta.procedimento}" — estoque não foi baixado`,'amarelo');
+  // RPC (SECURITY DEFINER): faz a busca na Ficha Técnica e a baixa de estoque
+  // inteira no banco — permite que qualquer funcionário conclua um atendimento
+  // mesmo sem a permissão 'estoque'/'ficha_tecnica', e evita condição de corrida
+  // entre ler a quantidade atual e gravar a nova.
+  const{data:res,error:eBaixa}=await db.rpc('baixar_estoque_por_procedimento',{
+    p_agenda_id:consulta.id,
+    p_procedimento:consulta.procedimento,
+    p_paciente_nome:consulta.nome||null,
+    p_data_str:consulta.data||null
+  });
+  if(eBaixa){ console.error('[baixarEstoquePorProcedimento]',eBaixa); toast('Erro ao baixar estoque: '+eBaixa.message,'vermelho'); return; }
+  if(!res?.ok){
+    if(res?.motivo==='sem_ficha_tecnica') toast(`⚠️ Sem Ficha Técnica para "${consulta.procedimento}" — estoque não foi baixado`,'amarelo');
+    else if(res?.motivo==='ficha_vazia') toast(`Ficha Técnica de "${consulta.procedimento}" está vazia — nada para baixar`,'amarelo');
     return;
   }
-  const {data:itens}=await db.from('ficha_tecnica').select('produto_id,quantidade,produtos(nome,quantidade)').eq('procedimento_id',tipo.id);
-  if(!itens||!itens.length){
-    toast(`Ficha Técnica de "${consulta.procedimento}" está vazia — nada para baixar`,'amarelo');
-    return;
-  }
-  let algumNegativo=false;
-  for(const item of itens){
-    const qtdAtual=item.produtos?.quantidade||0;
-    const novaQtd=qtdAtual-item.quantidade;
-    if(novaQtd<0) algumNegativo=true;
-    await db.from('produtos').update({quantidade:novaQtd}).eq('id',item.produto_id);
-    await db.from('estoque_movimentos').insert({
-      produto_id:item.produto_id,agenda_id:consulta.id,tipo:'saida',quantidade:item.quantidade,
-      obs:`Baixa automática — ${consulta.procedimento} (${consulta.nome||'paciente'}, ${consulta.data})`
-    });
-  }
-  await db.from('agenda').update({baixa_estoque_feita:true}).eq('id',consulta.id);
-  toast(`📦 Estoque baixado automaticamente (${itens.length} item${itens.length!==1?'s':''})${algumNegativo?' — atenção: algum produto ficou negativo':''}`, algumNegativo?'amarelo':'verde');
+  toast(`📦 Estoque baixado automaticamente (${res.itens} item${res.itens!==1?'s':''})${res.negativo?' — atenção: algum produto ficou negativo':''}`, res.negativo?'amarelo':'verde');
 }
 
 async function reverterBaixaEstoque(consulta){
-  const {data:movs}=await db.from('estoque_movimentos').select('produto_id,quantidade,produtos(quantidade)').eq('agenda_id',consulta.id).eq('tipo','saida');
-  if(!movs||!movs.length){
-    await db.from('agenda').update({baixa_estoque_feita:false}).eq('id',consulta.id);
-    return;
-  }
-  for(const mov of movs){
-    const qtdAtual=mov.produtos?.quantidade||0;
-    const novaQtd=qtdAtual+mov.quantidade;
-    await db.from('produtos').update({quantidade:novaQtd}).eq('id',mov.produto_id);
-    await db.from('estoque_movimentos').insert({
-      produto_id:mov.produto_id,agenda_id:consulta.id,tipo:'entrada',quantidade:mov.quantidade,
-      obs:`Estorno — status da consulta revertido (${consulta.procedimento||''}, ${consulta.data})`
-    });
-  }
-  await db.from('agenda').update({baixa_estoque_feita:false}).eq('id',consulta.id);
+  // RPC (SECURITY DEFINER): estorna as movimentações de saída ligadas a esta
+  // consulta e limpa a flag baixa_estoque_feita, tudo no banco.
+  const{error:eRev}=await db.rpc('reverter_baixa_estoque',{p_agenda_id:consulta.id});
+  if(eRev){ console.error('[reverterBaixaEstoque]',eRev); toast('Erro ao reverter estoque: '+eRev.message,'vermelho'); return; }
   toast('↩ Baixa de estoque revertida','amarelo');
 }
 

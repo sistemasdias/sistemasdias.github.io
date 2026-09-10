@@ -1591,48 +1591,25 @@ async function excluirDoc(id){
 
   let resumo=[];
 
-  // Excluir lançamentos financeiros por DESCRIÇÃO (cobre lançamentos sem orcamento_id)
+  // RPC (SECURITY DEFINER): exclui em cascata (financeiro vinculado, estorno de
+  // estoque, itens e plano) mesmo sem as permissões 'financeiro'/'estoque' —
+  // reproduz a mesma lógica que antes rodava aqui em INSERT/UPDATE/DELETE diretos.
+  const descricoes=[];
   if(doc.paciente_id && doc.dados?.itens?.length){
     const descBase=doc.dados.itens.map(i=>i.trat).join(' + ');
     const descExata=`${descBase} — ${escapeHtml(pac.nome)}`;
-    const{data:l1}=await db.from('financeiro').select('id,valor').eq('paciente_id',doc.paciente_id).eq('descricao',descExata);
-    const{data:l2}=await db.from('financeiro').select('id,valor').eq('paciente_id',doc.paciente_id).eq('descricao',descExata+' (restante)');
-    const lancsDesc=[...(l1||[]),...(l2||[])];
-    if(lancsDesc.length){
-      const{error:eFinDel}=await db.from('financeiro').delete().in('id',lancsDesc.map(l=>l.id));
-      if(eFinDel) console.warn('[fin-del]',eFinDel);
-      const tot=lancsDesc.reduce((s,l)=>s+(l.valor||0),0);
-      resumo.push(`${lancsDesc.length} lançamento(s) (${tot.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})})`);
-    }
+    descricoes.push(descExata, descExata+' (restante)');
   }
-
-  if(planoId){
-    // Lançamentos por orcamento_id
-    const{data:lancs}=await db.from('financeiro').select('id,valor').eq('orcamento_id',planoId);
-    if(lancs&&lancs.length){
-      const{error:eFinOrc}=await db.from('financeiro').delete().eq('orcamento_id',planoId);
-      if(eFinOrc) console.warn('[fin-orc]',eFinOrc);
-      const totalFin=lancs.reduce((s,l)=>s+(l.valor||0),0);
-      resumo.push(`${lancs.length} lançamento(s) por vínculo (${totalFin.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})})`);
-    }
-
-    // Estornar estoque
-    const{data:movs}=await db.from('estoque_movimentos').select('*').eq('plano_id',planoId).eq('tipo','uso');
-    if(movs&&movs.length){
-      for(const mov of movs){
-        const{data:prod}=await db.from('produtos').select('quantidade').eq('id',mov.produto_id).single();
-        if(prod){ const{error:eProdUpd}=await db.from('produtos').update({quantidade:(prod.quantidade||0)+(mov.quantidade||0)}).eq('id',mov.produto_id); if(eProdUpd) console.warn('[prod-upd]',eProdUpd); }
-      }
-      const{error:eEstMov}=await db.from('estoque_movimentos').delete().eq('plano_id',planoId).eq('tipo','uso');
-      resumo.push(`${movs.length} produto(s) estornado(s)`);
-    }
-
-    // Excluir plano + itens
-    const{error:eItDel}=await db.from('plano_itens').delete().eq('plano_id',planoId);
-    if(eItDel) console.warn('[it-del]',eItDel);
-    const{error:ePlDel}=await db.from('planos_tratamento').delete().eq('id',planoId);
-    if(ePlDel) console.warn('[pl-del]',ePlDel);
-    resumo.push('Plano excluído');
+  const{data:resCascata,error:eCascata}=await db.rpc('excluir_orcamento_cascata',{
+    p_plano_id: planoId||null,
+    p_paciente_id: doc.paciente_id||null,
+    p_descricoes: descricoes.length?descricoes:null
+  });
+  if(eCascata){ console.warn('[excluir-cascata]',eCascata); }
+  else if(resCascata){
+    if(resCascata.lancamentos>0) resumo.push(`${resCascata.lancamentos} lançamento(s) (${Number(resCascata.total_financeiro).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})})`);
+    if(resCascata.produtos_estornados>0) resumo.push(`${resCascata.produtos_estornados} produto(s) estornado(s)`);
+    if(planoId) resumo.push('Plano excluído');
   }
 
   const{error:eDocOrc}=await db.from('documentos').delete().eq('id',id);
@@ -2336,12 +2313,14 @@ async function adicionarPagamentoPlano(planoId, descPlano) {
     const pgto = document.getElementById('ap-pgto').value;
     const obs = document.getElementById('ap-obs').value.trim() || null;
     if (!data || !valor) { toast('Preencha data e valor', 'vermelho'); return; }
-    const { error } = await db.from('financeiro').insert({
-      tipo: 'receita', data, valor,
-      descricao: `${descPlano} — ${escapeHtml(pac.nome)}`,
-      categoria: 'Harmonização Orofacial',
-      forma_pagamento: pgto, status: 'recebido',
-      paciente_id: pac.id, orcamento_id: planoId, obs
+    // RPC (SECURITY DEFINER): permite registrar pagamento na ficha do paciente
+    // mesmo sem a permissão 'financeiro' — não é um INSERT direto na tabela.
+    const { error } = await db.rpc('lancar_financeiro_atendimento', {
+      p_tipo: 'receita', p_data: data, p_valor: valor,
+      p_descricao: `${descPlano} — ${escapeHtml(pac.nome)}`,
+      p_categoria: 'Harmonização Orofacial',
+      p_forma_pagamento: pgto, p_status: 'recebido',
+      p_paciente_id: pac.id, p_orcamento_id: planoId, p_obs: obs
     });
     if (error) { toast('Erro ao salvar', 'vermelho'); return; }
     // Verificar se plano está quitado e atualizar status
@@ -2360,7 +2339,9 @@ async function adicionarPagamentoPlano(planoId, descPlano) {
 // ─── MARCAR RECEBIDO NA FICHA ───
 async function marcarRecebidoPaciente(lancId) {
   if (!lancId) return;
-  const { error } = await db.from('financeiro').update({ status: 'recebido' }).eq('id', lancId);
+  // RPC (SECURITY DEFINER): permite marcar como recebido na ficha do paciente
+  // mesmo sem a permissão 'financeiro' — não é um UPDATE direto na tabela.
+  const { error } = await db.rpc('marcar_financeiro_recebido_atendimento', { p_id: lancId });
   if (error) { toast('Erro ao atualizar', 'vermelho'); return; }
   toast('Pagamento recebido ✅', 'verde');
   renderFinanceiro();
