@@ -1619,7 +1619,7 @@ function renderHoje(){
     :lems.map(l=>{const cls=l._d<=0?'urg':'lem';const txt=l._d<0?`${Math.abs(l._d)}d atrasado`:l._d===0?'Hoje!':`em ${l._d}d`;const icone=l.tipo==='cobranca'?'💰':'📌';const recadoTxt=l.recado||l.texto||'';return`<div class="ai ${cls}"><div style="flex:1"><div class="an">${icone} ${l._p.nome}</div><div class="ad">${recadoTxt}</div></div><div class="aa"><span class="ab">${txt}</span>${l.tipo==='cobranca'?`<button class="btn" style="font-size:12px;padding:7px 10px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde)" onclick="abrAtend(${J(l._p)})">💰 Ver</button>`:''}<a href="paciente.html?id=${l._p.id}" class="btn" aria-label="Abrir ficha do paciente" style="font-size:12px;padding:7px 10px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤 Ficha</a><button class="btn" style="font-size:12px;padding:7px 10px;color:var(--vermelho)" onclick="delLembr('${l._p.id}','${l.id}')">✓ Feito</button></div></div>`;}).join('');
 
   // Retornos
-  const rets=[];pacs.forEach(p=>(p.tratamentos_adicionais||[]).forEach(t=>{const d=dias(t.dataRetorno);if(d!==null&&d<=15)rets.push({...p,_t:t,_d:d});}));rets.sort((a,b)=>a._d-b._d);
+  const rets=[];pacs.forEach(p=>(p.tratamentos_adicionais||[]).forEach(t=>{const d=dias(t.dataRetorno);if(d!==null&&d<=15&&getStatusRetorno(p,t.nome)!=='arquivado')rets.push({...p,_t:t,_d:d});}));rets.sort((a,b)=>a._d-b._d);
   document.getElementById('l-ret-hoje').innerHTML=rets.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">✅</div><p>Nenhum retorno nos próximos 15 dias.</p></div>`
     :rets.map(p=>cardAlerta(p,p._d,p._t.nome)).join('');
@@ -1701,7 +1701,7 @@ async function arquivarAlerta(pacId, nomeTrat){
   // Atualizar local
   p.retornos_status = status;
   toast('Alerta arquivado ✓','verde');
-  renderAlertas();
+  carregar();
 }
 
 function cardAlerta(p, d, nomeTrat) {
@@ -1764,7 +1764,7 @@ function renderPac(){
   const listaPag=lista.slice(0,_pacLimit);
   el.innerHTML=listaPag.map(p=>{
     const trats=p.tratamentos_adicionais||[];
-    const prox=trats.filter(t=>t.dataRetorno).map(t=>({...t,d:dias(t.dataRetorno)})).sort((a,b)=>a.d-b.d)[0];
+    const prox=trats.filter(t=>t.dataRetorno&&getStatusRetorno(p,t.nome)!=='arquivado').map(t=>({...t,d:dias(t.dataRetorno)})).sort((a,b)=>a.d-b.d)[0];
     let bc='sem',bt='Sem retorno';
     if(prox){if(prox.d<0){bc='atra';bt=`Atrasado ${Math.abs(prox.d)}d`;}else if(prox.d<=15){bc='prox';bt=`Retorno em ${prox.d}d`;}else{bc='ret';bt=`Retorno: ${fDt(prox.dataRetorno)}`;}}
     const isAniv=anivHoje(p.data_nascimento);
