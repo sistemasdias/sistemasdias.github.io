@@ -744,6 +744,11 @@ textarea{resize:vertical;min-height:70px}
       <div style="font-size:12px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">➕ Novo atendimento / Corrigir</div>
       <div class="fg" style="margin-bottom:10px">
         <div class="fgr"><label>Data *</label><input type="date" id="a-data" oninput="calcVerData()"/></div>
+        <div class="fgr"><label>Profissional</label>
+          <select id="a-prof">
+            <option value="">— Não especificado —</option>
+          </select>
+        </div>
       </div>
       <div class="th"><span>Tratamento</span><span>Retorno em</span><span>Data retorno</span><span>Valor R$</span><span></span></div>
       <div class="tl" id="a-trats"></div>
@@ -980,6 +985,7 @@ async function carregarProfissionais(){
   const opts='<option value="">— Não especificado —</option>'+profissionais.map(u=>`<option value="${u.id}">${u.nome}</option>`).join('');
   const selAg=document.getElementById('ag-prof'); if(selAg) selAg.innerHTML=opts;
   const selFin=document.getElementById('fin-prof'); if(selFin) selFin.innerHTML=opts;
+  const selAt=document.getElementById('a-prof'); if(selAt) selAt.innerHTML=opts;
 }
 async function carregarConvenios(){
   const{data}=await db.from('convenios').select('id,nome').eq('ativo',true).order('nome');
@@ -2313,6 +2319,7 @@ function abrAtend(p){
   document.getElementById('a-pac-tel').textContent=p.telefone;
   document.getElementById('a-data').value=HOJE_STR;
   document.getElementById('a-ver-dias').value=15;
+  const _aProf=document.getElementById('a-prof'); if(_aProf) _aProf.value='';
   calcVerData();
   const el=document.getElementById('a-trats');el.innerHTML='';
   const tratsHoje=(p.tratamentos_adicionais||[]).filter(t=>t.dataAtendimento===HOJE_STR);
@@ -2424,7 +2431,8 @@ async function salvarAtend(){
         status:'pendente',
         paciente_id:id,
         orcamento_id:plano.id,
-        obs:'Entrada — aguardando pagamento'
+        obs:'Entrada — aguardando pagamento',
+        profissional_id: document.getElementById('a-prof')?.value||null
       });
     }
   }
