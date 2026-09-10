@@ -1712,11 +1712,11 @@ function cardAlerta(p, d, nomeTrat) {
     ? `<span class="ab" style="background:var(--azul-c);color:var(--azul)">💬 Msg enviada</span>`
     : `<span class="ab">${txt}</span>`;
  const botoes = status==='aguardando'
-    ? `<button class="btn" aria-label="Confirmar" style="padding:7px 11px;font-size:12px;color:var(--verde);border-color:var(--verde)" onclick="setStatusRetorno('${p.id}',${JSON.stringify(nomeTrat)},'confirmado')">✅ Retornou</button>
-       <button class="btn" aria-label="Desfazer" style="padding:7px 11px;font-size:12px;color:var(--vermelho)" onclick="setStatusRetorno('${p.id}',${JSON.stringify(nomeTrat)},'pendente')">↩ Reabrir</button>
+    ? `<button class="btn" aria-label="Confirmar" style="padding:7px 11px;font-size:12px;color:var(--verde);border-color:var(--verde)" onclick='setStatusRetorno(${JSON.stringify(p.id)},${JSON.stringify(nomeTrat)},"confirmado")'>✅ Retornou</button>
+       <button class="btn" aria-label="Desfazer" style="padding:7px 11px;font-size:12px;color:var(--vermelho)" onclick='setStatusRetorno(${JSON.stringify(p.id)},${JSON.stringify(nomeTrat)},"pendente")'>↩ Reabrir</button>
        <a href="paciente.html?id=${p.id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:7px 11px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤 Ficha</a>`
     : `<button class="btn wpp" aria-label="Lembrete de retorno" onclick='abrRet(${J(p)},${JSON.stringify(nomeTrat)})'>🔔 WhatsApp</button>
-       <button class="btn" aria-label="Arquivar" style="padding:7px 11px;font-size:12px;color:var(--ct);opacity:.7" onclick="arquivarAlerta('${p.id}',${JSON.stringify(nomeTrat)})" title="Arquivar">📁</button>
+       <button class="btn" aria-label="Arquivar" style="padding:7px 11px;font-size:12px;color:var(--ct);opacity:.7" onclick='arquivarAlerta(${JSON.stringify(p.id)},${JSON.stringify(nomeTrat)})' title="Arquivar">📁</button>
        <a href="paciente.html?id=${p.id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:7px 11px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤 Ficha</a>`;
   return `<div class="ai ${cls}">
     <div><div class="an">${escapeHtml(p.nome)}</div><div class="ad">${nomeTrat} · ${escapeHtml(p.telefone)} · Retorno: ${fDt(p.tratamentos_adicionais?.find(t=>t.nome===nomeTrat)?.dataRetorno)}</div></div>
