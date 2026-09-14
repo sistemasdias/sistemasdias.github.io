@@ -541,6 +541,36 @@
     </div>
   </div>
 
+  <!-- Instância Evolution API (self-hosted) -->
+  <div class="secao">
+    <div class="sec-hdr">
+      <span class="sec-icon">📡</span>
+      <span class="sec-title">Instância Evolution API (self-hosted)</span>
+    </div>
+    <div class="sec-body">
+      <div style="font-size:12px;color:var(--ct);margin-bottom:1rem;line-height:1.6;background:var(--bg);border-radius:8px;padding:.75rem 1rem">
+        Cadastre aqui só o <strong>nome da instância</strong> e o <strong>número conectado</strong> na sua Evolution API self-hosted.
+        A chave da Evolution (apikey) não é informada aqui — ela fica configurada apenas como secret no backend, por segurança.
+      </div>
+
+      <div id="wz-evo-instancias-lista" style="margin-bottom:1rem"></div>
+
+      <div class="fg" style="margin-bottom:.875rem">
+        <div class="fi">
+          <label>Nome da instância</label>
+          <input type="text" id="wz-evo-inst-nome" placeholder="Ex: clinica-anna"/>
+          <span class="hint">Precisa ser igual ao nome da instância criada na Evolution API</span>
+        </div>
+        <div class="fi">
+          <label>Número conectado</label>
+          <input type="text" id="wz-evo-inst-numero" placeholder="Ex: 5517999999999"/>
+        </div>
+      </div>
+      <button onclick="salvarInstanciaEvolution()" style="padding:.5rem 1.25rem;background:var(--verde);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">💾 Salvar instância</button>
+      <span id="wz-evo-inst-msg" style="font-size:12px;margin-left:.5rem"></span>
+    </div>
+  </div>
+
   <!-- Salvar -->
   <button class="bsalvar" id="btn-salvar" onclick="salvar()">💾 Salvar todas as configurações</button>
 
@@ -659,6 +689,72 @@ async function testarConexaoWZ(){
   }
 }
 
+// ══════════════════════════════════════════
+// INSTÂNCIA EVOLUTION API (self-hosted) — whatsapp_instancias
+// ══════════════════════════════════════════
+function _escEvo(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+
+async function carregarInstanciasEvolution(){
+  const {data} = await sb.from('whatsapp_instancias').select('*').order('criado_em',{ascending:true});
+  renderInstanciasEvolution(data||[]);
+}
+
+function renderInstanciasEvolution(lista){
+  const el = document.getElementById('wz-evo-instancias-lista');
+  if(!lista.length){
+    el.innerHTML = `<div style="font-size:12px;color:var(--ct)">Nenhuma instância cadastrada ainda.</div>`;
+    return;
+  }
+  el.innerHTML = lista.map(i=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--bg);border-radius:8px;margin-bottom:6px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:13px;font-weight:600">${_escEvo(i.instancia_nome)}</div>
+        <div style="font-size:11px;color:var(--ct)">${_escEvo(i.numero_conectado||'—')}</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:${i.ativo?'var(--verde-c)':'#eee'};color:${i.ativo?'var(--verde-e)':'#888'}">${i.ativo?'🟢 Ativa':'⚪ Inativa'}</span>
+        <button onclick="toggleInstanciaEvolution('${i.id}',${!i.ativo})" style="padding:4px 10px;font-size:11px;border:1px solid var(--borda);border-radius:7px;background:var(--card);cursor:pointer;font-family:inherit">${i.ativo?'Desativar':'Ativar'}</button>
+        <button onclick="removerInstanciaEvolution('${i.id}')" style="padding:4px 10px;font-size:11px;border:1px solid var(--borda);border-radius:7px;background:var(--card);color:var(--vermelho);cursor:pointer;font-family:inherit">Remover</button>
+      </div>
+    </div>`).join('');
+}
+
+async function salvarInstanciaEvolution(){
+  const nome = document.getElementById('wz-evo-inst-nome').value.trim();
+  const numero = document.getElementById('wz-evo-inst-numero').value.trim();
+  const msg = document.getElementById('wz-evo-inst-msg');
+  if(!nome){
+    msg.textContent = '❌ Informe o nome da instância';
+    msg.style.color = 'var(--vermelho)';
+    return;
+  }
+  const {error} = await sb.from('whatsapp_instancias')
+    .upsert({instancia_nome:nome, numero_conectado:numero||null}, {onConflict:'instancia_nome'});
+  if(error){
+    msg.textContent = '❌ '+error.message;
+    msg.style.color = 'var(--vermelho)';
+    return;
+  }
+  msg.textContent = '✅ Instância salva';
+  msg.style.color = 'var(--verde-e)';
+  document.getElementById('wz-evo-inst-nome').value = '';
+  document.getElementById('wz-evo-inst-numero').value = '';
+  carregarInstanciasEvolution();
+}
+
+async function toggleInstanciaEvolution(id, novoAtivo){
+  const {error} = await sb.from('whatsapp_instancias').update({ativo:novoAtivo}).eq('id',id);
+  if(error){toast('Erro ao atualizar instância','err');return;}
+  carregarInstanciasEvolution();
+}
+
+async function removerInstanciaEvolution(id){
+  if(!confirm('Remover esta instância? O envio automático de WhatsApp para de funcionar até cadastrar outra.')) return;
+  const {error} = await sb.from('whatsapp_instancias').delete().eq('id',id);
+  if(error){toast('Erro ao remover instância','err');return;}
+  carregarInstanciasEvolution();
+}
+
 // Função global para enviar mensagem via API (usada pelo index.html)
 // Salva no localStorage para o index.html consumir
 function wzEnviarMensagem(telefone, mensagem, tipoNotif){
@@ -707,6 +803,7 @@ async function init(){
   }
   renderPdots();
   wzCarregar();
+  carregarInstanciasEvolution();
   carregarEquipe();
 }
 

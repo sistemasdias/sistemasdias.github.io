@@ -333,7 +333,11 @@ textarea{resize:vertical;min-height:70px}
     <div class="sl2">🎂 Aniversariantes</div><div id="l-aniv"></div>
     <div class="sl2">📌 Lembretes</div><div id="l-lembr"></div>
     <div class="sl2">💰 A receber (próx. 7 dias)</div><div id="l-fin-hoje"></div>
-    <div class="sl2">🔔 Retornos nos próximos 15 dias</div><div id="l-ret-hoje"></div>
+    <div class="sl2" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      🔔 Retornos nos próximos 15 dias
+      <button class="btn" style="padding:6px 12px;font-size:12px;background:#25D366;color:white;border-color:#25D366" onclick="enviarLembretesHojeWhatsApp()" title="Envia lembrete via WhatsApp para quem tem retorno previsto para hoje">📲 Enviar lembretes de hoje via WhatsApp</button>
+    </div>
+    <div id="l-ret-hoje"></div>
     <!-- Lembretes automáticos de amanhã -->
     <div id="sec-lembretes-amanha"></div>
   </div>
@@ -1623,6 +1627,38 @@ function renderHoje(){
   document.getElementById('l-ret-hoje').innerHTML=rets.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">✅</div><p>Nenhum retorno nos próximos 15 dias.</p></div>`
     :rets.map(p=>cardAlerta(p,p._d,p._t.nome)).join('');
+}
+
+// ── ENVIAR LEMBRETES DE HOJE VIA WHATSAPP (Evolution API) ──
+async function enviarLembretesHojeWhatsApp(){
+  const hojeItens=[];
+  pacs.forEach(p=>(p.tratamentos_adicionais||[]).forEach(t=>{
+    const d=dias(t.dataRetorno);
+    if(d===0&&getStatusRetorno(p,t.nome)!=='arquivado') hojeItens.push({p,t});
+  }));
+
+  if(!hojeItens.length){toast('Nenhum retorno vence hoje','vermelho');return;}
+  if(!confirm(`Enviar lembrete via WhatsApp para ${hojeItens.length} paciente(s) com retorno hoje?`)) return;
+
+  const auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+  if(!auth.access_token){toast('Sessão expirada, faça login novamente','vermelho');return;}
+
+  let ok=0,erros=0;
+  for(const {p} of hojeItens){
+    const tel=(p.telefone||'').replace(/\D/g,'');
+    if(!tel){erros++;continue;}
+    try{
+      const res=await fetch(`${SB_URL}/functions/v1/whatsapp-enviar`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${auth.access_token}`,'apikey':SB_KEY},
+        body:JSON.stringify({paciente_id:p.id,numero:'55'+tel,texto:msgRetorno(p)})
+      });
+      if(res.ok) ok++; else erros++;
+    }catch(e){erros++;}
+    await new Promise(r=>setTimeout(r,1200));
+  }
+
+  toast(`${ok} lembrete(s) enviado(s)${erros?`, ${erros} com erro`:''}`,erros&&!ok?'vermelho':'verde');
 }
 
 setTimeout(injetarBtnFicha,300);
