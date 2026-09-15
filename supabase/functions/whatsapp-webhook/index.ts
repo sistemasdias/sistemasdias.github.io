@@ -32,6 +32,172 @@ function extrairTexto(message: Record<string, unknown> | undefined | null): stri
   );
 }
 
+function soDigitos(s: string): string {
+  return String(s || '').replace(/\D/g, '');
+}
+
+// Compara números tolerando presença/ausência de código do país (55) —
+// um é considerado o mesmo do outro se um "termina" com o outro.
+function numerosBatem(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  return a.endsWith(b) || b.endsWith(a);
+}
+
+async function enviarTexto(instanciaNome: string, numero: string, texto: string) {
+  const evolutionUrl = Deno.env.get('EVOLUTION_API_URL')!;
+  const evolutionKey = Deno.env.get('EVOLUTION_API_KEY')!;
+  try {
+    await fetch(`${evolutionUrl}/message/sendText/${instanciaNome}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evolutionKey },
+      body: JSON.stringify({ number: numero, text: texto }),
+    });
+  } catch (e) {
+    console.error('[enviarTexto]', e);
+  }
+}
+
+const MSG_FORMATO =
+  'Não entendi o comando. Use exatamente este formato:\n\n' +
+  'agendar: Nome completo do paciente, DD/MM HH:MM, Procedimento (opcional)\n\n' +
+  'Exemplos:\n' +
+  'agendar: Claudio Gallego Dias Filho, 16/09 14:00\n' +
+  'agendar: Claudio Gallego Dias Filho, 16/09 14:00, Botox';
+
+interface ComandoAgendar {
+  nome: string;
+  data: string; // YYYY-MM-DD
+  hora: string; // HH:MM
+  procedimento: string | null;
+}
+
+function parseComandoAgendar(texto: string): ComandoAgendar | null {
+  const semPrefixo = texto.replace(/^\s*agendar\s*:\s*/i, '');
+  const partes = semPrefixo.split(',');
+  if (partes.length !== 2 && partes.length !== 3) return null;
+
+  const nome = partes[0].trim();
+  const dataHora = partes[1].trim();
+  const procedimento = partes[2]?.trim() || null;
+  if (!nome) return null;
+
+  const m = dataHora.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\s+(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+
+  const [, diaStr, mesStr, anoStr, horaStr, minStr] = m;
+  const dia = parseInt(diaStr, 10);
+  const mes = parseInt(mesStr, 10);
+  const ano = anoStr ? parseInt(anoStr, 10) : new Date().getFullYear();
+  const hora = parseInt(horaStr, 10);
+  const min = parseInt(minStr, 10);
+  if (mes < 1 || mes > 12 || dia < 1 || dia > 31 || hora > 23 || min > 59) return null;
+
+  const data = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+  const horaFmt = `${String(hora).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+  return { nome, data, hora: horaFmt, procedimento };
+}
+
+function fmtDataBR(data: string): string {
+  const [ano, mes, dia] = data.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+async function processarComandoAgendar(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+  texto: string,
+) {
+  const { data: config } = await adminClient
+    .from('config_clinica')
+    .select('whatsapp_numeros_autorizados')
+    .eq('clinica_id', clinicaId)
+    .maybeSingle();
+
+  const autorizados = (config?.whatsapp_numeros_autorizados || '')
+    .split(',')
+    .map((n: string) => soDigitos(n))
+    .filter(Boolean);
+
+  const remetenteAutorizado = autorizados.some((n: string) => numerosBatem(n, numeroRemetente));
+  if (!remetenteAutorizado) return; // não é comando de ninguém autorizado — ignora silenciosamente
+
+  const comando = parseComandoAgendar(texto);
+  if (!comando) {
+    await enviarTexto(instanciaNome, numeroRemetente, MSG_FORMATO);
+    return;
+  }
+
+  const { data: exatos } = await adminClient
+    .from('pacientes')
+    .select('id, nome, telefone')
+    .eq('clinica_id', clinicaId)
+    .ilike('nome', comando.nome);
+
+  let candidatos = exatos || [];
+  if (!candidatos.length) {
+    const { data: parciais } = await adminClient
+      .from('pacientes')
+      .select('id, nome, telefone')
+      .eq('clinica_id', clinicaId)
+      .ilike('nome', `%${comando.nome}%`);
+    candidatos = parciais || [];
+  }
+
+  if (!candidatos.length) {
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      `Não encontrei nenhum paciente chamado "${comando.nome}". Confira o nome cadastrado no sistema e tente de novo.`,
+    );
+    return;
+  }
+
+  if (candidatos.length > 1) {
+    const lista = candidatos
+      .map((p: any) => `• ${p.nome}${p.telefone ? ' (' + p.telefone + ')' : ''}`)
+      .join('\n');
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      `Encontrei mais de um paciente com esse nome:\n${lista}\n\nMande o comando de novo com o nome completo exatamente como está cadastrado.`,
+    );
+    return;
+  }
+
+  const paciente = candidatos[0] as { id: string; nome: string; telefone: string | null };
+
+  const { error: erroAgenda } = await adminClient.from('agenda').insert({
+    clinica_id: clinicaId,
+    paciente_id: paciente.id,
+    nome: paciente.nome,
+    telefone: paciente.telefone,
+    procedimento: comando.procedimento,
+    data: comando.data,
+    hora: comando.hora,
+    status: 'agendado',
+    origem: 'whatsapp',
+  });
+
+  if (erroAgenda) {
+    console.error('[agendar-whatsapp]', erroAgenda);
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      'Deu erro ao tentar agendar. Tente novamente pelo sistema ou fale com o suporte.',
+    );
+    return;
+  }
+
+  const procTexto = comando.procedimento ? ` (${comando.procedimento})` : '';
+  await enviarTexto(
+    instanciaNome,
+    numeroRemetente,
+    `✅ Consulta agendada: ${paciente.nome} — ${fmtDataBR(comando.data)} às ${comando.hora}${procTexto}`,
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -107,12 +273,31 @@ Deno.serve(async (req) => {
     }
 
     // Idempotente: duplicata por message_id é ignorada em vez de dar erro.
-    const { error: insertError } = await adminClient
+    // O upsert com ignoreDuplicates só devolve as linhas realmente NOVAS —
+    // é assim que garantimos que um comando "agendar:" só roda uma vez,
+    // mesmo se a Evolution reenviar o mesmo evento (evita agendamento em
+    // duplicidade).
+    const { data: gravadas, error: insertError } = await adminClient
       .from('whatsapp_mensagens_recebidas')
-      .upsert(linhas, { onConflict: 'message_id', ignoreDuplicates: true });
+      .upsert(linhas, { onConflict: 'message_id', ignoreDuplicates: true })
+      .select('remote_jid, texto');
 
     if (insertError) {
       return jsonResponse({ error: insertError.message }, 500);
+    }
+
+    // Comando de agendamento por WhatsApp: mensagem de/para um número
+    // autorizado começando com "agendar:". Não filtra por from_me porque o
+    // uso normal é a própria clínica mandando o comando pra si mesma (chat
+    // "Você" no WhatsApp) — nesse caso a mensagem sempre vem como from_me:
+    // true, mesmo sendo um comando novo. Quem trava isso é a lista de
+    // números autorizados dentro de processarComandoAgendar.
+    for (const linha of gravadas || []) {
+      const texto = (linha.texto || '').trim();
+      if (!/^agendar\s*:/i.test(texto)) continue;
+      const numeroRemetente = soDigitos((linha.remote_jid || '').split('@')[0]);
+      if (!numeroRemetente) continue;
+      await processarComandoAgendar(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
     }
 
     return jsonResponse({ ok: true, gravadas: linhas.length });
