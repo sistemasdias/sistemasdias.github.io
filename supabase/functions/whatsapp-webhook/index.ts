@@ -85,6 +85,11 @@ Deno.serve(async (req) => {
       .map((item: Record<string, any>) => {
         const messageId = item?.key?.id;
         if (!messageId) return null;
+        // Só conversas individuais: grupos (@g.us) e status/broadcast são
+        // conversa pessoal do número da clínica, não têm relação com paciente
+        // e não devem ser armazenados (LGPD / minimização de dados).
+        const jid = String(item?.key?.remoteJid || '');
+        if (jid.endsWith('@g.us') || jid.endsWith('@broadcast') || jid.endsWith('@newsletter')) return null;
         return {
           clinica_id: instancia.clinica_id,
           instancia_nome: instanciaNome,
