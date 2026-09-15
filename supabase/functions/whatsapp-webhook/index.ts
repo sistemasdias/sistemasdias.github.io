@@ -72,7 +72,7 @@ interface ComandoAgendar {
 }
 
 function parseComandoAgendar(texto: string): ComandoAgendar | null {
-  const semPrefixo = texto.replace(/^\s*agendar\s*:\s*/i, '');
+  const semPrefixo = texto.replace(/^\s*agendar\s*:?\s*/i, '');
   const partes = semPrefixo.split(',');
   if (partes.length !== 2 && partes.length !== 3) return null;
 
@@ -162,7 +162,7 @@ async function processarComandoListarAgenda(
 ) {
   if (!(await estaAutorizado(adminClient, clinicaId, numeroRemetente))) return;
 
-  const dataDigitada = texto.replace(/^\s*agenda\s*:\s*/i, '').trim();
+  const dataDigitada = texto.replace(/^\s*agenda\s*:?\s*/i, '').trim();
   const dataAlvo = parseDataSimples(dataDigitada);
   if (!dataAlvo) {
     await enviarTexto(
@@ -211,7 +211,7 @@ async function processarComandoConfirmarAgenda(
 ) {
   if (!(await estaAutorizado(adminClient, clinicaId, numeroRemetente))) return;
 
-  const dataAlvo = parseDataSimples(texto.replace(/^\s*confirmar\s+agenda\s*:\s*/i, ''));
+  const dataAlvo = parseDataSimples(texto.replace(/^\s*confirmar\s+agenda\s*:?\s*/i, ''));
   if (!dataAlvo) {
     await enviarTexto(
       instanciaNome,
@@ -471,11 +471,15 @@ Deno.serve(async (req) => {
       const numeroRemetente = soDigitos((linha.remote_jid || '').split('@')[0]);
       if (!numeroRemetente) continue;
 
-      if (/^confirmar\s+agenda\s*:/i.test(texto)) {
+      // Detecção por palavra (não exige ":" logo em seguida) — se a
+      // pessoa esqueceu o formato exato (ex: "Agenda do dia 18/09" em vez
+      // de "agenda: 18/09"), ainda cai no handler certo, que aí sim explica
+      // o formato certo em vez de ficar em silêncio.
+      if (/^confirmar\s+agenda\b/i.test(texto)) {
         await processarComandoConfirmarAgenda(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
-      } else if (/^agenda\s*:/i.test(texto)) {
+      } else if (/^agenda\b/i.test(texto)) {
         await processarComandoListarAgenda(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
-      } else if (/^agendar\s*:/i.test(texto)) {
+      } else if (/^agendar\b/i.test(texto)) {
         await processarComandoAgendar(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
       }
     }
