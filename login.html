@@ -194,6 +194,18 @@ let usuariosDisponiveis = [];
 async function carregarUsuarios() {
   try {
     const slugAtual = obterSlugClinicaDaUrl();
+    if (!slugAtual) {
+      // Sem "?c=slug" na URL não dá pra saber qual clínica é — mostrar
+      // isso explicitamente em vez de cair sozinho numa clínica específica
+      // (com várias clínicas no sistema, isso já causou gente entrando/
+      // agendando na clínica errada por engano).
+      document.getElementById('tela-selecao').innerHTML = `
+        <div style="text-align:center;padding:1rem 0;color:var(--ct)">
+          <div style="font-size:14px;font-weight:600;margin-bottom:.5rem">Link de acesso incompleto</div>
+          <div style="font-size:12px">Use o link específico da sua clínica para entrar no sistema.</div>
+        </div>`;
+      return;
+    }
     // Guarda o slug atual — útil depois pro "voltar ao login" funcionar
     // corretamente mesmo se a clínica for bloqueada (quando a config dela
     // deixa de ser acessível via sessão autenticada).

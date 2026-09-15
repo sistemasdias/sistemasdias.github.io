@@ -166,10 +166,12 @@ function rascunhoDinamicoChecar(chave) {
 // ── Carrega config da clínica do Supabase ──
 // Descobre o "slug" da clínica atual a partir da URL (?c=slug).
 // Usado só nas páginas públicas, antes de qualquer login existir.
-// Enquanto só existe uma clínica no sistema, cai no padrão "anna-carolina".
+// Sem "?c=" na URL, retorna null — cada página decide como tratar isso
+// (nunca cair sozinho numa clínica específica: com múltiplas clínicas no
+// sistema, isso já causou gente caindo no login/agenda de outra clínica).
 function obterSlugClinicaDaUrl() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('c') || 'anna-carolina';
+  return params.get('c') || null;
 }
 
 async function carregarConfigClinica() {
