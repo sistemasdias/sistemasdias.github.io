@@ -1675,6 +1675,29 @@ async function enviarLembretesHojeWhatsApp(){
   toast(`${ok} lembrete(s) enviado(s)${erros?`, ${erros} com erro`:''}`,erros&&!ok?'vermelho':'verde');
 }
 
+// ── ENVIAR CONFIRMAÇÃO DE CONSULTA (WhatsApp real, com confirmação antes) ──
+async function enviarConfirmacaoConsulta(c){
+  if(!c.telefone){toast('Paciente sem telefone cadastrado','vermelho');return;}
+  if(!confirm(`Enviar confirmação de consulta via WhatsApp pra ${c.nome}?`)) return;
+
+  const auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+  if(!auth.access_token){toast('Sessão expirada, faça login novamente','vermelho');return;}
+
+  const tel='55'+c.telefone.replace(/\D/g,'');
+  try{
+    const res=await fetch(`${SB_URL}/functions/v1/whatsapp-enviar`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${auth.access_token}`,'apikey':SB_KEY},
+      body:JSON.stringify({paciente_id:c.paciente_id||null,numero:tel,texto:msgConsulta(c)})
+    });
+    const d=await res.json();
+    if(!res.ok){toast('Erro ao enviar: '+(d.error||'falha desconhecida'),'vermelho');return;}
+    toast('Mensagem enviada ✅','verde');
+  }catch(e){
+    toast('Erro de conexão ao enviar','vermelho');
+  }
+}
+
 setTimeout(injetarBtnFicha,300);
   setTimeout(injetarBtnFicha,1200);
   renderAlertasFinHoje();
@@ -3876,7 +3899,7 @@ function renderConsDia(ds){
   el.innerHTML=cs.map(c=>{
     // Horário bloqueado — visual especial, sem ações
     if(c.status==='bloqueado'){return`<div class="ci" style="opacity:.6;background:#f3f4f6;border-left:3px solid #9ca3af"><div class="ch" style="color:#6b7280">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn" style="color:#6b7280">🚫 ${escapeHtml(c.nome||'Horário bloqueado')}</div></div><div class="ca"><button class="btn" aria-label="Desbloquear horário" style="padding:5px 9px;font-size:11px;color:var(--vermelho)" onclick="desbloquearHorario('${c.id}')" title="Desbloquear">✕ Remover</button></div></div>`;}
-    const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':c.status==='aguardando'?'online':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}${c.origem==='online'?'<span class="badge-online">📱 Online</span>':''}</div><div class="cd">${escapeHtml(c.procedimento)||'Sem procedimento'}${c.telefone?' · '+escapeHtml(c.telefone):''}${c.observacao?' · '+escapeHtml(c.observacao):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp" title="Enviar WhatsApp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal" aria-label="Adicionar ao Google Agenda" title="Adicionar ao Google Agenda">📆</a><button class="btn" aria-label="Editar consulta" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.telefone?`<button class="btn" style="padding:6px 9px;font-size:12px;background:#EBF5FB;color:#1565C0;border-color:#90CAF9" title="Informativo pós-procedimento" onclick="posProcCard(this)" data-nome="${encodeURIComponent(c.nome)}" data-tel="${encodeURIComponent(c.telefone||'')}" data-proc="${encodeURIComponent(c.procedimento||'')}">📲</button>`:''}${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
+    const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':c.status==='aguardando'?'online':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}${c.origem==='online'?'<span class="badge-online">📱 Online</span>':''}</div><div class="cd">${escapeHtml(c.procedimento)||'Sem procedimento'}${c.telefone?' · '+escapeHtml(c.telefone):''}${c.observacao?' · '+escapeHtml(c.observacao):''}</div></div><div class="ca">${tel?`<button class="btn wpp" aria-label="Enviar WhatsApp" title="Enviar WhatsApp" onclick='enviarConfirmacaoConsulta(${J(c)})'>💬</button>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal" aria-label="Adicionar ao Google Agenda" title="Adicionar ao Google Agenda">📆</a><button class="btn" aria-label="Editar consulta" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.telefone?`<button class="btn" style="padding:6px 9px;font-size:12px;background:#EBF5FB;color:#1565C0;border-color:#90CAF9" title="Informativo pós-procedimento" onclick="posProcCard(this)" data-nome="${encodeURIComponent(c.nome)}" data-tel="${encodeURIComponent(c.telefone||'')}" data-proc="${encodeURIComponent(c.procedimento||'')}">📲</button>`:''}${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
   renderConsMes();
   setTimeout(injetarBtnFicha,300);
   setTimeout(injetarBtnFicha,1200);
