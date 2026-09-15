@@ -431,35 +431,6 @@ const db={
     return qb;
   }
 };
-// Aviso automático: qualquer insert/update/delete/upsert que falhar mostra toast de erro,
-// mesmo que o código que chamou não verifique 'error' explicitamente.
-(function(){
-  const _from=db.from.bind(db);
-  const _ACAO={insert:'salvar',update:'atualizar',delete:'excluir',upsert:'salvar'};
-  db.from=function(tabela){
-    const qb=_from(tabela);
-    ['insert','update','delete','upsert'].forEach(function(metodo){
-      const orig=qb[metodo];
-      if(typeof orig!=='function')return;
-      qb[metodo]=function(...args){
-        const res=orig.apply(qb,args);
-        const origThen=res.then.bind(res);
-        res.then=function(onOk,onErr){
-          return origThen(function(r){
-            if(r&&r.error){
-              console.error('['+tabela+'.'+metodo+']',r.error);
-              if(typeof toast==='function')toast('Erro ao '+_ACAO[metodo]+' ('+tabela+'): '+(r.error.message||'falha desconhecida'),'vermelho');
-            }
-            return onOk?onOk(r):r;
-          },onErr);
-        };
-        return res;
-      };
-    });
-    return qb;
-  };
-})();
-
 let _produtos=[], _fornecedores=[], _movimentos=[], _pacientes=[];
 let _tabAtual='dashboard';
 

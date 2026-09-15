@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ficha do Paciente — Clínica Dra. Anna Carolina</title>
+<title>Ficha do Paciente</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
@@ -559,32 +559,6 @@ textarea{resize:vertical;min-height:70px}
   </div>
 </div>
 
-<!-- ═══════ MODAL FOTO — EDITAR LABEL ═══════ -->
-<div class="mb" id="m-foto-edit">
-  <div class="mx" style="max-width:400px">
-    <h3>🏷️ Editar foto</h3>
-    <input type="hidden" id="fe-path"/>
-    <div class="fgr" style="margin-bottom:12px">
-      <label>Categoria</label>
-      <select id="fe-cat">
-        <option value="geral">Geral</option>
-        <option value="antes">Antes</option>
-        <option value="depois">Depois</option>
-        <option value="evolucao">Evolução</option>
-      </select>
-    </div>
-    <div class="fgr" style="margin-bottom:12px">
-      <label>Descrição</label>
-      <input type="text" id="fe-desc" placeholder="Ex: Botox frontal — 20U"/>
-    </div>
-    <div class="br">
-      <button class="btn" onclick="document.getElementById('m-foto-edit').classList.remove('open')">Cancelar</button>
-      <button class="btn pri" onclick="salvarMetaFoto()">✓ Salvar</button>
-    </div>
-  </div>
-</div>
-
-
 <!-- ═══════ MODAL DETALHES DO ATENDIMENTO ═══════ -->
 <div class="mb" id="m-atend-det">
   <div class="mx" style="max-width:520px">
@@ -738,6 +712,10 @@ const db={
   },
   storage:_dbClient.storage
 };
+
+if(window.CLINICA_CONFIG_PRONTO) window.CLINICA_CONFIG_PRONTO.then(()=>{
+  if(CLINICA_CONFIG.nome) document.title='Ficha do Paciente — '+CLINICA_CONFIG.nome;
+});
 
 let pac=null;
 let todasFotos=[];

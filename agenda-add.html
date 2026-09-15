@@ -152,7 +152,7 @@ function baixarICS(){
   if(!dataOk){alert('Dados da consulta não encontrados.');return;}
   const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
   const nomeClinica=c.nome||'Clínica';
-  const slug=(typeof obterSlugClinicaDaUrl==='function')?obterSlugClinicaDaUrl():'clinica';
+  const slug=((typeof obterSlugClinicaDaUrl==='function')&&obterSlugClinicaDaUrl())||'clinica';
   const titulo='Consulta - '+nomeClinica+(p?' ('+p+')':'');
   const ics=[
     'BEGIN:VCALENDAR',

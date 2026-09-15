@@ -216,9 +216,14 @@ async function carregarUsuarios() {
     const usuarios = await res.json();
 
     if (!Array.isArray(usuarios) || usuarios.length === 0) {
-      // View ainda não existe ou não retornou ninguém — usa o login antigo (1 e-mail fixo)
-      usuarioSelecionado = { email: CLINICA_CONFIG.loginEmail, nome: '' };
-      mostrarTelaPin();
+      // Nenhum usuário ativo pra esse slug (slug errado ou clínica sem login
+      // cadastrado). Antes caía no e-mail fixo de CLINICA_CONFIG.loginEmail,
+      // que é de uma clínica específica — mesma classe do bug do slug fixo.
+      document.getElementById('tela-selecao').innerHTML = `
+        <div style="text-align:center;padding:1rem 0;color:var(--ct)">
+          <div style="font-size:14px;font-weight:600;margin-bottom:.5rem">Clínica não encontrada</div>
+          <div style="font-size:12px">Confira o link de acesso ou fale com o administrador do sistema.</div>
+        </div>`;
       return;
     }
 
@@ -237,8 +242,11 @@ async function carregarUsuarios() {
       </button>
     `).join('');
   } catch(e) {
-    usuarioSelecionado = { email: CLINICA_CONFIG.loginEmail, nome: '' };
-    mostrarTelaPin();
+    document.getElementById('tela-selecao').innerHTML = `
+      <div style="text-align:center;padding:1rem 0;color:var(--ct)">
+        <div style="font-size:14px;font-weight:600;margin-bottom:.5rem">Não foi possível carregar o acesso</div>
+        <div style="font-size:12px">Verifique sua conexão e recarregue a página.</div>
+      </div>`;
   }
 }
 
