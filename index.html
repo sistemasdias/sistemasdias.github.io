@@ -365,7 +365,7 @@ textarea{resize:vertical;min-height:70px}
             <button class="ag-view-tab" id="ag-tab-timeline" onclick="setAgView('timeline')">🕐 Dia</button>
             <button class="ag-view-tab" id="ag-tab-semana" onclick="setAgView('semana')">📅 Semana</button>
           </div>
-          <button class="btn pri" style="padding:7px 13px;font-size:13px" onclick="abrAg()">+ Agendar</button><button class="btn" style="padding:8px 12px;font-size:13px;color:var(--ct)" onclick="abrirBloqueioHorario()" title="Bloquear horário na agenda">🚫 Bloquear</button>
+          <button class="btn pri" style="padding:7px 13px;font-size:13px" onclick="abrAg()">+ Agendar</button><button class="btn" style="padding:8px 12px;font-size:13px;color:var(--ct)" onclick="abrirBloqueioHorario()" title="Bloquear horário na agenda">🚫 Bloquear</button><button class="btn" style="padding:7px 12px;font-size:13px;background:#25D366;color:white;border-color:#25D366" onclick="enviarConfirmacoesDoDia()" title="Enviar confirmação de consulta via WhatsApp pra todo mundo desse dia">📲 Confirmar todos</button>
           <button class="btn" aria-label="Configurar agendamento online" style="padding:7px 10px;font-size:12px;background:#7c3aed;color:white;border-color:#7c3aed" onclick="abrirConfAgOnline()" title="Configurar agendamento online">📱</button>
         </div>
       </div>
@@ -1696,6 +1696,33 @@ async function enviarConfirmacaoConsulta(c){
   }catch(e){
     toast('Erro de conexão ao enviar','vermelho');
   }
+}
+
+// ── ENVIAR CONFIRMAÇÃO PRA TODO MUNDO DO DIA (agenda) ──
+async function enviarConfirmacoesDoDia(){
+  const doDia=consultas.filter(c=>c.data===agDia&&c.status!=='cancelado'&&c.status!=='bloqueado');
+  const comTel=doDia.filter(c=>c.telefone);
+  if(!comTel.length){toast('Nenhum paciente com telefone nesse dia','vermelho');return;}
+  const lbl=document.getElementById('ag-dia-lbl')?.textContent||agDia;
+  if(!confirm(`Enviar confirmação de consulta via WhatsApp pra ${comTel.length} paciente(s) de ${lbl}?`)) return;
+
+  const auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+  if(!auth.access_token){toast('Sessão expirada, faça login novamente','vermelho');return;}
+
+  let ok=0,erros=0;
+  for(const c of comTel){
+    const tel='55'+c.telefone.replace(/\D/g,'');
+    try{
+      const res=await fetch(`${SB_URL}/functions/v1/whatsapp-enviar`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${auth.access_token}`,'apikey':SB_KEY},
+        body:JSON.stringify({paciente_id:c.paciente_id||null,numero:tel,texto:msgConsulta(c)})
+      });
+      if(res.ok) ok++; else erros++;
+    }catch(e){erros++;}
+    await new Promise(r=>setTimeout(r,1200));
+  }
+  toast(`${ok} confirmação(ões) enviada(s)${erros?`, ${erros} com erro`:''}`,erros&&!ok?'vermelho':'verde');
 }
 
 setTimeout(injetarBtnFicha,300);
