@@ -59,3 +59,51 @@ Não precisa mudar código nem schema — o desenho já é multi-tenant. Passos:
 O VPS de 4GB aguenta um número razoável de instâncias simultâneas. Se o
 sistema crescer para muitas dezenas de clínicas ativas ao mesmo tempo, vale
 avaliar um servidor maior — não é urgente hoje.
+
+## Subdomínio por clínica (ex.: anna-carolina.sistemasdias.com.br)
+
+**Status: adiado, não é prioridade.** Registrado aqui pra não se perder.
+
+### Contexto
+
+A Dra. Anna Munique caiu no login/agenda da Dra. Anna Carolina ao acessar o
+sistema sem o parâmetro `?c=slug` na URL. Causa raiz corrigida no commit
+`ef1e2c3`: [config.js](config.js) tinha um fallback fixo (`|| 'anna-carolina'`)
+em `obterSlugClinicaDaUrl()` — sem `?c=`, o sistema assumia silenciosamente
+a clínica da Anna Carolina, tanto no login quanto no agendamento online
+público. Isso já foi corrigido: hoje, sem o parâmetro, aparece uma mensagem
+clara ("Link de acesso incompleto") em vez de assumir a clínica errada.
+
+Link correto de cada clínica, enquanto não existir subdomínio:
+`sistemasdias.github.io/login.html?c=<slug-da-clinica>`.
+
+### Por que subdomínio ainda seria uma melhoria (não urgente)
+
+- Link mais fácil de lembrar/vender: `suaclinica.sistemasdias.com.br` em vez
+  de `?c=slug`.
+- Isolamento de origem de verdade no navegador (cada subdomínio tem seu
+  próprio `localStorage`), em vez de depender só do código pra não misturar
+  dados de clínicas diferentes na mesma origem.
+
+### Por que está adiado
+
+GitHub Pages (onde o site é hospedado hoje, de graça) **não suporta domínio
+curinga** (`*.sistemasdias.com.br`) — só aceita um domínio customizado por
+repositório. As duas opções avaliadas:
+
+- **Vercel**: suporta domínio curinga nativamente, mas o plano gratuito
+  ("Hobby") é só para uso pessoal/não-comercial — pra um sistema vendido
+  pra clínicas, seria necessário o plano Pro (~$20/mês, conferir preço atual
+  em vercel.com/pricing). Custo mensal recorrente novo.
+- **Caddy no VPS da Evolution API**: usar o Caddy que já roda lá como
+  roteador do domínio curinga na frente do GitHub Pages. Sem custo mensal
+  extra (o VPS já é pago), mas acopla a disponibilidade do site principal à
+  do servidor de WhatsApp self-hosted (menos estável, pode cair/precisar
+  reiniciar) — hoje são independentes.
+
+### Recomendação
+
+Fazer quando o sistema estiver **ativamente sendo vendido pra clínicas
+novas** e a aparência do link pesar na decisão — não antes disso. Se/quando
+for a hora, decidir entre as duas opções acima (ou reavaliar preços/opções
+novas na época).
