@@ -42,6 +42,18 @@ Este sistema é multi-tenant. Uma única Evolution API (um VPS, vários
 "instances") atende todas as clínicas. Ver `ROADMAP.md` para o passo a passo
 de onboarding de clínica nova.
 
+## Como uma atualização chega nas clínicas
+
+- O site tem um service worker (`sw.js`) pro modo "app instalável"/offline.
+  Os arquivos do app são servidos **network-first**: com internet, o
+  navegador sempre baixa a versão publicada; o cache só entra se estiver
+  offline. Um `git push` chega em todos os aparelhos na próxima abertura,
+  sem precisar mudar nada no `sw.js`.
+- `CACHE_NAME` em `sw.js` só precisa ser trocado quando se quer forçar uma
+  limpeza geral do cache antigo em todos os aparelhos (raro).
+- Se alguém "não vê a atualização": fechar todas as abas do sistema e abrir
+  de novo com internet. Se persistir, no navegador: apagar dados do site.
+
 ## Automação
 
 Nenhuma automação nova (cron, disparo em massa) entra já ligada. Ela nasce

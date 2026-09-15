@@ -1,9 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// Service Worker — Clínica Dra. Anna Carolina Dias
-// v3 — cache inteligente + notificações + instalação PWA
+// Service Worker — Sistema de Gestão Clínica (multi-clínica)
+// cache p/ offline + notificações + instalação PWA
 // ═══════════════════════════════════════════════════════════════
+// Arquivos do app usam NETWORK FIRST: com internet, sempre vem o código
+// novo do servidor (um deploy chega em todo mundo sem precisar mudar o
+// CACHE_NAME); sem internet, cai no cache. Mudar o CACHE_NAME continua
+// servindo pra forçar limpeza geral de cache antigo em todos os aparelhos.
 
-const CACHE_NAME = 'clinica-cache-v64';
+const CACHE_NAME = 'clinica-cache-v65';
 
 // Arquivos do app que ficam em cache (shell do app)
 const APP_SHELL = [
@@ -52,42 +56,35 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// ── Fetch: Network First para dados, Cache First para assets ──
+// ── Fetch: Network First para arquivos do app, cache só como fallback offline ──
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
- // 1. REGRA DE OURO: API do Supabase sempre direto para a rede
-  // O Service Worker ignora essas requisições
+  // 1. API do Supabase sempre direto para a rede — o SW ignora
   if (url.hostname.includes('supabase.co')) {
-    return; 
+    return;
   }
 
-  // 2. Requisições externas que não fazem parte do seu domínio (ex: Google Fonts)
+  // 2. Requisições externas fora do domínio (ex: Google Fonts, CDN) — ignora
   if (url.origin !== self.location.origin) {
     return;
   }
 
-  // 3. Arquivos do app: Cache First com fallback para rede
+  // 3. Arquivos do app: rede primeiro; se vier ok, atualiza o cache;
+  //    se falhar (offline), usa o cache; navegação offline cai no index.html.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      // Se encontrou no cache, retorna
-      if (cached) return cached;
-      
-      // Se não, busca na rede
-      return fetch(event.request).then((response) => {
-        // Cachear resposta válida apenas se for um asset (tipo 'basic')
-        if (response && response.status === 200 && response.type === 'basic') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => {
-        // Offline fallback: retorna index.html para navegação
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      });
-    })
+    fetch(event.request).then((response) => {
+      if (response && response.status === 200 && response.type === 'basic') {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+      }
+      return response;
+    }).catch(() =>
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        if (event.request.mode === 'navigate') return caches.match('./index.html');
+      })
+    )
   );
 });
 
