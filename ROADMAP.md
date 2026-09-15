@@ -28,16 +28,27 @@
 - [x] Linha da instância `clinica-anna` cadastrada em `whatsapp_instancias`,
       vinculada à Clínica Dra. Anna Carolina Dias.
 
+- [x] WhatsApp da clínica (+55 17 98211-3940) conectado à instância
+      `clinica-anna` em 15/09/2026 — estado `open`.
+
+### Como conectar (ou reconectar) o WhatsApp de uma instância
+
+O QR/código gerado pela API gira a cada ~45s, então mandar por chat não
+funciona (chega vencido). Use o Manager, que renova o QR sozinho na tela:
+
+1. Abrir `https://evolution.sistemasdias.com.br/manager` num computador e
+   entrar com a `EVOLUTION_API_KEY` (está nos Secrets do Supabase).
+2. Clicar na instância → aparece o QR ao vivo.
+3. No celular: WhatsApp → Aparelhos conectados → Conectar um aparelho →
+   apontar pro QR. Nome do dispositivo: qualquer (ex. "Sistema Clínica").
+4. Conferir: `GET /instance/connectionState/<nome>` deve responder `open`.
+
+Se a sessão cair (celular muito tempo offline, logout), repetir o processo.
+
 ### Falta
 
-- [ ] **Ler o QR code com o celular** que será o número oficial de WhatsApp
-      da clínica (Configurações → Aparelhos conectados → Conectar um
-      aparelho, no WhatsApp do celular). É o único passo que depende de uma
-      pessoa fisicamente — sem isso, `whatsapp-enviar` responde
-      "nenhuma instância ativa" na prática (a instância existe mas está sem
-      número conectado).
-      QR expira em ~1 min — gerar um novo é rápido (`GET
-      /instance/connect/clinica-anna` na Evolution API com a apikey).
+- [ ] Teste real de envio pelo sistema (botão "📲 Enviar lembretes de hoje
+      via WhatsApp" ou pela ficha do paciente) com um paciente de teste.
 
 ### Onboarding de uma clínica nova (ex.: Dra. Anna Munique)
 
