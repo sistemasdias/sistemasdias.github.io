@@ -2162,7 +2162,7 @@ async function renderFinanceiro(){
           <span style="font-size:14px;font-weight:700;color:${recebido?'var(--txt)':'#8a6000'}">${fmtBRL(l.valor)}</span>
           ${recebido
             ? `<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--verde-c);color:var(--verde);font-weight:600">✅ Recebido</span>`
-            : `<button class="btn sm" style="padding:4px 10px;font-size:11px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick="marcarRecebidoPaciente('${l.id}')">⏳ Marcar recebido</button>`
+            : `<button class="btn sm" style="padding:4px 10px;font-size:11px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick="abrirMarcarRecebido('${l.id}',${parseFloat(l.valor)||0})">⏳ Marcar recebido</button>`
           }
         </div>
       </div>`;
@@ -2229,7 +2229,7 @@ async function renderFinanceiro(){
               ${pgto?`<span style="font-size:12px;padding:2px 8px;border-radius:20px;background:var(--azul-c);color:var(--azul);font-weight:500">💳 ${pgto}</span>`:''}
               <span style="font-size:12px;padding:2px 8px;border-radius:20px;background:${recebido?'var(--verde-c)':'var(--amarelo-c)'};color:${recebido?'var(--verde)':'var(--amarelo)'};font-weight:500">${recebido?'✅ Recebido':'⏳ A receber'}</span>
             </div>
-            ${!recebido?`<button class="btn sm" style="padding:5px 10px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="marcarRecebidoPaciente('${l.id}')">✓ Recebido</button>`:''}
+            ${!recebido?`<button class="btn sm" style="padding:5px 10px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="abrirMarcarRecebido('${l.id}',${parseFloat(l.valor)||0})">✓ Recebido</button>`:''}
           </div>
         </div>`;
       }).join('');
@@ -2350,12 +2350,43 @@ async function adicionarPagamentoPlano(planoId, descPlano) {
   };
 }
 
-// ─── MARCAR RECEBIDO NA FICHA ───
-async function marcarRecebidoPaciente(lancId) {
+// ─── MARCAR RECEBIDO NA FICHA (com opção de valor parcial) ───
+function abrirMarcarRecebido(lancId, valorPendente) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--card);border-radius:16px;padding:1.5rem;max-width:380px;width:100%;box-shadow:var(--sm)';
+  box.innerHTML = `
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">✅ Marcar recebido</div>
+    <div style="font-size:12px;color:var(--ct);margin-bottom:1rem">Valor pendente: ${fmtBRL(valorPendente)}. Se o valor recebido for menor, o restante continua pendente numa nova entrada.</div>
+    <div class="fg">
+      <div class="fgr"><label>Valor recebido R$ *</label><input type="number" id="mr-valor" min="0" step="0.01" value="${valorPendente}"/></div>
+      <div class="fgr"><label>Data *</label><input type="date" id="mr-data" value="${new Date().toISOString().split('T')[0]}"/></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+      <button class="btn" id="mr-cancel">Cancelar</button>
+      <button class="btn pri" id="mr-ok">✓ Confirmar</button>
+    </div>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  document.getElementById('mr-cancel').onclick = () => document.body.removeChild(overlay);
+  document.getElementById('mr-ok').onclick = async () => {
+    const valor = parseFloat(document.getElementById('mr-valor').value) || 0;
+    const data = document.getElementById('mr-data').value;
+    if (!valor || !data) { toast('Preencha valor e data', 'vermelho'); return; }
+    document.body.removeChild(overlay);
+    await marcarRecebidoPaciente(lancId, valor, data);
+  };
+}
+
+async function marcarRecebidoPaciente(lancId, valorRecebido, data) {
   if (!lancId) return;
   // RPC (SECURITY DEFINER): permite marcar como recebido na ficha do paciente
   // mesmo sem a permissão 'financeiro' — não é um UPDATE direto na tabela.
-  const { error } = await db.rpc('marcar_financeiro_recebido_atendimento', { p_id: lancId });
+  const { error } = await db.rpc('marcar_financeiro_recebido_parcial', {
+    p_id: lancId, p_valor_recebido: valorRecebido, p_data: data
+  });
   if (error) { toast('Erro ao atualizar', 'vermelho'); return; }
   toast('Pagamento recebido ✅', 'verde');
   renderFinanceiro();
