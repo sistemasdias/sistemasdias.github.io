@@ -980,6 +980,20 @@ const db={
       };
     });
     return qb;
+  },
+  rpc:function(fn,args){
+    const res=_dbClient.rpc(fn,args);
+    const origThen=res.then.bind(res);
+    res.then=function(onOk,onErr){
+      return origThen(function(r){
+        if(r&&r.error){
+          console.error('[rpc.'+fn+']',r.error);
+          if(typeof toast==='function')toast('Erro ao chamar '+fn+': '+(r.error.message||'falha desconhecida'),'vermelho');
+        }
+        return onOk?onOk(r):r;
+      },onErr);
+    };
+    return res;
   }
 };
 
