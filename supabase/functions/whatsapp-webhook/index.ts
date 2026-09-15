@@ -102,13 +102,30 @@ function fmtDataBR(data: string): string {
   return `${dia}/${mes}/${ano}`;
 }
 
-async function processarComandoAgendar(
+const DIAS_SEMANA = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+
+function fmtDiaSemana(data: string): string {
+  return DIAS_SEMANA[new Date(`${data}T12:00:00`).getDay()];
+}
+
+// Aceita DD/MM ou DD/MM/AAAA (sem hora) — usado pelos comandos de consultar
+// e confirmar agenda de um dia.
+function parseDataSimples(texto: string): string | null {
+  const m = texto.trim().match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);
+  if (!m) return null;
+  const [, diaStr, mesStr, anoStr] = m;
+  const dia = parseInt(diaStr, 10);
+  const mes = parseInt(mesStr, 10);
+  const ano = anoStr ? parseInt(anoStr, 10) : new Date().getFullYear();
+  if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+  return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+}
+
+async function estaAutorizado(
   adminClient: ReturnType<typeof createClient>,
   clinicaId: string,
-  instanciaNome: string,
   numeroRemetente: string,
-  texto: string,
-) {
+): Promise<boolean> {
   const { data: config } = await adminClient
     .from('config_clinica')
     .select('whatsapp_numeros_autorizados')
@@ -120,8 +137,144 @@ async function processarComandoAgendar(
     .map((n: string) => soDigitos(n))
     .filter(Boolean);
 
-  const remetenteAutorizado = autorizados.some((n: string) => numerosBatem(n, numeroRemetente));
-  if (!remetenteAutorizado) return; // não é comando de ninguém autorizado — ignora silenciosamente
+  return autorizados.some((n: string) => numerosBatem(n, numeroRemetente));
+}
+
+function msgConfirmacaoConsulta(
+  consulta: { nome: string; data: string; hora: string; procedimento: string | null },
+  nomeClinica: string,
+): string {
+  const primeiroNome = consulta.nome.split(' ')[0];
+  const procTexto = consulta.procedimento ? `Procedimento: ${consulta.procedimento}\n\n` : '';
+  return (
+    `Olá, ${primeiroNome}! 😊\n\n` +
+    `Lembrando que você tem consulta ${fmtDiaSemana(consulta.data)}, dia ${fmtDataBR(consulta.data)} às ${consulta.hora}h na clínica da ${nomeClinica}.\n\n` +
+    `${procTexto}Confirma sua presença? ✅\n\nTe esperamos! 💚`
+  );
+}
+
+async function processarComandoListarAgenda(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+  texto: string,
+) {
+  if (!(await estaAutorizado(adminClient, clinicaId, numeroRemetente))) return;
+
+  const dataDigitada = texto.replace(/^\s*agenda\s*:\s*/i, '').trim();
+  const dataAlvo = parseDataSimples(dataDigitada);
+  if (!dataAlvo) {
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      'Não entendi a data. Use: agenda: DD/MM\n\nExemplo: agenda: 18/09',
+    );
+    return;
+  }
+
+  const { data: consultas } = await adminClient
+    .from('agenda')
+    .select('nome, hora, procedimento, status')
+    .eq('clinica_id', clinicaId)
+    .eq('data', dataAlvo)
+    .neq('status', 'cancelado')
+    .order('hora', { ascending: true });
+
+  if (!consultas || !consultas.length) {
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      `Nenhuma consulta agendada pra ${fmtDataBR(dataAlvo)}.`,
+    );
+    return;
+  }
+
+  const lista = consultas
+    .map((c: any) => `${c.hora.slice(0, 5)} — ${c.nome}${c.procedimento ? ' (' + c.procedimento + ')' : ''}`)
+    .join('\n');
+
+  await enviarTexto(
+    instanciaNome,
+    numeroRemetente,
+    `📅 Agenda de ${fmtDataBR(dataAlvo)} (${consultas.length}):\n\n${lista}\n\n` +
+      `Pra mandar confirmação pra todo mundo desse dia, mande: confirmar agenda: ${dataDigitada}`,
+  );
+}
+
+async function processarComandoConfirmarAgenda(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+  texto: string,
+) {
+  if (!(await estaAutorizado(adminClient, clinicaId, numeroRemetente))) return;
+
+  const dataAlvo = parseDataSimples(texto.replace(/^\s*confirmar\s+agenda\s*:\s*/i, ''));
+  if (!dataAlvo) {
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      'Não entendi a data. Use: confirmar agenda: DD/MM\n\nExemplo: confirmar agenda: 18/09',
+    );
+    return;
+  }
+
+  const { data: consultas } = await adminClient
+    .from('agenda')
+    .select('nome, hora, telefone, procedimento')
+    .eq('clinica_id', clinicaId)
+    .eq('data', dataAlvo)
+    .neq('status', 'cancelado')
+    .order('hora', { ascending: true });
+
+  if (!consultas || !consultas.length) {
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      `Nenhuma consulta agendada pra ${fmtDataBR(dataAlvo)} — nada pra confirmar.`,
+    );
+    return;
+  }
+
+  const { data: clinicaConfig } = await adminClient
+    .from('config_clinica')
+    .select('nome')
+    .eq('clinica_id', clinicaId)
+    .maybeSingle();
+  const nomeClinica = clinicaConfig?.nome || 'clínica';
+
+  let enviadas = 0;
+  let semTelefone = 0;
+  for (const c of consultas as any[]) {
+    const tel = soDigitos(c.telefone || '');
+    if (!tel) {
+      semTelefone++;
+      continue;
+    }
+    await enviarTexto(instanciaNome, tel, msgConfirmacaoConsulta({ ...c, data: dataAlvo }, nomeClinica));
+    enviadas++;
+    await new Promise((r) => setTimeout(r, 1200));
+  }
+
+  await enviarTexto(
+    instanciaNome,
+    numeroRemetente,
+    `✅ Confirmação enviada pra ${enviadas} paciente(s) de ${fmtDataBR(dataAlvo)}` +
+      (semTelefone ? `, ${semTelefone} sem telefone cadastrado` : '') +
+      '.',
+  );
+}
+
+async function processarComandoAgendar(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+  texto: string,
+) {
+  if (!(await estaAutorizado(adminClient, clinicaId, numeroRemetente))) return;
 
   const comando = parseComandoAgendar(texto);
   if (!comando) {
@@ -307,18 +460,24 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: insertError.message }, 500);
     }
 
-    // Comando de agendamento por WhatsApp: mensagem de/para um número
-    // autorizado começando com "agendar:". Não filtra por from_me porque o
-    // uso normal é a própria clínica mandando o comando pra si mesma (chat
-    // "Você" no WhatsApp) — nesse caso a mensagem sempre vem como from_me:
-    // true, mesmo sendo um comando novo. Quem trava isso é a lista de
-    // números autorizados dentro de processarComandoAgendar.
+    // Comandos por WhatsApp: mensagem de/para um número autorizado.
+    // Não filtra por from_me porque o uso normal é a própria clínica
+    // mandando o comando pra si mesma (chat "Você" no WhatsApp) — nesse
+    // caso a mensagem sempre vem como from_me: true, mesmo sendo um comando
+    // novo. Quem trava isso é a lista de números autorizados dentro de
+    // cada handler (estaAutorizado).
     for (const linha of gravadas || []) {
       const texto = (linha.texto || '').trim();
-      if (!/^agendar\s*:/i.test(texto)) continue;
       const numeroRemetente = soDigitos((linha.remote_jid || '').split('@')[0]);
       if (!numeroRemetente) continue;
-      await processarComandoAgendar(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
+
+      if (/^confirmar\s+agenda\s*:/i.test(texto)) {
+        await processarComandoConfirmarAgenda(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
+      } else if (/^agenda\s*:/i.test(texto)) {
+        await processarComandoListarAgenda(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
+      } else if (/^agendar\s*:/i.test(texto)) {
+        await processarComandoAgendar(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
+      }
     }
 
     return jsonResponse({ ok: true, gravadas: linhas.length });
