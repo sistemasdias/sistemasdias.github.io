@@ -168,6 +168,27 @@ async function processarComandoAgendar(
 
   const paciente = candidatos[0] as { id: string; nome: string; telefone: string | null };
 
+  // Não deixa marcar em cima de uma consulta que já existe no mesmo
+  // horário — avisa quem já está agendado em vez de sobrepor silenciosamente.
+  const { data: conflito } = await adminClient
+    .from('agenda')
+    .select('nome')
+    .eq('clinica_id', clinicaId)
+    .eq('data', comando.data)
+    .eq('hora', comando.hora)
+    .neq('status', 'cancelado')
+    .limit(1)
+    .maybeSingle();
+
+  if (conflito) {
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      `⚠️ Já existe uma consulta marcada em ${fmtDataBR(comando.data)} às ${comando.hora}, com ${conflito.nome}. Não agendei — escolha outro horário ou confira o horário certo.`,
+    );
+    return;
+  }
+
   const { error: erroAgenda } = await adminClient.from('agenda').insert({
     clinica_id: clinicaId,
     paciente_id: paciente.id,
