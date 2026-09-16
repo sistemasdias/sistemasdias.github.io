@@ -130,7 +130,7 @@
   /* ---------- Resumo ---------- */
   .resumo {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 12px;
     margin-bottom: 20px;
   }
@@ -214,6 +214,89 @@
     white-space: nowrap;
   }
 
+  /* ---------- Aviso de vencimento próximo (antes de atrasar) ---------- */
+  .aviso-vence {
+    background: var(--pendente-bg);
+    border: 1px solid var(--pendente);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--pendente);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .aviso-vence a {
+    background: var(--pendente);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  /* ---------- Cancelamento ---------- */
+  .aviso-cancelado {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--muted);
+    width: 100%;
+  }
+
+  /* ---------- Histórico de pagamentos ---------- */
+  .historico-toggle {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 0;
+    text-decoration: underline;
+    font-family: inherit;
+  }
+  .historico {
+    width: 100%;
+    margin-top: 6px;
+    border-top: 1px dashed var(--line);
+    padding-top: 8px;
+    display: none;
+  }
+  .historico.open { display: block; }
+  .historico-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12.5px;
+    padding: 4px 0;
+    color: var(--muted);
+  }
+  .historico-item .st-pago { color: var(--pago); font-weight: 600; }
+  .historico-item .st-pendente, .historico-item .st-atrasado { color: var(--atrasado); font-weight: 600; }
+
+  textarea {
+    width: 100%;
+    padding: 10px 11px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+    color: var(--ink);
+    resize: vertical;
+    min-height: 60px;
+  }
+
   .vazio {
     text-align: center;
     color: var(--muted);
@@ -278,6 +361,7 @@
     <h1>Assinaturas e pagamentos</h1>
     <div class="actions">
       <button class="btn-accent" onclick="abrirModalCliente()">+ Novo cliente</button>
+      <button class="btn-ghost" onclick="exportarCSV()">⬇️ Exportar CSV</button>
       <button class="btn-ghost" onclick="sair()">Sair</button>
     </div>
   </header>
@@ -302,6 +386,14 @@
       <div class="card">
         <div class="num" id="resumo-pendentes">—</div>
         <div class="label">Pendentes / atrasados</div>
+      </div>
+      <div class="card">
+        <div class="num" id="resumo-em-aberto">—</div>
+        <div class="label">Valor em aberto (mês)</div>
+      </div>
+      <div class="card">
+        <div class="num" id="resumo-total-recebido">—</div>
+        <div class="label">Total recebido (histórico)</div>
       </div>
     </div>
 
@@ -328,6 +420,13 @@
 
     <label for="novo-dia">Dia de vencimento</label>
     <input type="number" id="novo-dia" value="10" min="1" max="28">
+
+    <label for="novo-plano">Plano inicial</label>
+    <select id="novo-plano">
+      <option value="trial">Trial (14 dias)</option>
+      <option value="ativo">Ativo (assinatura paga já vigente)</option>
+    </select>
+    <p class="sub" style="margin-top:6px">Se já existir uma clínica cadastrada com esse identificador, o plano dela não é alterado — isso só vale pra clínica nova.</p>
 
     <div class="modal-actions">
       <button class="btn-ghost" onclick="fecharModal('modal-cliente')">Cancelar</button>
@@ -376,11 +475,17 @@
     <input type="number" id="editar-dia" min="1" max="28">
 
     <label for="editar-status">Status da assinatura</label>
-    <select id="editar-status">
+    <select id="editar-status" onchange="atualizarCampoMotivoCancelamento()">
       <option value="ativo">Ativo</option>
       <option value="suspenso">Suspenso</option>
       <option value="cancelado">Cancelado</option>
     </select>
+
+    <div id="editar-motivo-wrap" style="display:none">
+      <label for="editar-motivo">Motivo do cancelamento</label>
+      <textarea id="editar-motivo" placeholder="Ex: fechou a clínica, trocou de sistema, etc."></textarea>
+      <p class="sub" id="editar-data-cancelamento-info" style="margin-top:4px"></p>
+    </div>
 
     <div class="modal-actions">
       <button class="btn-ghost" onclick="fecharModal('modal-editar')">Cancelar</button>
@@ -401,6 +506,7 @@ const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let assinaturasCache = [];
 let clinicasCache = {};
+let historicoPorAssinaturaCache = {};
 
 function mesRefAtual() {
   const d = new Date();
@@ -457,10 +563,13 @@ async function carregarDados() {
     return;
   }
 
+  // Todo o histórico (não só o mês atual) — dá pra ver quantos meses um
+  // cliente já pagou, calcular total recebido, etc. Com poucas dezenas de
+  // clientes isso continua sendo uma consulta pequena.
   const { data: pagamentos } = await supa
     .from("pagamentos")
     .select("*")
-    .eq("mes_referencia", mesRef);
+    .order("mes_referencia", { ascending: false });
 
   // Status de bloqueio + plano/trial de cada clínica (tenant_id == clinicas.slug)
   const { data: clinicas } = await supa
@@ -474,12 +583,17 @@ async function carregarDados() {
   });
 
   const pagamentosPorAssinatura = {};
-  (pagamentos || []).forEach(p => { pagamentosPorAssinatura[p.assinatura_id] = p; });
+  const historicoPorAssinatura = {};
+  (pagamentos || []).forEach(p => {
+    if (p.mes_referencia === mesRef) pagamentosPorAssinatura[p.assinatura_id] = p;
+    (historicoPorAssinatura[p.assinatura_id] ||= []).push(p);
+  });
 
   assinaturasCache = assinaturas || [];
   clinicasCache = statusClinicaPorSlug;
+  historicoPorAssinaturaCache = historicoPorAssinatura;
   renderLista(assinaturasCache, pagamentosPorAssinatura, statusClinicaPorSlug, infoClinicaPorSlug);
-  renderResumo(assinaturasCache, pagamentosPorAssinatura);
+  renderResumo(assinaturasCache, pagamentosPorAssinatura, pagamentos || []);
 }
 
 const TRIAL_DIAS = 14;
@@ -500,6 +614,13 @@ function diasEmAtraso(assinatura) {
   return Math.floor((hoje - venc) / (1000 * 60 * 60 * 24));
 }
 
+// Positivo = dias que ainda faltam pro vencimento deste mês; negativo = já passou.
+function diasParaVencer(assinatura) {
+  const hoje = new Date();
+  const venc = new Date(hoje.getFullYear(), hoje.getMonth(), assinatura.dia_vencimento);
+  return Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
+}
+
 function statusDoMes(assinatura, pagamento) {
   if (pagamento && pagamento.status === "pago") return "pago";
   const hoje = new Date();
@@ -507,18 +628,24 @@ function statusDoMes(assinatura, pagamento) {
   return "pendente";
 }
 
-function renderResumo(assinaturas, pagamentosPorAssinatura) {
+function renderResumo(assinaturas, pagamentosPorAssinatura, todosPagamentos) {
   const ativos = assinaturas.filter(a => a.status === "ativo");
-  let pagos = 0, pendentes = 0, mrr = 0;
+  let pagos = 0, pendentes = 0, mrr = 0, emAberto = 0;
   ativos.forEach(a => {
     const st = statusDoMes(a, pagamentosPorAssinatura[a.id]);
-    if (st === "pago") pagos++; else pendentes++;
+    if (st === "pago") pagos++; else { pendentes++; emAberto += Number(a.valor_mensal) || 0; }
     mrr += Number(a.valor_mensal) || 0;
   });
+  const totalRecebido = (todosPagamentos || [])
+    .filter(p => p.status === "pago")
+    .reduce((soma, p) => soma + (Number(p.valor_pago) || 0), 0);
+
   document.getElementById("resumo-total").textContent = ativos.length;
   document.getElementById("resumo-mrr").textContent = "R$ " + mrr.toFixed(2);
   document.getElementById("resumo-pagos").textContent = pagos;
   document.getElementById("resumo-pendentes").textContent = pendentes;
+  document.getElementById("resumo-em-aberto").textContent = "R$ " + emAberto.toFixed(2);
+  document.getElementById("resumo-total-recebido").textContent = "R$ " + totalRecebido.toFixed(2);
 }
 
 function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug, infoClinicaPorSlug) {
@@ -549,6 +676,29 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug,
         <a href="${linkWhatsAppCobranca(a, atraso)}" target="_blank">💬 Enviar aviso</a>
       </div>` : "";
 
+    const diasVence = diasParaVencer(a);
+    const avisoVence = status === "pendente" && diasVence >= 0 && diasVence <= 3 ? `
+      <div class="aviso-vence">
+        <span>⏳ ${diasVence === 0 ? "Vence hoje" : `Vence em ${diasVence}d`} — que tal um lembrete antes de atrasar?</span>
+        <a href="${linkWhatsAppLembrete(a)}" target="_blank">💬 Enviar lembrete</a>
+      </div>` : "";
+
+    const avisoCancelado = a.status === "cancelado" ? `
+      <div class="aviso-cancelado">
+        🚫 Cancelado${a.data_cancelamento ? " em " + fmtDataBR(a.data_cancelamento) : ""}${a.motivo_cancelamento ? " — " + escapeHtml(a.motivo_cancelamento) : ""}
+      </div>` : "";
+
+    const historico = (historicoPorAssinaturaCache[a.id] || []);
+    const historicoHtml = historico.length ? `
+      <button class="historico-toggle" onclick="toggleHistorico('${a.id}')">📜 Ver histórico (${historico.length} ${historico.length === 1 ? 'mês' : 'meses'})</button>
+      <div class="historico" id="historico-${a.id}">
+        ${historico.map(p => `
+          <div class="historico-item">
+            <span>${fmtMesAno(p.mes_referencia)}</span>
+            <span class="${p.status === 'pago' ? 'st-pago' : 'st-atrasado'}">${p.status === 'pago' ? `Pago${p.data_pagamento ? ' em ' + fmtDataBR(p.data_pagamento) : ''}${p.forma_pagamento ? ' · ' + escapeHtml(p.forma_pagamento) : ''}` : 'Pendente'}</span>
+          </div>`).join("")}
+      </div>` : "";
+
     return `
       <div class="cliente">
         <div class="info">
@@ -565,13 +715,38 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug,
           <button class="btn-danger ${bloqueada ? 'ativo' : ''}" onclick="alternarBloqueio('${a.tenant_id}',${bloqueada})">${bloqueada ? '🔓 Desbloquear' : '🔒 Bloquear'}</button>
         </div>
         ${avisoAtraso}
+        ${avisoVence}
+        ${avisoCancelado}
+        ${historicoHtml}
       </div>
     `;
   }).join("");
 }
 
+function fmtDataBR(dataIso) {
+  if (!dataIso) return "";
+  const [ano, mes, dia] = dataIso.split("-");
+  return `${dia}/${mes}/${ano}`;
+}
+
+function fmtMesAno(dataIso) {
+  if (!dataIso) return "";
+  const [ano, mes] = dataIso.split("-");
+  const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  return `${MESES[parseInt(mes, 10) - 1]}/${ano}`;
+}
+
+function toggleHistorico(id) {
+  document.getElementById("historico-" + id)?.classList.toggle("open");
+}
+
 function linkWhatsAppCobranca(assinatura, diasAtraso) {
   const msg = `Olá, ${assinatura.nome_cliente}! Tudo bem? Passando para avisar que a mensalidade do sistema (venc. dia ${assinatura.dia_vencimento}) está em aberto há ${diasAtraso} dias. Para evitar o bloqueio do acesso ao final do mês, poderia regularizar o pagamento? Qualquer dúvida, me chama por aqui. Obrigado!`;
+  return `https://wa.me/?text=${encodeURIComponent(msg)}`;
+}
+
+function linkWhatsAppLembrete(assinatura) {
+  const msg = `Olá, ${assinatura.nome_cliente}! Tudo bem? Passando só pra lembrar que a mensalidade do sistema vence dia ${assinatura.dia_vencimento}. Qualquer dúvida, me chama por aqui. Obrigado!`;
   return `https://wa.me/?text=${encodeURIComponent(msg)}`;
 }
 
@@ -595,6 +770,7 @@ async function salvarCliente() {
   const tenant = document.getElementById("novo-tenant").value.trim();
   const valor = parseFloat(document.getElementById("novo-valor").value);
   const dia = parseInt(document.getElementById("novo-dia").value, 10);
+  const plano = document.getElementById("novo-plano").value;
 
   if (!nome || !tenant) {
     alert("Preencha nome e identificador do cliente.");
@@ -614,11 +790,23 @@ async function salvarCliente() {
     return;
   }
 
+  // Cria a linha em `clinicas` só se ainda não existir uma com esse slug —
+  // é ela que de fato libera o acesso ao sistema (login, RLS). ignoreDuplicates
+  // evita sobrescrever plano/status de uma clínica já configurada manualmente.
+  const { error: erroClinica } = await supa
+    .from("clinicas")
+    .upsert({ nome, slug: tenant, plano, status: "ativa" }, { onConflict: "slug", ignoreDuplicates: true });
+
+  if (erroClinica) {
+    alert("Assinatura salva, mas houve um erro ao criar a clínica: " + erroClinica.message + "\n\nVerifique manualmente na tabela `clinicas`.");
+  }
+
   fecharModal("modal-cliente");
   document.getElementById("novo-nome").value = "";
   document.getElementById("novo-tenant").value = "";
   document.getElementById("novo-valor").value = "250";
   document.getElementById("novo-dia").value = "10";
+  document.getElementById("novo-plano").value = "trial";
   carregarDados();
 }
 
@@ -640,7 +828,17 @@ function abrirModalEditar(assinatura) {
   document.getElementById("editar-valor").value = assinatura.valor_mensal;
   document.getElementById("editar-dia").value = assinatura.dia_vencimento;
   document.getElementById("editar-status").value = assinatura.status;
+  document.getElementById("editar-motivo").value = assinatura.motivo_cancelamento || "";
+  document.getElementById("editar-data-cancelamento-info").textContent = assinatura.data_cancelamento
+    ? "Cancelado em " + fmtDataBR(assinatura.data_cancelamento) + "."
+    : "";
+  atualizarCampoMotivoCancelamento();
   document.getElementById("modal-editar").classList.add("open");
+}
+
+function atualizarCampoMotivoCancelamento() {
+  const status = document.getElementById("editar-status").value;
+  document.getElementById("editar-motivo-wrap").style.display = status === "cancelado" ? "block" : "none";
 }
 
 async function salvarEdicao() {
@@ -648,10 +846,23 @@ async function salvarEdicao() {
   const valor = parseFloat(document.getElementById("editar-valor").value);
   const dia = parseInt(document.getElementById("editar-dia").value, 10);
   const status = document.getElementById("editar-status").value;
+  const motivo = document.getElementById("editar-motivo").value.trim();
+  const assinatura = assinaturasCache.find(a => a.id === id);
+
+  const dados = { valor_mensal: valor, dia_vencimento: dia, status };
+  if (status === "cancelado") {
+    // Só define a data na primeira vez que vira "cancelado" — reeditar o
+    // motivo depois não deve mudar a data original do cancelamento.
+    dados.data_cancelamento = (assinatura && assinatura.data_cancelamento) || new Date().toISOString().slice(0, 10);
+    dados.motivo_cancelamento = motivo || null;
+  } else {
+    dados.data_cancelamento = null;
+    dados.motivo_cancelamento = null;
+  }
 
   const { error } = await supa
     .from("assinaturas")
-    .update({ valor_mensal: valor, dia_vencimento: dia, status })
+    .update(dados)
     .eq("id", id);
 
   if (error) {
@@ -712,6 +923,44 @@ async function confirmarPagamento() {
 
   fecharModal("modal-pagamento");
   carregarDados();
+}
+
+// ---------------- Exportar CSV ----------------
+function csvEscape(v) {
+  const s = String(v ?? "");
+  return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function exportarCSV() {
+  const linhas = [["Cliente", "Identificador", "Mês", "Status", "Valor pago (R$)", "Data pagamento", "Forma de pagamento"]];
+
+  assinaturasCache.forEach(a => {
+    const historico = historicoPorAssinaturaCache[a.id] || [];
+    if (!historico.length) {
+      linhas.push([a.nome_cliente, a.tenant_id, "", "sem registro", "", "", ""]);
+      return;
+    }
+    historico.forEach(p => {
+      linhas.push([
+        a.nome_cliente,
+        a.tenant_id,
+        fmtMesAno(p.mes_referencia),
+        p.status,
+        p.status === "pago" ? Number(p.valor_pago || 0).toFixed(2) : "",
+        p.data_pagamento ? fmtDataBR(p.data_pagamento) : "",
+        p.forma_pagamento || ""
+      ]);
+    });
+  });
+
+  const csv = "﻿" + linhas.map(l => l.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `assinaturas-pagamentos-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // se já houver uma sessão ativa, pula a tela de login
