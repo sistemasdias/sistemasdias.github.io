@@ -85,3 +85,19 @@ veem. Login por Supabase Auth normal; RLS de `assinaturas`, `pagamentos` e
 escrita em `clinicas` restrita a `auth.jwt()->>'email' = 'claudiogallegoadv@gmail.com'`
 — só sua conta consegue ler ou escrever essas tabelas, mesmo com a chave
 anônima exposta no HTML (é seguro por design, não por obscuridade).
+
+"+ Novo cliente" chama a Edge Function `criar-cliente-completo`
+(`verify_jwt:true` + checagem do e-mail do dono dentro da função) e faz o
+onboarding inteiro numa tacada: assinatura, `clinicas`, login no Supabase
+Auth com **PIN aleatório gerado no servidor** (nunca escolhido/digitado por
+ninguém), `usuarios` (admin da clínica), `config_clinica` básica, e dispara
+um backup imediato. O PIN aparece uma única vez na tela pra você repassar.
+
+**Existe outra função parecida, `criar-clinica`** (mais antiga, com mais
+campos de branding e protegida por uma senha fixa `ADMIN_SECRET` em vez da
+sessão logada) — não dá pra chamar ela com segurança direto do HTML público
+deste painel, porque o segredo ficaria exposto no código-fonte da página.
+As duas convivem hoje com propósitos diferentes: `criar-clinica` pra
+chamada direta/manual (Postman, script), `criar-cliente-completo` pro botão
+do painel. Se um dia quiser consolidar as duas, avaliar com calma — não é
+urgente.
