@@ -456,7 +456,8 @@
       <div><strong>PIN:</strong> <span id="pin-valor" style="font-size:18px;font-weight:700;letter-spacing:2px"></span></div>
     </div>
     <div class="modal-actions">
-      <button class="btn-accent" style="flex:none;width:100%" onclick="fecharModal('modal-pin-gerado')">Entendi</button>
+      <a class="btn-accent" id="btn-enviar-boas-vindas" target="_blank" style="flex:1;text-align:center;text-decoration:none;font-weight:600;font-family:inherit;border-radius:8px;cursor:pointer;padding:10px;display:inline-block">📲 Enviar por WhatsApp</a>
+      <button class="btn-ghost" style="flex:none" onclick="fecharModal('modal-pin-gerado')">Fechar</button>
     </div>
   </div>
 </div>
@@ -890,9 +891,16 @@ async function salvarCliente() {
     if (resultado.contaJaExistia) {
       alert(`Assinatura criada! Essa clínica (${resultado.slug}) já tinha login configurado antes, então ele não foi mexido.`);
     } else if (resultado.pin) {
-      document.getElementById("pin-link").textContent = `sistemasdias.github.io/login.html?c=${resultado.slug}`;
+      const linkAcesso = `https://sistemasdias.github.io/login.html?c=${resultado.slug}`;
+      document.getElementById("pin-link").textContent = linkAcesso.replace("https://", "");
       document.getElementById("pin-email").textContent = resultado.emailLogin;
       document.getElementById("pin-valor").textContent = resultado.pin;
+
+      const msgBoasVindas = `Olá, ${nomeUsuario}! Tudo bem? 🎉\n\nSeu acesso ao sistema já está pronto:\n\n🔗 Link: ${linkAcesso}\n📧 E-mail: ${resultado.emailLogin}\n🔑 PIN de acesso: ${resultado.pin}\n\nQualquer dúvida, me chama por aqui!`;
+      const telefoneDigitos = telefone.replace(/\D/g, "");
+      const numeroWa = telefoneDigitos ? `55${telefoneDigitos}` : "";
+      document.getElementById("btn-enviar-boas-vindas").href = `https://wa.me/${numeroWa}?text=${encodeURIComponent(msgBoasVindas)}`;
+
       document.getElementById("modal-pin-gerado").classList.add("open");
     }
   } catch (e) {
