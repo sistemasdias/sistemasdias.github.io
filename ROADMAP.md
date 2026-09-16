@@ -45,6 +45,21 @@ funciona (chega vencido). Use o Manager, que renova o QR sozinho na tela:
 
 Se a sessão cair (celular muito tempo offline, logout), repetir o processo.
 
+### Instância própria do dono (sistemasdias-admin)
+
+Separada das instâncias de cada clínica (que são pra elas falarem com os
+próprios pacientes). Essa é o WhatsApp do dono do sistema, usada só pela
+Edge Function `criar-cliente-completo` pra mandar a mensagem de boas-vindas
+(link, e-mail, PIN) automaticamente pra clínica nova, sem precisar clicar.
+
+- [x] Instância `sistemasdias-admin` criada na Evolution API (16/09/2026).
+- [ ] Conectar o WhatsApp do dono a essa instância (mesmo processo de
+      "Como conectar" acima, trocando `<nome>` por `sistemasdias-admin`).
+
+Se não estiver conectada, o envio automático simplesmente falha em
+silêncio e o painel [admin-assinaturas.html](admin-assinaturas.html) cai no
+botão manual — não trava o cadastro do cliente.
+
 ### Falta
 
 - [x] Teste real de envio pelo sistema — confirmado funcionando (botão de
