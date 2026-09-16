@@ -41,7 +41,7 @@ try{
   --verde-c:#0F3D2E;--amarelo-c:#3D2E0A;--vermelho-c:#3D1515;--rosa-c:#3D1A28;--azul-c:#0F2540;--roxo-c:#2D1A5E;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:15px;transition:background .2s,color .2s}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:15px;transition:background .2s,color .2s;overflow-x:hidden}
 .hdr{background:var(--verde-e);color:white;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .hdr h1{font-family:'DM Serif Display',serif;font-size:18px;font-weight:400}
 .hdr span{font-size:11px;opacity:.7;margin-left:4px}
@@ -222,6 +222,10 @@ textarea{resize:vertical;min-height:70px}
   .fgr.full{grid-column:1}
   .ti{grid-template-columns:1fr 85px 70px 30px}
   .rel-grid{grid-template-columns:repeat(2,1fr)}
+  .hdr{flex-wrap:wrap;height:auto;padding:.6rem 1rem;gap:6px 0;justify-content:center;text-align:center}
+  .hdr h1{font-size:15px}
+  .hdr-right{flex-wrap:wrap;justify-content:center;gap:6px;width:100%}
+  .hdr-date{display:none}
 }
 
 @media print {
@@ -359,7 +363,7 @@ textarea{resize:vertical;min-height:70px}
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <span id="ag-dia-lbl" style="font-size:15px;font-weight:600;color:var(--txt)">Selecione um dia</span>
-        <div style="display:flex;gap:6px;align-items:center">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <div class="ag-view-tabs">
             <button class="ag-view-tab active" id="ag-tab-lista" onclick="setAgView('lista')">☰ Lista</button>
             <button class="ag-view-tab" id="ag-tab-timeline" onclick="setAgView('timeline')">🕐 Dia</button>
