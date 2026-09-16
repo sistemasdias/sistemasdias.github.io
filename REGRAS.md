@@ -12,6 +12,12 @@ aqui, ela não existe (não confiar só no histórico de conversa).
   Não usa Vercel. Cada `git push` na `main` publica sozinho.
 - **Servidor da Evolution API (WhatsApp)**: VPS próprio na Hetzner, fora do
   Supabase e fora deste repo. Ver `whatsapp-evolution/` para detalhes.
+- **Subdomínio por clínica**: o mesmo Caddy do VPS acima também faz proxy de
+  `<slug>.sistemasdias.com.br` pro GitHub Pages (ver `ROADMAP.md` →
+  "Subdomínio por clínica"). O site principal fica acoplado à
+  disponibilidade desse VPS quando acessado por subdomínio — se ele cair,
+  os subdomínios caem junto (o link `?c=slug` no domínio do GitHub Pages
+  continua no ar, pois não passa pelo VPS).
 
 ## RLS — padrão usado em toda tabela nova
 

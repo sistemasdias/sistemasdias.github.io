@@ -77,48 +77,63 @@ avaliar um servidor maior — não é urgente hoje.
 
 ## Subdomínio por clínica (ex.: anna-carolina.sistemasdias.com.br)
 
-**Status: adiado, não é prioridade.** Registrado aqui pra não se perder.
+**Status: feito.** Implementado via Caddy no VPS da Evolution API (sem custo
+mensal extra), decisão tomada em 16/09/2026 em vez de esperar até "vender pra
+clínica nova" — ver histórico abaixo pro contexto de por que tinha ficado
+adiado antes.
 
-### Contexto
+### Como funciona
+
+- **DNS**: registro.br **não aceita `*` no editor de zona** (nem domínio
+  curinga verdadeiro) — por isso são registros `A` explícitos, um por
+  clínica, todos apontando pro IP do VPS (`157.180.85.62`):
+  `anna-carolina.sistemasdias.com.br` e `anna-munique.sistemasdias.com.br`.
+- **Caddy** (`/root/evolution/Caddyfile` no VPS): um bloco por clínica, cada
+  um faz `reverse_proxy` pra `https://sistemasdias.github.io` forçando o
+  header `Host: sistemasdias.github.io` (é assim que o GitHub Pages aceita
+  servir o conteúdo mesmo o visitante tendo chegado por outro domínio). O
+  Caddy emite certificado HTTPS automático de verdade pra cada subdomínio na
+  hora (mesmo mecanismo já usado em `evolution.sistemasdias.com.br`).
+- **Código** ([config.js](config.js), `obterSlugClinicaDaUrl()`): além de
+  `?c=slug`, agora também lê o slug direto do subdomínio
+  (`window.location.hostname`), com `?c=` tendo prioridade quando presente.
+  `www`, `evolution` e `sistemasdias` ficam reservados (nunca viram slug de
+  clínica).
+
+Link de cada clínica agora: `https://<slug-da-clinica>.sistemasdias.com.br`
+(o antigo `sistemasdias.github.io/login.html?c=<slug>` continua funcionando
+normalmente, é só uma forma alternativa de chegar no mesmo lugar).
+
+### Onboarding de clínica nova — passo extra
+
+Depois do passo 4 da seção "Onboarding" acima, pra dar subdomínio pra ela:
+
+1. registro.br → `sistemasdias.com.br` → zona DNS → nova entrada `A`,
+   nome = `<slug-da-clinica>`, dados = `157.180.85.62`.
+2. No VPS, editar `/root/evolution/Caddyfile` e adicionar o bloco:
+   ```
+   <slug-da-clinica>.sistemasdias.com.br {
+       reverse_proxy https://sistemasdias.github.io {
+           header_up Host sistemasdias.github.io
+       }
+   }
+   ```
+3. Recarregar sem downtime: `docker exec evolution-caddy-1 caddy reload
+   --config /etc/caddy/Caddyfile --adapter caddyfile`.
+
+### Contexto histórico (por que tinha ficado adiado)
 
 A Dra. Anna Munique caiu no login/agenda da Dra. Anna Carolina ao acessar o
 sistema sem o parâmetro `?c=slug` na URL. Causa raiz corrigida no commit
 `ef1e2c3`: [config.js](config.js) tinha um fallback fixo (`|| 'anna-carolina'`)
 em `obterSlugClinicaDaUrl()` — sem `?c=`, o sistema assumia silenciosamente
-a clínica da Anna Carolina, tanto no login quanto no agendamento online
-público. Isso já foi corrigido: hoje, sem o parâmetro, aparece uma mensagem
-clara ("Link de acesso incompleto") em vez de assumir a clínica errada.
-
-Link correto de cada clínica, enquanto não existir subdomínio:
-`sistemasdias.github.io/login.html?c=<slug-da-clinica>`.
-
-### Por que subdomínio ainda seria uma melhoria (não urgente)
-
-- Link mais fácil de lembrar/vender: `suaclinica.sistemasdias.com.br` em vez
-  de `?c=slug`.
-- Isolamento de origem de verdade no navegador (cada subdomínio tem seu
-  próprio `localStorage`), em vez de depender só do código pra não misturar
-  dados de clínicas diferentes na mesma origem.
-
-### Por que está adiado
-
-GitHub Pages (onde o site é hospedado hoje, de graça) **não suporta domínio
-curinga** (`*.sistemasdias.com.br`) — só aceita um domínio customizado por
-repositório. As duas opções avaliadas:
-
-- **Vercel**: suporta domínio curinga nativamente, mas o plano gratuito
-  ("Hobby") é só para uso pessoal/não-comercial — pra um sistema vendido
-  pra clínicas, seria necessário o plano Pro (~$20/mês, conferir preço atual
-  em vercel.com/pricing). Custo mensal recorrente novo.
-- **Caddy no VPS da Evolution API**: usar o Caddy que já roda lá como
-  roteador do domínio curinga na frente do GitHub Pages. Sem custo mensal
-  extra (o VPS já é pago), mas acopla a disponibilidade do site principal à
-  do servidor de WhatsApp self-hosted (menos estável, pode cair/precisar
-  reiniciar) — hoje são independentes.
-
-### Recomendação
-
-Fazer quando o sistema estiver **ativamente sendo vendido pra clínicas
-novas** e a aparência do link pesar na decisão — não antes disso. Se/quando
-for a hora, decidir entre as duas opções acima (ou reavaliar preços/opções
-novas na época).
+a clínica da Anna Carolina. Isso foi corrigido primeiro (mensagem clara em
+vez de adivinhar a clínica errada), e o subdomínio ficou adiado porque
+GitHub Pages não suporta domínio customizado curinga — só um domínio por
+repositório — e as opções eram: Vercel Pro (~$20/mês, mantém o site
+independente do servidor de WhatsApp) ou Caddy no VPS da Evolution
+(sem custo extra, mas acopla a disponibilidade do site à do VPS de
+WhatsApp self-hosted). Optou-se pelo Caddy — esse acoplamento é o
+trade-off aceito: se o VPS da Evolution cair, os subdomínios de clínica
+caem junto (o acesso via `sistemasdias.github.io/login.html?c=slug`
+continua no ar normalmente, pois não depende do VPS).
