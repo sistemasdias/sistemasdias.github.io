@@ -95,6 +95,7 @@ Deno.serve(async (req) => {
     const valorMensal = Number(body?.valorMensal);
     const diaVencimento = parseInt(body?.diaVencimento, 10);
     const plano = body?.plano === 'ativo' ? 'ativo' : 'trial';
+    const telefoneContato = String(body?.telefoneContato || '').replace(/\D/g, '') || null;
     const emailLogin = String(body?.emailLogin || '').trim().toLowerCase();
     const nomeUsuario = String(body?.nomeUsuario || '').trim();
 
@@ -118,6 +119,7 @@ Deno.serve(async (req) => {
       tenant_id: slug,
       valor_mensal: valorMensal,
       dia_vencimento: diaVencimento,
+      telefone_contato: telefoneContato,
       status: 'ativo',
     });
     if (erroAssinatura) {

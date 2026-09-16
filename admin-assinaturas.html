@@ -427,6 +427,9 @@
       <option value="ativo">Ativo (assinatura paga já vigente)</option>
     </select>
 
+    <label for="novo-telefone">Telefone de contato (WhatsApp)</label>
+    <input type="text" id="novo-telefone" placeholder="Ex: 17999998888">
+
     <label for="novo-email-login">E-mail de login da clínica</label>
     <input type="email" id="novo-email-login" placeholder="Ex: clinica@fulana.com">
 
@@ -497,6 +500,14 @@
     <label for="editar-dia">Dia de vencimento</label>
     <input type="number" id="editar-dia" min="1" max="28">
 
+    <label for="editar-telefone">Telefone de contato (WhatsApp)</label>
+    <input type="text" id="editar-telefone" placeholder="Ex: 17999998888">
+
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px;cursor:pointer">
+      <input type="checkbox" id="editar-subdominio" style="width:auto">
+      <span style="font-size:13px;color:var(--ink)">Subdomínio configurado (DNS + Caddy já feitos)</span>
+    </label>
+
     <label for="editar-status">Status da assinatura</label>
     <select id="editar-status" onchange="atualizarCampoMotivoCancelamento()">
       <option value="ativo">Ativo</option>
@@ -529,6 +540,7 @@ const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let assinaturasCache = [];
 let clinicasCache = {};
+let infoClinicaCache = {};
 let historicoPorAssinaturaCache = {};
 
 function mesRefAtual() {
@@ -597,12 +609,12 @@ async function carregarDados() {
   // Status de bloqueio + plano/trial de cada clínica (tenant_id == clinicas.slug)
   const { data: clinicas } = await supa
     .from("clinicas")
-    .select("slug,status,plano,criado_em");
+    .select("slug,status,plano,criado_em,tem_subdominio");
   const statusClinicaPorSlug = {};
   const infoClinicaPorSlug = {};
   (clinicas || []).forEach(c => {
     statusClinicaPorSlug[c.slug] = c.status;
-    infoClinicaPorSlug[c.slug] = { plano: c.plano, criado_em: c.criado_em };
+    infoClinicaPorSlug[c.slug] = { plano: c.plano, criado_em: c.criado_em, tem_subdominio: c.tem_subdominio };
   });
 
   const pagamentosPorAssinatura = {};
@@ -614,6 +626,7 @@ async function carregarDados() {
 
   assinaturasCache = assinaturas || [];
   clinicasCache = statusClinicaPorSlug;
+  infoClinicaCache = infoClinicaPorSlug;
   historicoPorAssinaturaCache = historicoPorAssinatura;
   renderLista(assinaturasCache, pagamentosPorAssinatura, statusClinicaPorSlug, infoClinicaPorSlug);
   renderResumo(assinaturasCache, pagamentosPorAssinatura, pagamentos || []);
@@ -711,6 +724,19 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug,
         🚫 Cancelado${a.data_cancelamento ? " em " + fmtDataBR(a.data_cancelamento) : ""}${a.motivo_cancelamento ? " — " + escapeHtml(a.motivo_cancelamento) : ""}
       </div>` : "";
 
+    const temSubdominio = !!(infoClinicaPorSlug[a.tenant_id] || {}).tem_subdominio;
+    const linkAcesso = temSubdominio
+      ? `https://${a.tenant_id}.sistemasdias.com.br`
+      : `https://sistemasdias.github.io/login.html?c=${encodeURIComponent(a.tenant_id)}`;
+    const linkAcessoLabel = temSubdominio
+      ? `${a.tenant_id}.sistemasdias.com.br`
+      : `sistemasdias.github.io/login.html?c=${escapeHtml(a.tenant_id)}`;
+
+    const telefoneDigitos = (a.telefone_contato || "").replace(/\D/g, "");
+    const btnWhatsapp = telefoneDigitos
+      ? `<a class="btn-icon" href="${linkWhatsAppSimples(a, telefoneDigitos)}" target="_blank" style="text-decoration:none;font-family:inherit;border-radius:8px;display:inline-block">💬 WhatsApp</a>`
+      : "";
+
     const historico = (historicoPorAssinaturaCache[a.id] || []);
     const historicoHtml = historico.length ? `
       <button class="historico-toggle" onclick="toggleHistorico('${a.id}')">📜 Ver histórico (${historico.length} ${historico.length === 1 ? 'mês' : 'meses'})</button>
@@ -726,14 +752,15 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug,
       <div class="cliente">
         <div class="info">
           <div class="nome">${escapeHtml(a.nome_cliente)} ${bloqueada ? '<span class="status-pill bloqueada">Bloqueada</span>' : ''} ${badgeTrial}</div>
-          <div class="detalhe">${escapeHtml(a.tenant_id)} · R$ ${Number(a.valor_mensal).toFixed(2)} · vence dia ${a.dia_vencimento}</div>
-          <div class="detalhe"><a href="https://sistemasdias.github.io/login.html?c=${encodeURIComponent(a.tenant_id)}" target="_blank" style="color:var(--accent)">🔗 sistemasdias.github.io/login.html?c=${escapeHtml(a.tenant_id)}</a></div>
+          <div class="detalhe">${escapeHtml(a.tenant_id)} · R$ ${Number(a.valor_mensal).toFixed(2)} · vence dia ${a.dia_vencimento}${a.telefone_contato ? ' · ' + escapeHtml(a.telefone_contato) : ''}</div>
+          <div class="detalhe"><a href="${linkAcesso}" target="_blank" style="color:var(--accent)">🔗 ${linkAcessoLabel}</a></div>
         </div>
         <div class="right">
           <span class="status-pill ${status}">${label}</span>
           ${status !== "pago"
             ? `<button class="btn-accent" onclick="abrirModalPagamento('${a.id}')">Marcar pago</button>`
             : ""}
+          ${btnWhatsapp}
           <button class="btn-icon" onclick="abrirModalEditarPorId('${a.id}')">✏️ Editar</button>
           <button class="btn-danger ${bloqueada ? 'ativo' : ''}" onclick="alternarBloqueio('${a.tenant_id}',${bloqueada})">${bloqueada ? '🔓 Desbloquear' : '🔒 Bloquear'}</button>
         </div>
@@ -763,14 +790,27 @@ function toggleHistorico(id) {
   document.getElementById("historico-" + id)?.classList.toggle("open");
 }
 
+// Quando a assinatura tem telefone de contato salvo, o link já abre
+// direto na conversa certa — sem isso, abre o WhatsApp Web genérico e é
+// preciso escolher o contato na mão.
+function _waNumeroOuVazio(assinatura) {
+  const digitos = (assinatura.telefone_contato || "").replace(/\D/g, "");
+  return digitos ? `55${digitos}` : "";
+}
+
 function linkWhatsAppCobranca(assinatura, diasAtraso) {
   const msg = `Olá, ${assinatura.nome_cliente}! Tudo bem? Passando para avisar que a mensalidade do sistema (venc. dia ${assinatura.dia_vencimento}) está em aberto há ${diasAtraso} dias. Para evitar o bloqueio do acesso ao final do mês, poderia regularizar o pagamento? Qualquer dúvida, me chama por aqui. Obrigado!`;
-  return `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  return `https://wa.me/${_waNumeroOuVazio(assinatura)}?text=${encodeURIComponent(msg)}`;
 }
 
 function linkWhatsAppLembrete(assinatura) {
   const msg = `Olá, ${assinatura.nome_cliente}! Tudo bem? Passando só pra lembrar que a mensalidade do sistema vence dia ${assinatura.dia_vencimento}. Qualquer dúvida, me chama por aqui. Obrigado!`;
-  return `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  return `https://wa.me/${_waNumeroOuVazio(assinatura)}?text=${encodeURIComponent(msg)}`;
+}
+
+function linkWhatsAppSimples(assinatura, telefoneDigitos) {
+  const msg = `Olá, ${assinatura.nome_cliente}! Tudo bem?`;
+  return `https://wa.me/55${telefoneDigitos}?text=${encodeURIComponent(msg)}`;
 }
 
 function escapeHtml(str) {
@@ -794,6 +834,7 @@ async function salvarCliente() {
   const valor = parseFloat(document.getElementById("novo-valor").value);
   const dia = parseInt(document.getElementById("novo-dia").value, 10);
   const plano = document.getElementById("novo-plano").value;
+  const telefone = document.getElementById("novo-telefone").value.trim();
   const emailLogin = document.getElementById("novo-email-login").value.trim();
   const nomeUsuario = document.getElementById("novo-nome-usuario").value.trim();
 
@@ -823,6 +864,7 @@ async function salvarCliente() {
         valorMensal: valor,
         diaVencimento: dia,
         plano,
+        telefoneContato: telefone,
         emailLogin,
         nomeUsuario
       })
@@ -840,6 +882,7 @@ async function salvarCliente() {
     document.getElementById("novo-valor").value = "250";
     document.getElementById("novo-dia").value = "10";
     document.getElementById("novo-plano").value = "trial";
+    document.getElementById("novo-telefone").value = "";
     document.getElementById("novo-email-login").value = "";
     document.getElementById("novo-nome-usuario").value = "";
     carregarDados();
@@ -877,6 +920,8 @@ function abrirModalEditar(assinatura) {
   document.getElementById("editar-nome-cliente").textContent = assinatura.nome_cliente;
   document.getElementById("editar-valor").value = assinatura.valor_mensal;
   document.getElementById("editar-dia").value = assinatura.dia_vencimento;
+  document.getElementById("editar-telefone").value = assinatura.telefone_contato || "";
+  document.getElementById("editar-subdominio").checked = !!(infoClinicaCache[assinatura.tenant_id] || {}).tem_subdominio;
   document.getElementById("editar-status").value = assinatura.status;
   document.getElementById("editar-motivo").value = assinatura.motivo_cancelamento || "";
   document.getElementById("editar-data-cancelamento-info").textContent = assinatura.data_cancelamento
@@ -895,11 +940,13 @@ async function salvarEdicao() {
   const id = document.getElementById("editar-id").value;
   const valor = parseFloat(document.getElementById("editar-valor").value);
   const dia = parseInt(document.getElementById("editar-dia").value, 10);
+  const telefone = document.getElementById("editar-telefone").value.trim();
+  const temSubdominio = document.getElementById("editar-subdominio").checked;
   const status = document.getElementById("editar-status").value;
   const motivo = document.getElementById("editar-motivo").value.trim();
   const assinatura = assinaturasCache.find(a => a.id === id);
 
-  const dados = { valor_mensal: valor, dia_vencimento: dia, status };
+  const dados = { valor_mensal: valor, dia_vencimento: dia, telefone_contato: telefone || null, status };
   if (status === "cancelado") {
     // Só define a data na primeira vez que vira "cancelado" — reeditar o
     // motivo depois não deve mudar a data original do cancelamento.
@@ -918,6 +965,16 @@ async function salvarEdicao() {
   if (error) {
     alert("Erro ao salvar: " + error.message);
     return;
+  }
+
+  if (assinatura) {
+    const { error: erroSubdominio } = await supa
+      .from("clinicas")
+      .update({ tem_subdominio: temSubdominio })
+      .eq("slug", assinatura.tenant_id);
+    if (erroSubdominio) {
+      alert("Assinatura salva, mas houve erro ao atualizar o status do subdomínio: " + erroSubdominio.message);
+    }
   }
 
   fecharModal("modal-editar");
