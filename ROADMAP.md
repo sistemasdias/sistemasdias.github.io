@@ -71,16 +71,17 @@ botão manual — não trava o cadastro do cliente.
 
 ### Onboarding de uma clínica nova (ex.: Dra. Anna Munique)
 
-Não precisa mudar código nem schema — o desenho já é multi-tenant. Passos:
+**Desde 16/09/2026, os passos 1-2 abaixo já são automáticos** — a Edge
+Function `criar-cliente-completo` (chamada pelo botão "+ Novo cliente" do
+[admin-assinaturas.html](admin-assinaturas.html)) já cria a instância
+`clinica-<slug>`, configura o webhook e o filtro de grupo sozinha. Só
+sobra o passo 3 (escanear o QR), que exige o celular físico da clínica.
 
-1. Criar a instância na Evolution API (mesmo servidor, outro nome):
-   `POST /instance/create` com `instanceName` novo, ex.
-   `clinica-anna-munique`.
-2. Configurar o webhook dessa instância apontando pro mesmo endpoint do
-   Supabase (`whatsapp-webhook`, mesmo `EVOLUTION_WEBHOOK_SECRET`).
+1. ~~Criar a instância na Evolution API~~ — automático.
+2. ~~Configurar o webhook dessa instância~~ — automático.
 3. Gerar o QR code (`GET /instance/connect/<nome>`) e a clínica lê com o
-   número dela.
-4. A própria clínica cadastra `instancia_nome` + `numero_conectado` em
+   número dela — via Manager, ver "Como conectar" acima.
+4. A própria clínica pode revisar/ajustar `numero_conectado` em
    Configurações → Instância Evolution API — RLS já garante que cada clínica
    só vê/edita a própria linha.
 
