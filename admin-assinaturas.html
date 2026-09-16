@@ -561,8 +561,8 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug,
           ${status !== "pago"
             ? `<button class="btn-accent" onclick="abrirModalPagamento('${a.id}')">Marcar pago</button>`
             : ""}
-          <button class="btn-icon" onclick='abrirModalEditar(${JSON.stringify(a)})'>✏️ Editar</button>
-          <button class="btn-danger ${bloqueada ? 'ativo' : ''}" onclick="alternarBloqueio('${a.tenant_id}','${escapeHtml(a.nome_cliente)}',${bloqueada})">${bloqueada ? '🔓 Desbloquear' : '🔒 Bloquear'}</button>
+          <button class="btn-icon" onclick="abrirModalEditarPorId('${a.id}')">✏️ Editar</button>
+          <button class="btn-danger ${bloqueada ? 'ativo' : ''}" onclick="alternarBloqueio('${a.tenant_id}',${bloqueada})">${bloqueada ? '🔓 Desbloquear' : '🔒 Bloquear'}</button>
         </div>
         ${avisoAtraso}
       </div>
@@ -629,6 +629,11 @@ function abrirModalPagamento(assinaturaId) {
 }
 
 // ---------------- Editar assinatura ----------------
+function abrirModalEditarPorId(id) {
+  const assinatura = assinaturasCache.find(a => a.id === id);
+  if (assinatura) abrirModalEditar(assinatura);
+}
+
 function abrirModalEditar(assinatura) {
   document.getElementById("editar-id").value = assinatura.id;
   document.getElementById("editar-nome-cliente").textContent = assinatura.nome_cliente;
@@ -659,7 +664,9 @@ async function salvarEdicao() {
 }
 
 // ---------------- Bloquear / desbloquear clínica ----------------
-async function alternarBloqueio(tenantSlug, nomeCliente, estaBloqueada) {
+async function alternarBloqueio(tenantSlug, estaBloqueada) {
+  const cliente = assinaturasCache.find(a => a.tenant_id === tenantSlug);
+  const nomeCliente = cliente ? cliente.nome_cliente : tenantSlug;
   const acao = estaBloqueada ? "desbloquear" : "bloquear";
   const confirmMsg = estaBloqueada
     ? `Desbloquear o acesso de ${nomeCliente}? Ela volta a acessar o sistema normalmente.`
