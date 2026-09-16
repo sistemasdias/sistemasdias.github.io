@@ -164,14 +164,26 @@ function rascunhoDinamicoChecar(chave) {
 }
 
 // ── Carrega config da clínica do Supabase ──
-// Descobre o "slug" da clínica atual a partir da URL (?c=slug).
-// Usado só nas páginas públicas, antes de qualquer login existir.
-// Sem "?c=" na URL, retorna null — cada página decide como tratar isso
-// (nunca cair sozinho numa clínica específica: com múltiplas clínicas no
-// sistema, isso já causou gente caindo no login/agenda de outra clínica).
+// Descobre o "slug" da clínica atual a partir da URL (?c=slug), ou do
+// subdomínio (ex: anna-carolina.sistemasdias.com.br), quando a clínica
+// tiver um configurado. Usado só nas páginas públicas, antes de qualquer
+// login existir. Sem nenhum dos dois, retorna null — cada página decide
+// como tratar isso (nunca cair sozinho numa clínica específica: com
+// múltiplas clínicas no sistema, isso já causou gente caindo no
+// login/agenda de outra clínica).
+const SUBDOMINIOS_RESERVADOS = ['www', 'evolution', 'sistemasdias'];
 function obterSlugClinicaDaUrl() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('c') || null;
+  const doParam = params.get('c');
+  if (doParam) return doParam;
+
+  const host = window.location.hostname;
+  const sufixo = '.sistemasdias.com.br';
+  if (host.endsWith(sufixo)) {
+    const sub = host.slice(0, -sufixo.length);
+    if (sub && !SUBDOMINIOS_RESERVADOS.includes(sub)) return sub;
+  }
+  return null;
 }
 
 async function carregarConfigClinica() {
