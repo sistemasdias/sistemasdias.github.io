@@ -65,6 +65,36 @@ function gerarPin(tamanho = 4): string {
   return pin;
 }
 
+// Manda a mensagem de boas-vindas pelo WhatsApp do próprio dono do sistema
+// (instância separada das instâncias de cada clínica, que são pra elas
+// falarem com os pacientes delas). Não bloqueia a criação do cliente se
+// falhar (WhatsApp desconectado, etc) — quem chama decide se quer avisar
+// manualmente nesse caso.
+// Não é um valor sensível (é só um nome de instância, não uma chave/senha),
+// por isso fica direto no código em vez de exigir mais um secret configurado
+// manualmente no Supabase.
+const ADMIN_WHATSAPP_INSTANCE = 'sistemasdias-admin';
+
+async function enviarBoasVindasWhatsApp(telefoneContato: string, nomeUsuario: string, slug: string, emailLogin: string, pin: string): Promise<boolean> {
+  const evolutionUrl = Deno.env.get('EVOLUTION_API_URL');
+  const evolutionKey = Deno.env.get('EVOLUTION_API_KEY');
+  if (!evolutionUrl || !evolutionKey) return false;
+
+  const linkAcesso = `https://sistemasdias.github.io/login.html?c=${slug}`;
+  const texto = `Olá, ${nomeUsuario}! Tudo bem? 🎉\n\nSeu acesso ao sistema já está pronto:\n\n🔗 Link: ${linkAcesso}\n📧 E-mail: ${emailLogin}\n🔑 PIN de acesso: ${pin}\n\nQualquer dúvida, me chama por aqui!`;
+
+  try {
+    const res = await fetch(`${evolutionUrl}/message/sendText/${ADMIN_WHATSAPP_INSTANCE}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evolutionKey },
+      body: JSON.stringify({ number: telefoneContato, text: texto }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -188,7 +218,12 @@ Deno.serve(async (req) => {
 
     const backupDisparado = await dispararBackupImediato();
 
-    return jsonResponse({ ok: true, clinicaId, slug, emailLogin, pin, contaJaExistia: false, backupDisparado });
+    let whatsappEnviado = false;
+    if (telefoneContato) {
+      whatsappEnviado = await enviarBoasVindasWhatsApp(telefoneContato, nomeUsuario, slug, emailLogin, pin);
+    }
+
+    return jsonResponse({ ok: true, clinicaId, slug, emailLogin, pin, contaJaExistia: false, backupDisparado, whatsappEnviado });
   } catch (e) {
     return jsonResponse({ error: String(e?.message || e) }, 500);
   }
