@@ -426,11 +426,34 @@
       <option value="trial">Trial (14 dias)</option>
       <option value="ativo">Ativo (assinatura paga já vigente)</option>
     </select>
-    <p class="sub" style="margin-top:6px">Se já existir uma clínica cadastrada com esse identificador, o plano dela não é alterado — isso só vale pra clínica nova.</p>
+
+    <label for="novo-email-login">E-mail de login da clínica</label>
+    <input type="email" id="novo-email-login" placeholder="Ex: clinica@fulana.com">
+
+    <label for="novo-nome-usuario">Nome de quem vai logar</label>
+    <input type="text" id="novo-nome-usuario" placeholder="Ex: Dra. Fulana">
+
+    <p class="sub" style="margin-top:6px">Cria tudo de uma vez: assinatura, clínica e o login dela (com um PIN gerado na hora, mostrado só depois de salvar pra você repassar). Se já existir uma clínica com esse identificador e ela já tiver login configurado, só a assinatura é criada — o login dela não é mexido.</p>
 
     <div class="modal-actions">
       <button class="btn-ghost" onclick="fecharModal('modal-cliente')">Cancelar</button>
-      <button class="btn-accent" onclick="salvarCliente()">Salvar</button>
+      <button class="btn-accent" id="btn-salvar-cliente" onclick="salvarCliente()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: PIN gerado ============ -->
+<div class="modal-overlay" id="modal-pin-gerado">
+  <div class="modal">
+    <h2>✅ Cliente criado!</h2>
+    <p class="sub">Repasse esses dados pra ela entrar no sistema — o PIN só aparece aqui, essa vez.</p>
+    <div style="background:var(--bg);border-radius:8px;padding:14px;margin-top:10px;font-size:14px;line-height:1.8">
+      <div><strong>Link:</strong> <span id="pin-link"></span></div>
+      <div><strong>E-mail:</strong> <span id="pin-email"></span></div>
+      <div><strong>PIN:</strong> <span id="pin-valor" style="font-size:18px;font-weight:700;letter-spacing:2px"></span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-accent" style="flex:none;width:100%" onclick="fecharModal('modal-pin-gerado')">Entendi</button>
     </div>
   </div>
 </div>
@@ -771,43 +794,70 @@ async function salvarCliente() {
   const valor = parseFloat(document.getElementById("novo-valor").value);
   const dia = parseInt(document.getElementById("novo-dia").value, 10);
   const plano = document.getElementById("novo-plano").value;
+  const emailLogin = document.getElementById("novo-email-login").value.trim();
+  const nomeUsuario = document.getElementById("novo-nome-usuario").value.trim();
 
-  if (!nome || !tenant) {
-    alert("Preencha nome e identificador do cliente.");
+  if (!nome || !tenant || !emailLogin || !nomeUsuario) {
+    alert("Preencha nome da clínica, identificador, e-mail de login e nome de quem vai logar.");
     return;
   }
 
-  const { error } = await supa.from("assinaturas").insert({
-    nome_cliente: nome,
-    tenant_id: tenant,
-    valor_mensal: valor,
-    dia_vencimento: dia,
-    status: "ativo"
-  });
+  const btn = document.getElementById("btn-salvar-cliente");
+  btn.disabled = true;
+  btn.textContent = "Criando…";
 
-  if (error) {
-    alert("Erro ao salvar: " + error.message);
-    return;
+  try {
+    const { data: sessao } = await supa.auth.getSession();
+    const token = sessao?.session?.access_token;
+    if (!token) {
+      alert("Sessão expirada — recarregue a página e faça login de novo.");
+      return;
+    }
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/criar-cliente-completo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({
+        nomeClinica: nome,
+        slug: tenant,
+        valorMensal: valor,
+        diaVencimento: dia,
+        plano,
+        emailLogin,
+        nomeUsuario
+      })
+    });
+    const resultado = await res.json();
+
+    if (!res.ok || resultado.error) {
+      alert("Erro ao criar cliente: " + (resultado.error || `HTTP ${res.status}`));
+      return;
+    }
+
+    fecharModal("modal-cliente");
+    document.getElementById("novo-nome").value = "";
+    document.getElementById("novo-tenant").value = "";
+    document.getElementById("novo-valor").value = "250";
+    document.getElementById("novo-dia").value = "10";
+    document.getElementById("novo-plano").value = "trial";
+    document.getElementById("novo-email-login").value = "";
+    document.getElementById("novo-nome-usuario").value = "";
+    carregarDados();
+
+    if (resultado.contaJaExistia) {
+      alert(`Assinatura criada! Essa clínica (${resultado.slug}) já tinha login configurado antes, então ele não foi mexido.`);
+    } else if (resultado.pin) {
+      document.getElementById("pin-link").textContent = `sistemasdias.github.io/login.html?c=${resultado.slug}`;
+      document.getElementById("pin-email").textContent = resultado.emailLogin;
+      document.getElementById("pin-valor").textContent = resultado.pin;
+      document.getElementById("modal-pin-gerado").classList.add("open");
+    }
+  } catch (e) {
+    alert("Erro de conexão ao criar cliente: " + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Salvar";
   }
-
-  // Cria a linha em `clinicas` só se ainda não existir uma com esse slug —
-  // é ela que de fato libera o acesso ao sistema (login, RLS). ignoreDuplicates
-  // evita sobrescrever plano/status de uma clínica já configurada manualmente.
-  const { error: erroClinica } = await supa
-    .from("clinicas")
-    .upsert({ nome, slug: tenant, plano, status: "ativa" }, { onConflict: "slug", ignoreDuplicates: true });
-
-  if (erroClinica) {
-    alert("Assinatura salva, mas houve um erro ao criar a clínica: " + erroClinica.message + "\n\nVerifique manualmente na tabela `clinicas`.");
-  }
-
-  fecharModal("modal-cliente");
-  document.getElementById("novo-nome").value = "";
-  document.getElementById("novo-tenant").value = "";
-  document.getElementById("novo-valor").value = "250";
-  document.getElementById("novo-dia").value = "10";
-  document.getElementById("novo-plano").value = "trial";
-  carregarDados();
 }
 
 function abrirModalPagamento(assinaturaId) {
