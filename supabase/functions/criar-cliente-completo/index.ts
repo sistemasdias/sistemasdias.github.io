@@ -95,6 +95,69 @@ async function enviarBoasVindasWhatsApp(telefoneContato: string, nomeUsuario: st
   }
 }
 
+// Cria a instância WhatsApp DA CLÍNICA NOVA (pra ela falar com os próprios
+// pacientes — diferente da instância sistemasdias-admin acima, que é só do
+// dono do sistema). Deixa tudo pronto (instância, webhook, filtro de grupo,
+// registro em whatsapp_instancias) menos o escaneamento do QR, que só a
+// própria clínica pode fazer com o celular dela na mão. Não bloqueia a
+// criação do cliente se falhar.
+async function criarInstanciaWhatsAppClinica(slug: string, clinicaId: string, adminClient: ReturnType<typeof createClient>): Promise<string | null> {
+  const evolutionUrl = Deno.env.get('EVOLUTION_API_URL');
+  const evolutionKey = Deno.env.get('EVOLUTION_API_KEY');
+  const webhookSecret = Deno.env.get('EVOLUTION_WEBHOOK_SECRET');
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  if (!evolutionUrl || !evolutionKey || !webhookSecret || !supabaseUrl) return null;
+
+  const instanciaNome = `clinica-${slug}`;
+
+  try {
+    const resCreate = await fetch(`${evolutionUrl}/instance/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evolutionKey },
+      body: JSON.stringify({ instanceName: instanciaNome, integration: 'WHATSAPP-BAILEYS', qrcode: true }),
+    });
+    if (!resCreate.ok) return null;
+
+    await fetch(`${evolutionUrl}/webhook/set/${instanciaNome}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evolutionKey },
+      body: JSON.stringify({
+        webhook: {
+          enabled: true,
+          url: `${supabaseUrl}/functions/v1/whatsapp-webhook?secret=${webhookSecret}`,
+          webhookByEvents: false,
+          webhookBase64: false,
+          events: ['MESSAGES_UPSERT'],
+        },
+      }),
+    });
+
+    await fetch(`${evolutionUrl}/settings/set/${instanciaNome}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evolutionKey },
+      body: JSON.stringify({
+        rejectCall: false,
+        groupsIgnore: true,
+        alwaysOnline: false,
+        readMessages: false,
+        readStatus: false,
+        syncFullHistory: false,
+      }),
+    });
+
+    await adminClient.from('whatsapp_instancias').insert({
+      clinica_id: clinicaId,
+      instancia_nome: instanciaNome,
+      numero_conectado: null,
+      ativo: true,
+    });
+
+    return instanciaNome;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -217,13 +280,14 @@ Deno.serve(async (req) => {
     }
 
     const backupDisparado = await dispararBackupImediato();
+    const instanciaClinica = await criarInstanciaWhatsAppClinica(slug, clinicaId, adminClient);
 
     let whatsappEnviado = false;
     if (telefoneContato) {
       whatsappEnviado = await enviarBoasVindasWhatsApp(telefoneContato, nomeUsuario, slug, emailLogin, pin);
     }
 
-    return jsonResponse({ ok: true, clinicaId, slug, emailLogin, pin, contaJaExistia: false, backupDisparado, whatsappEnviado });
+    return jsonResponse({ ok: true, clinicaId, slug, emailLogin, pin, contaJaExistia: false, backupDisparado, whatsappEnviado, instanciaClinica });
   } catch (e) {
     return jsonResponse({ error: String(e?.message || e) }, 500);
   }

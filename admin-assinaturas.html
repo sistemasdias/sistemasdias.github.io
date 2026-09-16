@@ -456,6 +456,7 @@
       <div><strong>PIN:</strong> <span id="pin-valor" style="font-size:18px;font-weight:700;letter-spacing:2px"></span></div>
     </div>
     <p class="sub" id="aviso-envio-automatico" style="display:none;margin-top:10px"></p>
+    <p class="sub" id="aviso-wa-instancia-clinica" style="display:none;margin-top:6px"></p>
     <div class="modal-actions">
       <a class="btn-accent" id="btn-enviar-boas-vindas" target="_blank" style="flex:1;text-align:center;text-decoration:none;font-weight:600;font-family:inherit;border-radius:8px;cursor:pointer;padding:10px;display:inline-block">📲 Enviar por WhatsApp</a>
       <button class="btn-ghost" style="flex:none" onclick="fecharModal('modal-pin-gerado')">Fechar</button>
@@ -913,6 +914,14 @@ async function salvarCliente() {
         btnEnviar.textContent = "📲 Enviar por WhatsApp";
       }
       btnEnviar.href = `https://wa.me/${numeroWa}?text=${encodeURIComponent(msgBoasVindas)}`;
+
+      const avisoWaInstancia = document.getElementById("aviso-wa-instancia-clinica");
+      if (resultado.instanciaClinica) {
+        avisoWaInstancia.style.display = "block";
+        avisoWaInstancia.textContent = `📱 Instância "${resultado.instanciaClinica}" da clínica já está criada na Evolution API (webhook e filtro de grupo configurados) — falta só a clínica escanear o QR quando for usar o WhatsApp (Manager → ${resultado.instanciaClinica}).`;
+      } else {
+        avisoWaInstancia.style.display = "none";
+      }
 
       document.getElementById("modal-pin-gerado").classList.add("open");
     }
