@@ -64,3 +64,24 @@ de onboarding de clínica nova.
 
 Nenhuma automação nova (cron, disparo em massa) entra já ligada. Ela nasce
 desligada e só é ativada quando pedido explicitamente.
+
+Automações já ativas hoje (via `pg_cron`, ver `cron.job` no Supabase):
+
+- `gerar-pagamentos-mensais` (todo dia 1, 06h): cria a linha `pendente` do
+  mês em `pagamentos` pra cada assinatura ativa.
+- `auto-bloquear-inadimplentes` (todo dia, 09h, só age no último dia do
+  mês): bloqueia (`clinicas.status='bloqueada'`) quem não tem pagamento
+  `pago` do mês corrente.
+- `auto-bloquear-trials-vencidos` (todo dia, 09h): bloqueia clínica em
+  `plano='trial'` que passou de 14 dias desde `criado_em` sem virar
+  assinatura paga. O prazo (14 dias) também está hardcoded em
+  `admin-assinaturas.html` (`TRIAL_DIAS`) — mudar um exige mudar o outro.
+
+## Painel de assinaturas (admin-assinaturas.html)
+
+Ferramenta separada do sistema da clínica — é o painel **seu** (dono do
+produto) pra cobrar as clínicas que usam o sistema, não algo que as clínicas
+veem. Login por Supabase Auth normal; RLS de `assinaturas`, `pagamentos` e
+escrita em `clinicas` restrita a `auth.jwt()->>'email' = 'claudiogallegoadv@gmail.com'`
+— só sua conta consegue ler ou escrever essas tabelas, mesmo com a chave
+anônima exposta no HTML (é seguro por design, não por obscuridade).
