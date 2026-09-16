@@ -153,7 +153,7 @@ const _dbClient=createClient(SB_URL,SB_KEY,{
     });
   }}
 });
-const db={from:(t)=>_dbClient.from(t)};
+const db={from:(t)=>_dbClient.from(t),rpc:(fn,args)=>_dbClient.rpc(fn,args)};
 
 const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 function fmtBRL(v){return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}

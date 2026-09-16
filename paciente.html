@@ -740,9 +740,11 @@ function sugRespEdit(){
   const vl=val.toLowerCase();
   const r=(window._pacs||[]).filter(p=>p.nome.toLowerCase().includes(vl)||(p.apelido&&p.apelido.toLowerCase().includes(vl))).slice(0,6);
   if(!r.length){box.innerHTML='';return;}
-  box.innerHTML=`<div class="sug">${r.map(p=>`<div class="sug-item" onclick='selRespEdit(${JSON.stringify(p)})'><strong>${escapeHtml(p.nome)}</strong>${p.apelido?` (${escapeHtml(p.apelido)})`:''}<br><span style="font-size:12px;color:var(--ct)">${p.telefone||''}</span></div>`).join('')}</div>`;
+  box.innerHTML=`<div class="sug">${r.map(p=>`<div class="sug-item" onclick="selRespEdit('${p.id}')"><strong>${escapeHtml(p.nome)}</strong>${p.apelido?` (${escapeHtml(p.apelido)})`:''}<br><span style="font-size:12px;color:var(--ct)">${p.telefone||''}</span></div>`).join('')}</div>`;
 }
-function selRespEdit(p){
+function selRespEdit(id){
+  const p=(window._pacs||[]).find(x=>x.id===id);
+  if(!p)return;
   document.getElementById('e-resp').value=p.nome+(p.apelido?` (${escapeHtml(p.apelido)})`:'');
   document.getElementById('e-resp-id').value=p.id;
   document.getElementById('e-resp-sug').innerHTML='';

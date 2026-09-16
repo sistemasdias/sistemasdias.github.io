@@ -247,13 +247,17 @@ function setState(id){
 async function init(){
   await window.CLINICA_CONFIG_PRONTO;
   await resolverClinicaId();
-  aplicarBrandingClinica();
   if(!CLINICA_ID){
+    // Não aplica a marca (logo/nome) antes desse check — sem clínica
+    // resolvida, CLINICA_CONFIG está no fallback padrão (dados reais da
+    // Dra. Anna Carolina), e mostrar isso na tela de erro daria a entender
+    // que o problema é com a clínica dela.
     setState('st-inativo');
     document.querySelector('#st-inativo h2').textContent='Clínica não encontrada';
     document.querySelector('#st-inativo p').textContent='O link de agendamento está incorreto ou a clínica não está mais ativa.';
     return;
   }
+  aplicarBrandingClinica();
   if(!CONF.ativo){setState('st-inativo');return;}
   calMes=new Date();
   calMes.setDate(1);

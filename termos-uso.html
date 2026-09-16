@@ -96,6 +96,23 @@
 (async () => {
   if (window.CLINICA_CONFIG_PRONTO) await window.CLINICA_CONFIG_PRONTO;
   const c = (typeof CLINICA_CONFIG !== 'undefined') ? CLINICA_CONFIG : {};
+
+  // Sem "?c=slug" (ou slug inválido) não dá pra saber qual clínica é — os
+  // valores em CLINICA_CONFIG nesse caso são só o fallback padrão do
+  // config.js (dados reais da Dra. Anna Carolina), então mostrar esta
+  // página sem checar isso exibiria a identidade dela como se fosse a
+  // clínica de quem está acessando. `_id` só é preenchido quando a busca
+  // por slug realmente encontra uma clínica.
+  if (!c._id) {
+    document.title = 'Termos de Uso';
+    document.querySelector('.container').innerHTML =
+      '<div class="card" style="text-align:center;color:var(--ct)">' +
+        '<div style="font-size:15px;font-weight:600;margin-bottom:.5rem">Link de acesso incompleto</div>' +
+        '<div style="font-size:13px">Use o link específico da sua clínica para ver os termos de uso.</div>' +
+      '</div>';
+    return;
+  }
+
   document.getElementById('header-logo').src = c.logo || 'logo.jpg';
   document.getElementById('header-nome').textContent = c.nome || 'Clínica';
   document.getElementById('header-esp').textContent = c.especialidade || '';

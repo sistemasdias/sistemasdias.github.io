@@ -1816,11 +1816,11 @@ function cardAlerta(p, d, nomeTrat) {
     ? `<span class="ab" style="background:var(--azul-c);color:var(--azul)">💬 Msg enviada</span>`
     : `<span class="ab">${txt}</span>`;
  const botoes = status==='aguardando'
-    ? `<button class="btn" aria-label="Confirmar" style="padding:7px 11px;font-size:12px;color:var(--verde);border-color:var(--verde)" onclick='setStatusRetorno(${JSON.stringify(p.id)},${JSON.stringify(nomeTrat)},"confirmado")'>✅ Retornou</button>
-       <button class="btn" aria-label="Desfazer" style="padding:7px 11px;font-size:12px;color:var(--vermelho)" onclick='setStatusRetorno(${JSON.stringify(p.id)},${JSON.stringify(nomeTrat)},"pendente")'>↩ Reabrir</button>
+    ? `<button class="btn" aria-label="Confirmar" style="padding:7px 11px;font-size:12px;color:var(--verde);border-color:var(--verde)" onclick='setStatusRetorno(${J(p.id)},${J(nomeTrat)},"confirmado")'>✅ Retornou</button>
+       <button class="btn" aria-label="Desfazer" style="padding:7px 11px;font-size:12px;color:var(--vermelho)" onclick='setStatusRetorno(${J(p.id)},${J(nomeTrat)},"pendente")'>↩ Reabrir</button>
        <a href="paciente.html?id=${p.id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:7px 11px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤 Ficha</a>`
-    : `<button class="btn wpp" aria-label="Lembrete de retorno" onclick='abrRet(${J(p)},${JSON.stringify(nomeTrat)})'>🔔 WhatsApp</button>
-       <button class="btn" aria-label="Arquivar" style="padding:7px 11px;font-size:12px;color:var(--ct);opacity:.7" onclick='arquivarAlerta(${JSON.stringify(p.id)},${JSON.stringify(nomeTrat)})' title="Arquivar">📁</button>
+    : `<button class="btn wpp" aria-label="Lembrete de retorno" onclick='abrRet(${J(p)},${J(nomeTrat)})'>🔔 WhatsApp</button>
+       <button class="btn" aria-label="Arquivar" style="padding:7px 11px;font-size:12px;color:var(--ct);opacity:.7" onclick='arquivarAlerta(${J(p.id)},${J(nomeTrat)})' title="Arquivar">📁</button>
        <a href="paciente.html?id=${p.id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:7px 11px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤 Ficha</a>`;
   return `<div class="ai ${cls}">
     <div><div class="an">${escapeHtml(p.nome)}</div><div class="ad">${nomeTrat} · ${escapeHtml(p.telefone)} · Retorno: ${fDt(p.tratamentos_adicionais?.find(t=>t.nome===nomeTrat)?.dataRetorno)}</div></div>
@@ -1890,7 +1890,7 @@ function renderPac(){
           ${p.facebook&&!isPend?(()=>{const fb=(p.facebook||'').trim();const url=fb.startsWith('http')?((fb.startsWith('https://')||fb.startsWith('http://'))&&!fb.includes('javascript')?fb:'#'):'https://facebook.com/'+encodeURIComponent(fb);return`<a href="${escapeHtml(url)}" target="_blank" class="btn" aria-label="Facebook: ${escapeHtml(p.facebook)}" style="padding:6px 10px;background:#1877F2;color:white;border-color:#1877F2" title="Facebook: ${escapeHtml(p.facebook)}">👥</a>`})():''}
           <a href="tel:${p.telefone.replace(/\D/g,'')}" class="btn" aria-label="Ligar" style="padding:6px 10px;color:var(--azul)" title="Ligar">📞</a>
           <a href="https://wa.me/${tel55}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp" style="padding:6px 10px" title="Enviar WhatsApp">💬</a>
-          ${prox&&!isPend?`<button class="btn" aria-label="Lembrete de retorno" style="padding:6px 10px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick='abrRet(${J(p)},${JSON.stringify(prox.nome)})' title="Lembrete de retorno">🔔</button>`:''}
+          ${prox&&!isPend?`<button class="btn" aria-label="Lembrete de retorno" style="padding:6px 10px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick='abrRet(${J(p)},${J(prox.nome)})' title="Lembrete de retorno">🔔</button>`:''}
           ${isAniv?`<button class="btn anv" aria-label="Parabenizar aniversário" style="padding:6px 10px" onclick='abrAniv(${J(p)})' title="Parabenizar aniversário">🎉</button>`:''}
           ${!isPend?`<button class="btn" aria-label="Adicionar lembrete" style="padding:6px 10px;color:var(--azul)" onclick="abrLembr('${p.id}')" title="Adicionar lembrete">📌</button>`:''}
           <button class="btn" aria-label="Editar cadastro" style="padding:6px 10px" onclick='abrEdit(${J(p)})' title="Editar cadastro">✏️</button>
