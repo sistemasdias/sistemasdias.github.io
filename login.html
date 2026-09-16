@@ -153,7 +153,10 @@
     const auth = JSON.parse(localStorage.getItem('clinica_auth') || '{}');
     if (!auth.ok || !(auth.expires > Date.now())) return;
 
-    const slugUrl = obterSlugClinicaDaUrl();
+    let slugUrl = obterSlugClinicaDaUrl();
+    if (!slugUrl) {
+      try { slugUrl = localStorage.getItem('clinica_slug') || null; } catch(e) {}
+    }
     const resSessao = await fetch(`${SB_URL}/rest/v1/config_clinica?select=clinica_id`, {
       headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${auth.access_token}` }
     });
@@ -193,9 +196,17 @@ let usuariosDisponiveis = [];
 // ── Seleção de usuário (multiusuário) ──
 async function carregarUsuarios() {
   try {
-    const slugAtual = obterSlugClinicaDaUrl();
+    let slugAtual = obterSlugClinicaDaUrl();
     if (!slugAtual) {
-      // Sem "?c=slug" na URL não dá pra saber qual clínica é — mostrar
+      // Sem "?c=slug" na URL (ex: sessão expirou e o redirect caiu no
+      // login.html puro) — usa o slug salvo da última clínica acessada
+      // NESTE navegador, em vez de mostrar erro. É seguro porque só existe
+      // se essa mesma pessoa já entrou antes com o link certo; não é uma
+      // clínica padrão fixa pra todo mundo (esse era o bug antigo).
+      try { slugAtual = localStorage.getItem('clinica_slug') || null; } catch(e) {}
+    }
+    if (!slugAtual) {
+      // Nem URL nem slug salvo — não dá pra saber qual clínica é. Mostrar
       // isso explicitamente em vez de cair sozinho numa clínica específica
       // (com várias clínicas no sistema, isso já causou gente entrando/
       // agendando na clínica errada por engano).
