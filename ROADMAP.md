@@ -47,8 +47,12 @@ Se a sessão cair (celular muito tempo offline, logout), repetir o processo.
 
 ### Falta
 
-- [ ] Teste real de envio pelo sistema (botão "📲 Enviar lembretes de hoje
-      via WhatsApp" ou pela ficha do paciente) com um paciente de teste.
+- [x] Teste real de envio pelo sistema — confirmado funcionando (botão de
+      lembretes, confirmação de consulta na agenda do dia, e os comandos
+      `agendar:`/`agenda:`/`confirmar agenda:` pelo próprio WhatsApp).
+- [ ] Confirmar no celular da clínica que os dois últimos ajustes (login
+      lembrando a clínica quando a sessão expira, e o cabeçalho/barra da
+      Agenda não vazarem mais da tela) realmente resolveram na prática.
 
 ### Onboarding de uma clínica nova (ex.: Dra. Anna Munique)
 
