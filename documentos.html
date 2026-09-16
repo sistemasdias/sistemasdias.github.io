@@ -112,8 +112,8 @@ textarea{resize:vertical}
 }
 
 @media print {
-  .hdr, #sec-busca, #sec-docs, .br.no-print, 
-  #modal-realizado, button:not([data-print]) { display: none !important; }
+  .hdr, #sec-busca, #sec-docs, .br.no-print,
+  button:not([data-print]) { display: none !important; }
   .panel { display: block !important; }
   .panel:not(.active) { display: none !important; }
   body { background: white !important; font-size: 12px; }
@@ -416,10 +416,155 @@ textarea{resize:vertical}
         </table>
         <button class="btn no-print" style="margin-top:6px" onclick="addLinhaHistoricoOrc()">+ Adicionar linha</button>
       </div>
-      <div class="sec-title">Condições de Pagamento</div>
-      <textarea id="orc-pagamento" rows="3" placeholder="Ex: À vista com 10% de desconto. Parcelado em até 6x sem juros no cartão."></textarea>
       <div class="sec-title">Outras Informações</div>
       <textarea id="orc-obs" rows="3" placeholder="Observações importantes..."></textarea>
+      <!-- FECHAR ATENDIMENTO — antes era um modal separado que abria por
+           cima da tela ao clicar em "Procedimento realizado"; agora fica
+           direto na própria ficha, sem trocar de tela. A lista de
+           tratamentos realizados/pendentes já é a de "Tratamentos
+           Sugeridos" ali em cima (cada item tem seu checkbox de
+           realizado), então não repete isso aqui — só os dados do
+           fechamento em si. -->
+      <div class="no-print" style="border-top:2px dashed var(--borda);padding-top:1rem;margin-top:1rem">
+        <div style="font-size:12px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px">✅ Fechar atendimento</div>
+
+        <div style="margin-bottom:1rem">
+          <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Data do atendimento</label>
+          <input type="date" id="modal-data" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px" oninput="calcDataVerificacao()"/>
+        </div>
+
+        <!-- Profissional responsável (para relatório de comissão) — só aparece
+             quando há mais de 1 profissional ativo na clínica; com só 1, é
+             pré-selecionado sozinho e o campo fica escondido (pura fricção
+             perguntar algo que só tem uma resposta possível). -->
+        <div id="modal-prof-wrap" style="margin-bottom:1rem">
+          <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Profissional responsável</label>
+          <select id="modal-prof" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
+            <option value="">— Não especificado —</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:.5rem">
+          <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Forma de pagamento</label>
+          <select id="modal-pgto" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px" onchange="atualizarInfoParcelasModal()">
+            <option value="pix">💠 Pix</option>
+            <option value="dinheiro">💵 Dinheiro</option>
+            <option value="debito">💳 Débito</option>
+            <option value="credito-1x">💳 Crédito 1x</option>
+            <option value="credito-2x">💳 Crédito 2x</option>
+            <option value="credito-3x">💳 Crédito 3x</option>
+            <option value="credito-4x">💳 Crédito 4x</option>
+            <option value="credito-5x">💳 Crédito 5x</option>
+            <option value="credito-6x">💳 Crédito 6x</option>
+            <option value="credito-10x">💳 Crédito 10x</option>
+            <option value="credito-12x">💳 Crédito 12x</option>
+            <option value="transferencia">🏦 Transferência</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+
+        <div id="modal-info-parcelas" style="display:none;background:var(--amarelo-c,#fffbea);border-radius:8px;padding:10px 12px;font-size:13px;color:#8a6000;margin-bottom:1rem">
+          📅 As parcelas seguintes serão lançadas automaticamente nos meses seguintes como <strong>a receber</strong>.
+        </div>
+
+        <div style="margin-bottom:1rem">
+          <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Status do pagamento</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+            <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--verde);border-radius:8px;cursor:pointer;background:var(--verde-c)">
+              <input type="radio" name="modal-status" value="recebido" checked style="width:16px;height:16px"/>
+              <span style="font-size:13px;font-weight:600;color:var(--verde-e)">✅ Pago agora</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--borda);border-radius:8px;cursor:pointer">
+              <input type="radio" name="modal-status" value="pendente" style="width:16px;height:16px"/>
+              <span style="font-size:13px;font-weight:500;color:var(--ct)">⏳ A receber</span>
+            </label>
+          </div>
+        </div>
+
+        <div style="margin-bottom:1rem">
+          <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Pagamento parcial?</label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+            <input type="checkbox" id="modal-parcial-check" style="width:16px;height:16px;cursor:pointer" onchange="toggleParcial()"/>
+            <label for="modal-parcial-check" style="font-size:13px;cursor:pointer;color:var(--ct)">Paciente pagou uma parte agora e ficou restante</label>
+          </div>
+          <div id="modal-parcial-box" style="display:none;margin-top:10px;background:var(--amarelo-c,#fffbea);border:1.5px solid var(--amarelo,#ef9f27);border-radius:10px;padding:12px;flex-direction:column;gap:10px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Valor pago agora (R$)</label>
+                <input type="number" id="modal-entrada" min="0" step="0.01" placeholder="0,00"
+                  style="width:100%;padding:8px 10px;border:1.5px solid var(--amarelo,#ef9f27);border-radius:8px;font-size:14px;margin-top:4px"
+                  oninput="calcRestante()"/>
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Restante (R$)</label>
+                <input type="number" id="modal-restante" min="0" step="0.01" placeholder="0,00" readonly
+                  style="width:100%;padding:8px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px;background:var(--bg);color:var(--ct)"/>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Cobrar restante em</label>
+                <div style="display:flex;gap:6px;margin-top:4px;align-items:center">
+                  <input type="number" id="modal-lembrete-dias" min="1" max="365" value="30" placeholder="dias"
+                    style="width:70px;padding:8px 10px;border:1.5px solid var(--amarelo,#ef9f27);border-radius:8px;font-size:14px"
+                    oninput="calcLembreteData()"/>
+                  <span style="font-size:13px;color:#8a6000">dias</span>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Data de cobrança</label>
+                <input type="date" id="modal-lembrete-data"
+                  style="width:100%;padding:8px 10px;border:1.5px solid var(--amarelo,#ef9f27);border-radius:8px;font-size:14px;margin-top:4px"
+                  oninput="calcLembreteDias()"/>
+              </div>
+            </div>
+            <div id="modal-lembrete-diasem" style="font-size:12px;color:#8a6000;font-weight:600"></div>
+            <div style="font-size:11px;color:#8a6000">
+              📌 Um lembrete será criado automaticamente para cobrar o restante na data escolhida.<br>
+              ⏳ O valor restante será lançado no financeiro como <strong>a receber</strong>.
+            </div>
+          </div>
+        </div>
+
+        <!-- Observação — recolhida por padrão, já que na maioria das vezes não
+             tem nada a anotar; um link abre o campo só quando precisa. -->
+        <div style="margin-bottom:1rem">
+          <a href="#" id="modal-obs-toggle" onclick="event.preventDefault();mostrarObsFin()" style="font-size:12.5px;color:var(--verde-e);font-weight:600;text-decoration:none">+ Adicionar observação</a>
+          <div id="modal-obs-wrap" style="display:none;margin-top:4px">
+            <input type="text" id="modal-obs-fin" placeholder="Ex: combinou pagar na próxima consulta" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px"/>
+          </div>
+        </div>
+
+        <!-- Verificação pós-procedimento — já vem com o padrão (15 dias)
+             aplicado; mostra só um resumo, com "Alterar" pra quem precisar
+             mudar o prazo, em vez dos 3 controles sempre abertos. -->
+        <div style="margin-bottom:1rem">
+          <div id="modal-ver-resumo" style="display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--ct)">
+            <span>🔬 Verificação em <strong id="modal-ver-resumo-texto">15 dias</strong></span>
+            <a href="#" onclick="event.preventDefault();mostrarVerControles()" style="color:var(--verde-e);font-weight:600;text-decoration:none">Alterar</a>
+          </div>
+          <div id="modal-ver-wrap" style="display:none;margin-top:6px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <select id="modal-ver-dias" style="width:auto;padding:9px 11px;font-size:13px;border:1.5px solid var(--borda);border-radius:8px" onchange="calcDataVerificacao()">
+                <option value="0">Sem verificação</option>
+                <option value="7">7 dias</option>
+                <option value="10">10 dias</option>
+                <option value="15" selected>15 dias</option>
+                <option value="21">21 dias</option>
+                <option value="30">30 dias</option>
+                <option value="45">45 dias</option>
+                <option value="60">60 dias</option>
+                <option value="90">90 dias</option>
+              </select>
+              <input type="date" id="modal-ver-data" style="flex:1;padding:9px 11px;font-size:13px;border:1.5px solid var(--borda);border-radius:8px" oninput="sincDiasVerificacao()"/>
+              <span id="modal-ver-diasem" style="font-size:12px;color:var(--verde-e);font-weight:600;white-space:nowrap"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-title" style="margin-top:1.5rem">Condições de Pagamento</div>
+      <textarea id="orc-pagamento" rows="3" placeholder="Ex: À vista com 10% de desconto. Parcelado em até 6x sem juros no cartão."></textarea>
       <div class="fg" style="margin-top:1rem">
         <div class="fgr"><label>Válido por (dias)</label><input type="number" id="orc-validade-dias" placeholder="Ex: 30" min="0" oninput="calcValidadeOrc()"/></div>
         <div class="fgr"><label>Data de validade (calculada)</label><input type="date" id="orc-validade"/></div>
@@ -442,180 +587,17 @@ textarea{resize:vertical}
           Este orçamento tem validade indicada acima. Valores sujeitos a alteração após o vencimento.
         </div>
       </div>
+
       <div class="br no-print">
         <button class="btn" onclick="voltarDocs()">← Voltar</button>
         <button class="btn" onclick="imprimirOrcamento()">🖨️ Imprimir</button>
         <button class="btn" onclick="compartilharPainelAtivoWhatsApp()" style="color:#25D366;border-color:#25D366">📲 WhatsApp</button>
-        <button class="btn" aria-label="Confirmar" style="background:var(--verde);color:white;border-color:var(--verde)" onclick="abrirModalRealizado()">✅ Procedimento realizado</button>
         <button class="btn pri" onclick="salvarDoc('orcamento')">✓ Salvar orçamento</button>
+        <button class="btn" aria-label="Confirmar" id="btn-confirmar-realizado" style="background:var(--verde);color:white;border-color:var(--verde)" onclick="confirmarRealizado()">✅ Concluir atendimento</button>
       </div>
     </div>
   </div>
 </main>
-
-<!-- MODAL: CONFIRMAR PROCEDIMENTO REALIZADO -->
-<div id="modal-realizado" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center">
-  <div style="background:var(--card);border-radius:16px;padding:1.5rem;width:92%;max-width:520px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:1rem">
-
-    <!-- Cabeçalho -->
-    <div>
-      <div style="font-size:17px;font-weight:700;margin-bottom:2px">✅ Fechar orçamento e registrar atendimento</div>
-      <div style="font-size:13px;color:var(--ct)" id="modal-pac-nome"></div>
-    </div>
-
-    <!-- Data -->
-    <div>
-      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Data do atendimento</label>
-      <input type="date" id="modal-data" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px" oninput="calcDataVerificacao()"/>
-    </div>
-
-    <!-- Profissional responsável (para relatório de comissão) -->
-    <div>
-      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Profissional responsável</label>
-      <select id="modal-prof" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
-        <option value="">— Não especificado —</option>
-      </select>
-    </div>
-
-    <!-- Tratamentos -->
-    <div>
-      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:8px">Tratamentos realizados</label>
-      <div id="modal-lista-trats"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--verde-c);border-radius:8px;margin-top:4px">
-        <span style="font-size:13px;font-weight:600;color:var(--verde-e)">Total selecionado</span>
-        <span style="font-size:16px;font-weight:700;color:var(--verde-e)" id="modal-total-sel">R$ 0,00</span>
-      </div>
-    </div>
-
-    <!-- Divider -->
-    <div style="border-top:2px dashed var(--borda);padding-top:4px">
-      <div style="font-size:12px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">💰 Dados financeiros</div>
-    </div>
-
-    <!-- Forma de pagamento -->
-    <div>
-      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Forma de pagamento</label>
-      <select id="modal-pgto" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px" onchange="atualizarInfoParcelasModal()">
-        <option value="pix">💠 Pix</option>
-        <option value="dinheiro">💵 Dinheiro</option>
-        <option value="debito">💳 Débito</option>
-        <option value="credito-1x">💳 Crédito 1x</option>
-        <option value="credito-2x">💳 Crédito 2x</option>
-        <option value="credito-3x">💳 Crédito 3x</option>
-        <option value="credito-4x">💳 Crédito 4x</option>
-        <option value="credito-5x">💳 Crédito 5x</option>
-        <option value="credito-6x">💳 Crédito 6x</option>
-        <option value="credito-10x">💳 Crédito 10x</option>
-        <option value="credito-12x">💳 Crédito 12x</option>
-        <option value="transferencia">🏦 Transferência</option>
-        <option value="outro">Outro</option>
-      </select>
-    </div>
-
-    <!-- Info parcelas -->
-    <div id="modal-info-parcelas" style="display:none;background:var(--amarelo-c,#fffbea);border-radius:8px;padding:10px 12px;font-size:13px;color:#8a6000">
-      📅 As parcelas seguintes serão lançadas automaticamente nos meses seguintes como <strong>a receber</strong>.
-    </div>
-
-    <!-- Status pagamento -->
-    <div>
-      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Status do pagamento</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
-        <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--verde);border-radius:8px;cursor:pointer;background:var(--verde-c)">
-          <input type="radio" name="modal-status" value="recebido" checked style="width:16px;height:16px"/>
-          <span style="font-size:13px;font-weight:600;color:var(--verde-e)">✅ Pago agora</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--borda);border-radius:8px;cursor:pointer">
-          <input type="radio" name="modal-status" value="pendente" style="width:16px;height:16px"/>
-          <span style="font-size:13px;font-weight:500;color:var(--ct)">⏳ A receber</span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Pagamento parcial -->
-    <div>
-      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Pagamento parcial?</label>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
-        <input type="checkbox" id="modal-parcial-check" style="width:16px;height:16px;cursor:pointer" onchange="toggleParcial()"/>
-        <label for="modal-parcial-check" style="font-size:13px;cursor:pointer;color:var(--ct)">Paciente pagou uma parte agora e ficou restante</label>
-      </div>
-      <div id="modal-parcial-box" style="display:none;margin-top:10px;background:var(--amarelo-c,#fffbea);border:1.5px solid var(--amarelo,#ef9f27);border-radius:10px;padding:12px;display:none;flex-direction:column;gap:10px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div>
-            <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Valor pago agora (R$)</label>
-            <input type="number" id="modal-entrada" min="0" step="0.01" placeholder="0,00"
-              style="width:100%;padding:8px 10px;border:1.5px solid var(--amarelo,#ef9f27);border-radius:8px;font-size:14px;margin-top:4px"
-              oninput="calcRestante()"/>
-          </div>
-          <div>
-            <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Restante (R$)</label>
-            <input type="number" id="modal-restante" min="0" step="0.01" placeholder="0,00" readonly
-              style="width:100%;padding:8px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px;background:var(--bg);color:var(--ct)"/>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div>
-            <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Cobrar restante em</label>
-            <div style="display:flex;gap:6px;margin-top:4px;align-items:center">
-              <input type="number" id="modal-lembrete-dias" min="1" max="365" value="30" placeholder="dias"
-                style="width:70px;padding:8px 10px;border:1.5px solid var(--amarelo,#ef9f27);border-radius:8px;font-size:14px"
-                oninput="calcLembreteData()"/>
-              <span style="font-size:13px;color:#8a6000">dias</span>
-            </div>
-          </div>
-          <div>
-            <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Data de cobrança</label>
-            <input type="date" id="modal-lembrete-data"
-              style="width:100%;padding:8px 10px;border:1.5px solid var(--amarelo,#ef9f27);border-radius:8px;font-size:14px;margin-top:4px"
-              oninput="calcLembreteDias()"/>
-          </div>
-        </div>
-        <div id="modal-lembrete-diasem" style="font-size:12px;color:#8a6000;font-weight:600"></div>
-        <div style="font-size:11px;color:#8a6000">
-          📌 Um lembrete será criado automaticamente para cobrar o restante na data escolhida.<br>
-          ⏳ O valor restante será lançado no financeiro como <strong>a receber</strong>.
-        </div>
-      </div>
-    </div>
-
-    <!-- Observação -->
-    <div>
-      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Observação (opcional)</label>
-      <input type="text" id="modal-obs-fin" placeholder="Ex: combinou pagar na próxima consulta" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px"/>
-    </div>
-
-    <!-- Divider -->
-    <div style="border-top:2px dashed var(--borda);padding-top:4px">
-      <div style="font-size:12px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🔬 Verificação pós-procedimento</div>
-    </div>
-
-    <!-- Verificação -->
-    <div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <select id="modal-ver-dias" style="width:auto;padding:9px 11px;font-size:13px;border:1.5px solid var(--borda);border-radius:8px" onchange="calcDataVerificacao()">
-          <option value="0">Sem verificação</option>
-          <option value="7">7 dias</option>
-          <option value="10">10 dias</option>
-          <option value="15" selected>15 dias</option>
-          <option value="21">21 dias</option>
-          <option value="30">30 dias</option>
-          <option value="45">45 dias</option>
-          <option value="60">60 dias</option>
-          <option value="90">90 dias</option>
-        </select>
-        <input type="date" id="modal-ver-data" style="flex:1;padding:9px 11px;font-size:13px;border:1.5px solid var(--borda);border-radius:8px" oninput="sincDiasVerificacao()"/>
-        <span id="modal-ver-diasem" style="font-size:12px;color:var(--verde-e);font-weight:600;white-space:nowrap"></span>
-      </div>
-    </div>
-
-    <!-- Botões -->
-    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px">
-      <button class="btn" onclick="fecharModalRealizado()">Cancelar</button>
-      <button class="btn pri" aria-label="Confirmar" id="btn-confirmar-realizado" onclick="confirmarRealizado()">✅ Confirmar e registrar</button>
-    </div>
-
-  </div>
-</div>
 
   <!-- PAINEL: PLANEJAMENTO -->
   <div id="panel-planejamento" class="panel">
@@ -1736,6 +1718,7 @@ async function abrirOrcamento(){
     ultimoOrc.produtos.forEach(prod=>adicionarProdutoOrc(prod));
   }
   calcTotal();
+  resetFechamentoAtendimento();
 }
 
 function addItemOrc(){
@@ -2726,6 +2709,24 @@ function calcDataVerificacao(){
   } else {
     document.getElementById('modal-ver-data').value='';
   }
+  atualizarResumoVerificacao();
+}
+
+function atualizarResumoVerificacao(){
+  const dias=parseInt(document.getElementById('modal-ver-dias')?.value)||0;
+  const el=document.getElementById('modal-ver-resumo-texto');
+  if(el) el.textContent=dias>0?`${dias} dias`:'sem verificação';
+}
+
+function mostrarVerControles(){
+  document.getElementById('modal-ver-resumo').style.display='none';
+  document.getElementById('modal-ver-wrap').style.display='block';
+}
+
+function mostrarObsFin(){
+  document.getElementById('modal-obs-toggle').style.display='none';
+  document.getElementById('modal-obs-wrap').style.display='block';
+  document.getElementById('modal-obs-fin').focus();
 }
 
 function sincDiasVerificacao(){
@@ -2749,7 +2750,11 @@ function abrirModalRealizado(){
   document.getElementById('modal-data').value=HOJE;
   document.getElementById('modal-data').oninput=calcDataVerificacao;
   document.getElementById('modal-ver-dias').value=15;
+  document.getElementById('modal-ver-resumo').style.display='flex';
+  document.getElementById('modal-ver-wrap').style.display='none';
   document.getElementById('modal-obs-fin').value='';
+  document.getElementById('modal-obs-toggle').style.display='inline';
+  document.getElementById('modal-obs-wrap').style.display='none';
   document.getElementById('modal-parcial-check').checked=false;
   document.getElementById('modal-parcial-box').style.display='none';
   document.getElementById('modal-entrada').value='';
@@ -2759,6 +2764,17 @@ function abrirModalRealizado(){
   document.querySelector('input[name="modal-status"][value="recebido"]').checked=true;
   atualizarInfoParcelasModal();
   calcDataVerificacao();
+
+  // Só 1 profissional ativo: pré-seleciona e esconde o campo — perguntar
+  // algo com resposta única todo atendimento é fricção pura.
+  const wrapProf=document.getElementById('modal-prof-wrap');
+  if(profissionaisDoc.length===1){
+    document.getElementById('modal-prof').value=profissionaisDoc[0].id;
+    wrapProf.style.display='none';
+  } else {
+    document.getElementById('modal-prof').value='';
+    wrapProf.style.display='block';
+  }
 
   // Montar lista de checkboxes com tratamentos e valores
   document.getElementById('modal-lista-trats').innerHTML=itens.map((item,i)=>`
@@ -2787,7 +2803,7 @@ function toggleParcial(){
 }
 
 function calcRestante(){
-  const total = parseFloat(document.getElementById('modal-total-sel')?.textContent?.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
+  const total = totalRealizadosAtual();
   const entrada = parseFloat(document.getElementById('modal-entrada')?.value) || 0;
   const restante = Math.max(0, total - entrada);
   document.getElementById('modal-restante').value = restante > 0 ? restante.toFixed(2) : '';
@@ -2966,11 +2982,6 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
   toast('Atendimento e lançamento financeiro registrados! ✓','verde');
   carregarDocsSalvos();
 }
-
-// Fechar modal clicando fora
-document.getElementById('modal-realizado').addEventListener('click',e=>{
-  if(e.target===e.currentTarget) fecharModalRealizado();
-});
 
 // ── PRODUTOS NO ORÇAMENTO ──
 let _produtosEstoque = [];
@@ -3499,6 +3510,7 @@ function novoPlano() {
   addItemOrc(); addItemOrc(); addItemOrc();
   esconderBannerPlanoAtivo();
   calcTotal();
+  resetFechamentoAtendimento();
 }
 
 // ── RENDERIZAR ITENS DO PLANO ──
@@ -3652,11 +3664,15 @@ window.calcTotal = function() {
   }
 };
 
-// ── SOBRESCREVER abrirModalRealizado ──
-window.abrirModalRealizado = async function() {
-  if (!pacSelecionada) { toast('Selecione um paciente', 'vermelho'); return; }
+// ── FECHAR ATENDIMENTO — agora inline na própria ficha (antes era um
+// modal separado). A lista de tratamentos realizados/pendentes é a mesma
+// "Tratamentos Sugeridos" ali em cima — cada item marca sozinho pelo
+// checkbox (.orc-check) se foi feito hoje ou fica pra próxima vez, sem
+// precisar de uma segunda lista duplicada aqui embaixo. ──
 
-  // Coletar realizados e pendentes
+// Lê o estado atual da lista de tratamentos e separa o que foi marcado
+// como realizado hoje do que fica pendente — sem mexer em nada, só lê.
+function coletarRealizadosEPendentes() {
   const realizados = [], pendentes = [];
   document.querySelectorAll('#orc-itens .orc-linha').forEach(linha => {
     const trat = linha.querySelector('.orc-trat')?.value || '';
@@ -3666,66 +3682,68 @@ window.abrirModalRealizado = async function() {
     const categoria = linha.querySelector('.orc-linha-cat')?.value || 'Harmonização Orofacial';
     const dente = linha.querySelector('.orc-dente')?.value || '';
     const item = window._planoAtual?.itens?.find(i => i.id === itemId);
-    
+
     if (!trat) return;
     if (item?.status === 'pago') return; // já pago, não aparece
     if (item?.status === 'realizado') return; // já realizado, aguardando pagamento — cobrar via Carteira a Receber
     if (item?.status === 'cancelado') return; // cancelado, não aparece
-    
+
     if (!check || check.checked) realizados.push({ trat, val, itemId, categoria, dente });
     else pendentes.push({ trat, val, itemId, categoria, dente });
   });
+  return { realizados, pendentes };
+}
 
-  if (!realizados.length) { toast('Marque ao menos um tratamento!', 'vermelho'); return; }
+// Soma só o que está marcado como realizado agora — usado pelo campo
+// "Valor pago agora" no pagamento parcial, pra calcular o restante.
+function totalRealizadosAtual() {
+  return coletarRealizadosEPendentes().realizados.reduce((s, t) => s + t.val, 0);
+}
 
-  const totalRealizados = realizados.reduce((s, t) => s + t.val, 0);
-  const totalPendentes = pendentes.reduce((s, t) => s + t.val, 0);
+// Restaura os campos de fechamento pros valores padrão — chamado ao abrir
+// a ficha de um paciente (abrirOrcamento) e ao começar um plano novo
+// (novoPlano), no lugar do antigo "abrir modal" que resetava tudo na hora
+// de clicar em Procedimento realizado.
+function resetFechamentoAtendimento() {
+  const elData = document.getElementById('modal-data');
+  if (elData) elData.value = HOJE;
+  document.getElementById('modal-ver-dias').value = 15;
+  document.getElementById('modal-ver-resumo').style.display = 'flex';
+  document.getElementById('modal-ver-wrap').style.display = 'none';
+  document.getElementById('modal-obs-fin').value = '';
+  document.getElementById('modal-obs-toggle').style.display = 'inline';
+  document.getElementById('modal-obs-wrap').style.display = 'none';
+  document.getElementById('modal-parcial-check').checked = false;
+  document.getElementById('modal-parcial-box').style.display = 'none';
+  document.getElementById('modal-entrada').value = '';
+  document.getElementById('modal-restante').value = '';
+  document.getElementById('modal-lembrete-dias').value = 30;
+  document.getElementById('modal-pgto').value = 'pix';
+  document.querySelector('input[name="modal-status"][value="recebido"]').checked = true;
+  atualizarInfoParcelasModal();
+  calcDataVerificacao();
 
-  document.getElementById('modal-pac-nome').textContent = pacSelecionada.nome;
-  document.getElementById('modal-data').value = HOJE;
-
-  const listaEl = document.getElementById('modal-lista-trats');
-  if (listaEl) {
-    let html = `<div style="margin-bottom:8px">
-      <div style="font-size:11px;font-weight:600;color:var(--verde-e);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">✅ Realizados hoje</div>
-      ${realizados.map(t => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:var(--verde-c);border-radius:7px;margin-bottom:4px;font-size:13px">
-        <span>${t.trat}</span><span style="font-weight:600;color:var(--verde-e)">${fmtBRL(t.val)}</span>
-      </div>`).join('')}
-    </div>`;
-    
-    if (pendentes.length) {
-      html += `<div style="margin-bottom:8px">
-        <div style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">⏸ Ficam para próxima vez</div>
-        ${pendentes.map(t => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:var(--amarelo-c);border-radius:7px;margin-bottom:4px;font-size:13px;opacity:.8">
-          <span>${t.trat}</span><span style="font-weight:600;color:#8a6000">${fmtBRL(t.val)}</span>
-        </div>`).join('')}
-      </div>`;
-    }
-    listaEl.innerHTML = html;
+  // Só 1 profissional ativo: pré-seleciona e esconde o campo — perguntar
+  // algo com resposta única todo atendimento é fricção pura.
+  const wrapProf = document.getElementById('modal-prof-wrap');
+  if (profissionaisDoc.length === 1) {
+    document.getElementById('modal-prof').value = profissionaisDoc[0].id;
+    wrapProf.style.display = 'none';
+  } else {
+    document.getElementById('modal-prof').value = '';
+    wrapProf.style.display = 'block';
   }
-
-  const totalEl = document.getElementById('modal-total-sel');
-  if (totalEl) {
-    totalEl.innerHTML = fmtBRL(totalRealizados) + (totalPendentes > 0 
-      ? ` <span style="font-size:12px;color:#8a6000;font-weight:400">(+ ${fmtBRL(totalPendentes)} a receber)</span>` 
-      : '');
-  }
-
-  window._modalRealizados = realizados;
-  window._modalPendentes = pendentes;
-
-  calcDataVerificacao?.();
-  document.getElementById('modal-realizado').style.display = 'flex';
-};
+}
 
 // ── SOBRESCREVER confirmarRealizado ──
 window.confirmarRealizado = async function() {
+  if (!pacSelecionada) { toast('Selecione um paciente', 'vermelho'); return; }
+
   const dataAtend = document.getElementById('modal-data')?.value;
   if (!dataAtend) { toast('Informe a data do atendimento!', 'vermelho'); return; }
 
-  const realizados = window._modalRealizados || [];
-  const pendentes = window._modalPendentes || [];
-  if (!realizados.length) { toast('Nenhum tratamento selecionado', 'vermelho'); return; }
+  const { realizados, pendentes } = coletarRealizadosEPendentes();
+  if (!realizados.length) { toast('Marque ao menos um tratamento realizado na lista de tratamentos!', 'vermelho'); return; }
 
   const btn = document.getElementById('btn-confirmar-realizado');
   if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
@@ -3764,7 +3782,7 @@ window.confirmarRealizado = async function() {
         obs: descProcs || document.getElementById('orc-obs')?.value || null
       }).select().single();
 
-      if (ePlano) { console.error('[FIN DEBUG] Erro criar plano:', ePlano); toast('Erro ao criar plano: ' + ePlano.message, 'vermelho'); if (btn) { btn.disabled=false; btn.textContent='✅ Confirmar e registrar'; } return; }
+      if (ePlano) { console.error('[FIN DEBUG] Erro criar plano:', ePlano); toast('Erro ao criar plano: ' + ePlano.message, 'vermelho'); if (btn) { btn.disabled=false; btn.textContent='✅ Concluir atendimento'; } return; }
       planoId = novoPlano?.id;
 
       // Inserir itens
@@ -3952,20 +3970,25 @@ window.confirmarRealizado = async function() {
     }
     limparProdutosOrc();
 
+    // Recarrega os itens do plano pra lista de tratamentos já mostrar os
+    // status atualizados (pago/a receber) — antes ficava com a cor antiga
+    // até reabrir a ficha, o que confundia mais agora que o fechamento é
+    // na mesma tela (não é mais um modal que fecha e "some" da vista).
+    if (planoId) {
+      const { data: itensAtualizados } = await db.from('plano_itens').select('*').eq('plano_id', planoId);
+      window._planoAtual = { id: planoId, itens: itensAtualizados || [] };
+      renderItensPlano();
+      calcTotal();
+    }
+
     toast('Atendimento e lançamento financeiro registrados! ✓', 'verde');
-    
-    // Não recarregar do banco — apenas limpar produtos (já baixados)
-    limparProdutosOrc();
-    // Fechar modal
-    document.getElementById('modal-realizado').style.display = 'none';
-    document.getElementById('modal-parcial-check').checked = false;
-    document.getElementById('modal-parcial-box').style.display = 'none';
+    resetFechamentoAtendimento();
 
   } catch(e) {
     console.error('Erro ao confirmar:', e);
     toast('Erro ao salvar. Verifique o console.', 'vermelho');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar e registrar'; }
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Concluir atendimento'; }
   }
 };
 
