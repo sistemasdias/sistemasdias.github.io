@@ -102,6 +102,18 @@ function fmtDataBR(data: string): string {
   return `${dia}/${mes}/${ano}`;
 }
 
+function fmtBRL(v: number): string {
+  return `R$ ${v.toFixed(2).replace('.', ',')}`;
+}
+
+// Servidor roda em UTC; a clínica opera em horário de Brasília (UTC-3).
+// Sem esse ajuste, comandos como "receber: hoje" ou "aniversario" mandados
+// de madrugada cairiam no dia errado.
+function hojeStr(): string {
+  const agora = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  return `${agora.getUTCFullYear()}-${String(agora.getUTCMonth() + 1).padStart(2, '0')}-${String(agora.getUTCDate()).padStart(2, '0')}`;
+}
+
 const DIAS_SEMANA = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
 function fmtDiaSemana(data: string): string {
@@ -372,6 +384,330 @@ async function processarComandoAgendar(
   );
 }
 
+const MSG_FORMATO_CANCELAR =
+  'Não entendi o comando. Use: cancelar: Nome completo, DD/MM\n\n' +
+  'Exemplo: cancelar: Claudio Gallego Dias Filho, 16/09\n\n' +
+  'Se tiver mais de uma consulta com esse nome no mesmo dia, inclua a hora: cancelar: Claudio Gallego Dias Filho, 16/09 14:00';
+
+interface ComandoCancelar {
+  nome: string;
+  data: string; // YYYY-MM-DD
+  hora: string | null; // HH:MM
+}
+
+function parseComandoCancelar(texto: string): ComandoCancelar | null {
+  const semPrefixo = texto.replace(/^\s*cancelar\s*:?\s*/i, '');
+  const partes = semPrefixo.split(',');
+  if (partes.length !== 2) return null;
+
+  const nome = partes[0].trim();
+  const dataHoraTxt = partes[1].trim();
+  if (!nome) return null;
+
+  const comHora = dataHoraTxt.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\s+(\d{1,2}):(\d{2})$/);
+  if (comHora) {
+    const [, diaStr, mesStr, anoStr, horaStr, minStr] = comHora;
+    const dia = parseInt(diaStr, 10);
+    const mes = parseInt(mesStr, 10);
+    const ano = anoStr ? parseInt(anoStr, 10) : new Date().getFullYear();
+    const hora = parseInt(horaStr, 10);
+    const min = parseInt(minStr, 10);
+    if (mes < 1 || mes > 12 || dia < 1 || dia > 31 || hora > 23 || min > 59) return null;
+    const data = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    return { nome, data, hora: `${String(hora).padStart(2, '0')}:${String(min).padStart(2, '0')}` };
+  }
+
+  const data = parseDataSimples(dataHoraTxt);
+  if (!data) return null;
+  return { nome, data, hora: null };
+}
+
+async function processarComandoCancelar(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+  texto: string,
+) {
+  if (!(await estaAutorizado(adminClient, clinicaId, numeroRemetente))) return;
+
+  const comando = parseComandoCancelar(texto);
+  if (!comando) {
+    await enviarTexto(instanciaNome, numeroRemetente, MSG_FORMATO_CANCELAR);
+    return;
+  }
+
+  let query = adminClient
+    .from('agenda')
+    .select('id, nome, hora, procedimento')
+    .eq('clinica_id', clinicaId)
+    .eq('data', comando.data)
+    .neq('status', 'cancelado')
+    .ilike('nome', `%${comando.nome}%`);
+  if (comando.hora) query = query.eq('hora', comando.hora);
+  const { data: candidatos } = await query;
+
+  if (!candidatos || !candidatos.length) {
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      `Não encontrei consulta agendada em ${fmtDataBR(comando.data)} pra "${comando.nome}".`,
+    );
+    return;
+  }
+
+  if (candidatos.length > 1) {
+    const lista = candidatos
+      .map((c: any) => `• ${c.hora.slice(0, 5)} — ${c.nome}${c.procedimento ? ' (' + c.procedimento + ')' : ''}`)
+      .join('\n');
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      `Encontrei mais de uma consulta em ${fmtDataBR(comando.data)}:\n${lista}\n\n` +
+        `Mande de novo com a hora, ex: cancelar: ${comando.nome}, ${fmtDataBR(comando.data)} 14:00`,
+    );
+    return;
+  }
+
+  const consulta = candidatos[0] as { id: string; nome: string; hora: string };
+  const { error } = await adminClient.from('agenda').update({ status: 'cancelado' }).eq('id', consulta.id);
+
+  if (error) {
+    console.error('[cancelar-whatsapp]', error);
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      'Deu erro ao tentar cancelar. Tente novamente pelo sistema ou fale com o suporte.',
+    );
+    return;
+  }
+
+  await enviarTexto(
+    instanciaNome,
+    numeroRemetente,
+    `❌ Consulta cancelada: ${consulta.nome} — ${fmtDataBR(comando.data)} às ${consulta.hora.slice(0, 5)}`,
+  );
+}
+
+const MSG_FORMATO_RECEBER = 'Não entendi a data. Use: receber: DD/MM ou receber: hoje\n\nExemplo: receber: 18/09';
+
+async function processarComandoReceber(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+  texto: string,
+) {
+  if (!(await estaAutorizado(adminClient, clinicaId, numeroRemetente))) return;
+
+  const txt = texto.replace(/^\s*receber\s*:?\s*/i, '').trim();
+  const dataAlvo = /^hoje$/i.test(txt) ? hojeStr() : parseDataSimples(txt);
+  if (!dataAlvo) {
+    await enviarTexto(instanciaNome, numeroRemetente, MSG_FORMATO_RECEBER);
+    return;
+  }
+
+  const { data: lancamentos } = await adminClient
+    .from('financeiro')
+    .select('descricao, valor')
+    .eq('clinica_id', clinicaId)
+    .eq('tipo', 'receita')
+    .eq('status', 'pendente')
+    .eq('data', dataAlvo)
+    .order('descricao', { ascending: true });
+
+  if (!lancamentos || !lancamentos.length) {
+    await enviarTexto(instanciaNome, numeroRemetente, `Nenhum valor a receber em ${fmtDataBR(dataAlvo)}.`);
+    return;
+  }
+
+  const total = lancamentos.reduce((s: number, l: any) => s + parseFloat(l.valor || 0), 0);
+  const lista = lancamentos.map((l: any) => `• ${l.descricao} — ${fmtBRL(parseFloat(l.valor || 0))}`).join('\n');
+
+  await enviarTexto(
+    instanciaNome,
+    numeroRemetente,
+    `💰 A receber em ${fmtDataBR(dataAlvo)} (${lancamentos.length}):\n\n${lista}\n\nTotal: ${fmtBRL(total)}`,
+  );
+}
+
+const MSG_FORMATO_PACIENTE = 'Use: paciente: nome completo ou parte do nome\n\nExemplo: paciente: Ana Silva';
+
+async function processarComandoPaciente(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+  texto: string,
+) {
+  if (!(await estaAutorizado(adminClient, clinicaId, numeroRemetente))) return;
+
+  const nome = texto.replace(/^\s*paciente\s*:?\s*/i, '').trim();
+  if (!nome) {
+    await enviarTexto(instanciaNome, numeroRemetente, MSG_FORMATO_PACIENTE);
+    return;
+  }
+
+  const { data: exatos } = await adminClient
+    .from('pacientes')
+    .select('id, nome, telefone')
+    .eq('clinica_id', clinicaId)
+    .ilike('nome', nome);
+
+  let candidatos = exatos || [];
+  if (!candidatos.length) {
+    const { data: parciais } = await adminClient
+      .from('pacientes')
+      .select('id, nome, telefone')
+      .eq('clinica_id', clinicaId)
+      .ilike('nome', `%${nome}%`);
+    candidatos = parciais || [];
+  }
+
+  if (!candidatos.length) {
+    await enviarTexto(instanciaNome, numeroRemetente, `Não encontrei nenhuma paciente chamada "${nome}".`);
+    return;
+  }
+
+  if (candidatos.length > 1) {
+    const lista = candidatos
+      .slice(0, 10)
+      .map((p: any) => `• ${p.nome}${p.telefone ? ' (' + p.telefone + ')' : ''}`)
+      .join('\n');
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      `Encontrei mais de uma paciente:\n${lista}\n\nMande de novo com o nome completo.`,
+    );
+    return;
+  }
+
+  const paciente = candidatos[0] as { id: string; nome: string; telefone: string | null };
+  const hoje = hojeStr();
+
+  const { data: proxima } = await adminClient
+    .from('agenda')
+    .select('data, hora, procedimento')
+    .eq('clinica_id', clinicaId)
+    .eq('paciente_id', paciente.id)
+    .neq('status', 'cancelado')
+    .gte('data', hoje)
+    .order('data', { ascending: true })
+    .order('hora', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: ultima } = await adminClient
+    .from('agenda')
+    .select('data, procedimento')
+    .eq('clinica_id', clinicaId)
+    .eq('paciente_id', paciente.id)
+    .eq('status', 'realizado')
+    .lte('data', hoje)
+    .order('data', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let msg = `👤 ${paciente.nome}\n📞 ${paciente.telefone || 'sem telefone cadastrado'}`;
+  msg += ultima
+    ? `\n🗓️ Último atendimento: ${fmtDataBR((ultima as any).data)}${(ultima as any).procedimento ? ' (' + (ultima as any).procedimento + ')' : ''}`
+    : '\n🗓️ Sem atendimentos realizados registrados.';
+  msg += proxima
+    ? `\n📅 Próxima consulta: ${fmtDataBR((proxima as any).data)} às ${(proxima as any).hora.slice(0, 5)}${(proxima as any).procedimento ? ' (' + (proxima as any).procedimento + ')' : ''}`
+    : '\n📅 Sem consulta agendada.';
+
+  await enviarTexto(instanciaNome, numeroRemetente, msg);
+}
+
+async function processarComandoEstoque(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+  texto: string,
+) {
+  if (!(await estaAutorizado(adminClient, clinicaId, numeroRemetente))) return;
+
+  const nomeProduto = texto.replace(/^\s*estoque\s*:?\s*/i, '').trim();
+  if (!nomeProduto) {
+    await enviarTexto(instanciaNome, numeroRemetente, 'Use: estoque: nome do produto\n\nExemplo: estoque: Botox');
+    return;
+  }
+
+  const { data: exatos } = await adminClient
+    .from('produtos')
+    .select('nome, quantidade, unidade, estoque_minimo')
+    .eq('clinica_id', clinicaId)
+    .ilike('nome', nomeProduto);
+
+  let candidatos = exatos || [];
+  if (!candidatos.length) {
+    const { data: parciais } = await adminClient
+      .from('produtos')
+      .select('nome, quantidade, unidade, estoque_minimo')
+      .eq('clinica_id', clinicaId)
+      .ilike('nome', `%${nomeProduto}%`);
+    candidatos = parciais || [];
+  }
+
+  if (!candidatos.length) {
+    await enviarTexto(instanciaNome, numeroRemetente, `Não encontrei nenhum produto chamado "${nomeProduto}".`);
+    return;
+  }
+
+  if (candidatos.length > 1) {
+    const lista = candidatos
+      .map((p: any) => `• ${p.nome}: ${p.quantidade} ${p.unidade || 'un'}`)
+      .join('\n');
+    await enviarTexto(
+      instanciaNome,
+      numeroRemetente,
+      `Encontrei mais de um produto:\n${lista}\n\nMande de novo com o nome completo.`,
+    );
+    return;
+  }
+
+  const p = candidatos[0] as { nome: string; quantidade: number; unidade: string | null; estoque_minimo: number | null };
+  const alerta = p.estoque_minimo != null && p.quantidade <= p.estoque_minimo ? '\n⚠️ Estoque crítico!' : '';
+  await enviarTexto(
+    instanciaNome,
+    numeroRemetente,
+    `📦 ${p.nome}: ${p.quantidade} ${p.unidade || 'un'} em estoque.${alerta}`,
+  );
+}
+
+async function processarComandoAniversario(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+) {
+  if (!(await estaAutorizado(adminClient, clinicaId, numeroRemetente))) return;
+
+  const hoje = hojeStr();
+  const mes = hoje.slice(5, 7);
+  const dia = hoje.slice(8, 10);
+
+  const { data: pacientes } = await adminClient
+    .from('pacientes')
+    .select('nome, telefone, data_nascimento')
+    .eq('clinica_id', clinicaId)
+    .not('data_nascimento', 'is', null);
+
+  const anivs = (pacientes || []).filter((p: any) => {
+    const partes = String(p.data_nascimento || '').split('-');
+    return partes[1] === mes && partes[2] === dia;
+  });
+
+  if (!anivs.length) {
+    await enviarTexto(instanciaNome, numeroRemetente, 'Nenhum aniversariante hoje.');
+    return;
+  }
+
+  const lista = anivs.map((p: any) => `🎂 ${p.nome}${p.telefone ? ' — ' + p.telefone : ''}`).join('\n');
+  await enviarTexto(instanciaNome, numeroRemetente, `🎉 Aniversariantes de hoje (${anivs.length}):\n\n${lista}`);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -481,6 +817,16 @@ Deno.serve(async (req) => {
         await processarComandoListarAgenda(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
       } else if (/^agendar\b/i.test(texto)) {
         await processarComandoAgendar(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
+      } else if (/^cancelar\b/i.test(texto)) {
+        await processarComandoCancelar(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
+      } else if (/^receber\b/i.test(texto)) {
+        await processarComandoReceber(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
+      } else if (/^paciente\b/i.test(texto)) {
+        await processarComandoPaciente(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
+      } else if (/^estoque\b/i.test(texto)) {
+        await processarComandoEstoque(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto);
+      } else if (/^anivers/i.test(texto)) {
+        await processarComandoAniversario(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente);
       }
     }
 

@@ -184,7 +184,41 @@
     <div class="sec-head"><span class="sec-num">11</span><h3>Configurações</h3></div>
     <div class="sec-body">
       <p>Identidade da clínica (logo, nome, cor, endereço, registro profissional), troca de PIN, e a aba <strong>Equipe</strong> — login por funcionária, com permissão granular por tela (Financeiro, Estoque, etc.) e percentual de comissão configurável.</p>
-      <p>A integração de <strong>WhatsApp</strong> liga ou desliga: confirmação de consulta, lembrete de retorno, cobrança e parabéns de aniversário. É aqui também que ficam os números autorizados a mandar comando por texto direto pro sistema, tipo <em>"agenda: 20/09"</em> pra ver a agenda do dia, ou <em>"agendar: nome, data, hora"</em> pra marcar uma consulta nova pelo WhatsApp.</p>
+      <p>A integração de <strong>WhatsApp</strong> liga ou desliga: confirmação de consulta, lembrete de retorno, cobrança e parabéns de aniversário. É aqui também que ficam os <strong>números autorizados</strong> a mandar comando por texto direto pro WhatsApp da clínica — pode cadastrar mais de um, separando por vírgula.</p>
+      <p>Os comandos funcionam mandando a mensagem exatamente no formato abaixo, na própria conversa "Você" do WhatsApp conectado (ou de qualquer número autorizado):</p>
+      <div class="box">
+        <b>agendar: Nome completo, DD/MM HH:MM, Procedimento (opcional)</b>
+        Marca uma consulta nova. Exemplo: <em>agendar: Claudio Gallego Dias Filho, 16/09 14:00, Botox</em>
+      </div>
+      <div class="box">
+        <b>agenda: DD/MM</b>
+        Lista as consultas daquele dia. Exemplo: <em>agenda: 18/09</em>
+      </div>
+      <div class="box">
+        <b>confirmar agenda: DD/MM</b>
+        Manda a mensagem de confirmação de presença pra todo mundo agendado naquele dia, de uma vez. Exemplo: <em>confirmar agenda: 18/09</em>
+      </div>
+      <div class="box">
+        <b>cancelar: Nome completo, DD/MM</b>
+        Cancela uma consulta marcada. Se tiver mais de uma com esse nome no mesmo dia, inclua a hora. Exemplo: <em>cancelar: Claudio Gallego Dias Filho, 16/09</em>
+      </div>
+      <div class="box">
+        <b>receber: DD/MM</b> ou <b>receber: hoje</b>
+        Lista o que está a receber naquele dia, com o total. Exemplo: <em>receber: hoje</em>
+      </div>
+      <div class="box">
+        <b>paciente: nome</b>
+        Telefone, último atendimento e próxima consulta dessa paciente. Exemplo: <em>paciente: Ana Silva</em>
+      </div>
+      <div class="box">
+        <b>estoque: produto</b>
+        Quantidade disponível daquele produto. Exemplo: <em>estoque: Botox</em>
+      </div>
+      <div class="box">
+        <b>aniversario</b>
+        Lista quem faz aniversário hoje.
+      </div>
+      <div class="callout">💬 Se o número não estiver na lista de autorizados, o comando é simplesmente ignorado — nada é respondido. E se o formato da mensagem estiver errado, o sistema avisa qual é o jeito certo de escrever.</div>
     </div>
   </div>
 
