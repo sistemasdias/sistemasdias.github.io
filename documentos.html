@@ -990,6 +990,16 @@ textarea{resize:vertical}
       </div>
     </div>
   </div>
+
+  <!-- MODAL: escolher qual Orçamento Simples puxar (quando há mais de um salvo) -->
+  <div id="modal-escolha-orcs" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--card);border-radius:16px;padding:1.5rem;width:92%;max-width:420px;max-height:80vh;overflow-y:auto">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">Qual Orçamento Simples puxar?</div>
+      <div style="font-size:12.5px;color:var(--ct);margin-bottom:1rem">Essa paciente tem mais de um salvo — escolha um:</div>
+      <div id="escolha-orcs-lista"></div>
+      <button class="btn" style="width:100%" onclick="fecharEscolhaOrcSimples()">Cancelar</button>
+    </div>
+  </div>
 <script>
 const {createClient}=supabase;
 const db=sbClient();
@@ -1753,21 +1763,26 @@ function addItemOrc(){
   el.appendChild(d);
 }
 
-// Puxa os itens do último "Orçamento Simples" salvo dessa paciente pra
-// dentro da Ficha de Orçamento — sem tocar em nada que já esteja
-// preenchido (nem nos tratamentos já digitados, nem em Condições de
-// Pagamento/Observações/Validade). Só acrescenta os itens no final da
-// lista de tratamentos.
+// Puxa os itens de um "Orçamento Simples" salvo dessa paciente pra dentro
+// da Ficha de Orçamento — sem tocar em nada que já esteja preenchido (nem
+// nos tratamentos já digitados, nem em Condições de Pagamento/Observações/
+// Validade). Só acrescenta os itens no final da lista de tratamentos.
+// Se houver mais de um Orçamento Simples salvo (ex: vários feitos no
+// mesmo dia), mostra uma lista pra escolher qual puxar — com só um, puxa
+// direto sem perguntar.
 async function puxarOrcamentoSimples(){
   if(!pacSelecionada){toast('Selecione um paciente primeiro!','vermelho');return;}
-  const{data:docs}=await db.from('documentos').select('dados').eq('paciente_id',pacSelecionada.id).eq('tipo','orcamento-simples').order('criado_em',{ascending:false}).limit(1);
-  const dadosSimples=docs?.[0]?.dados;
-  const itens=dadosSimples?.itens||[];
-  const validos=itens.filter(i=>i.desc);
+  const{data:docs}=await db.from('documentos').select('dados,criado_em').eq('paciente_id',pacSelecionada.id).eq('tipo','orcamento-simples').order('criado_em',{ascending:false});
+  const validos=(docs||[]).filter(d=>(d.dados?.itens||[]).some(i=>i.desc));
   if(!validos.length){toast('Nenhum Orçamento Simples encontrado pra essa paciente.','vermelho');return;}
-  const categoria=dadosSimples.categoriaPadrao||'Harmonização Orofacial';
+  if(validos.length===1){ aplicarItensOrcSimples(validos[0].dados); return; }
+  abrirEscolhaOrcSimples(validos);
+}
 
-  validos.forEach(item=>{
+function aplicarItensOrcSimples(dadosSimples){
+  const itens=(dadosSimples?.itens||[]).filter(i=>i.desc);
+  const categoria=dadosSimples.categoriaPadrao||'Harmonização Orofacial';
+  itens.forEach(item=>{
     addItemOrc();
     const linhas=document.querySelectorAll('#orc-itens .orc-linha');
     const linha=linhas[linhas.length-1];
@@ -1779,7 +1794,36 @@ async function puxarOrcamentoSimples(){
     if(inputVal) inputVal.value=item.val||'';
   });
   calcTotal();
-  toast(`${validos.length} ${validos.length===1?'item puxado':'itens puxados'} do Orçamento Simples ✓`,'verde');
+  toast(`${itens.length} ${itens.length===1?'item puxado':'itens puxados'} do Orçamento Simples ✓`,'verde');
+}
+
+let _orcsEscolhaOpcoes=[];
+function abrirEscolhaOrcSimples(opcoes){
+  _orcsEscolhaOpcoes=opcoes;
+  const lista=document.getElementById('escolha-orcs-lista');
+  lista.innerHTML=opcoes.map((o,i)=>{
+    const itens=(o.dados?.itens||[]).filter(it=>it.desc);
+    const total=itens.reduce((s,it)=>s+(parseFloat(it.val)||0),0);
+    const primeiro=itens[0]?.desc||'';
+    const resumo=itens.length>1?`${primeiro} + ${itens.length-1}`:primeiro;
+    const dt=new Date(o.criado_em);
+    const dataFmt=dt.toLocaleDateString('pt-BR')+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    return `<button class="btn" style="width:100%;text-align:left;margin-bottom:8px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px" onclick="escolherOrcSimples(${i})">
+      <span style="font-weight:600;font-size:13px">${escapeHtml(dataFmt)} · ${itens.length} ${itens.length===1?'item':'itens'} · ${fmtBRL(total)}</span>
+      <span style="font-size:12px;color:var(--ct)">${escapeHtml(resumo)}</span>
+    </button>`;
+  }).join('');
+  document.getElementById('modal-escolha-orcs').style.display='flex';
+}
+
+function escolherOrcSimples(i){
+  const escolhido=_orcsEscolhaOpcoes[i];
+  document.getElementById('modal-escolha-orcs').style.display='none';
+  if(escolhido) aplicarItensOrcSimples(escolhido.dados);
+}
+
+function fecharEscolhaOrcSimples(){
+  document.getElementById('modal-escolha-orcs').style.display='none';
 }
 
 // Se o paciente tem convênio e existe um preço cadastrado para esse procedimento,
