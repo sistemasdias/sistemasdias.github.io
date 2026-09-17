@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Ajuda — Como o sistema funciona</title>
+  <script src="config.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --verde:#1D9E75;--verde-c:#E1F5EE;--verde-e:#0F6E56;
+      --amarelo:#EF9F27;--amarelo-c:#FAEEDA;
+      --txt:#1a1916;--ct:#6B6860;--bg:#F7F6F3;--card:#fff;--borda:#E8E6E1;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+    .hdr{background:var(--verde-e);color:#fff;padding:0 1.5rem;display:flex;align-items:center;gap:1rem;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+    .hdr a{color:rgba(255,255,255,.75);text-decoration:none;font-size:13px}
+    .hdr a:hover{color:#fff}
+    .hdr h1{font-size:15px;font-weight:600;flex:1}
+    .wrap{max-width:760px;margin:0 auto;padding:2rem 1.5rem 4rem}
+    .intro{margin-bottom:2rem}
+    .intro h2{font-family:'DM Serif Display',serif;font-size:28px;font-weight:400;color:var(--txt);margin-bottom:.5rem}
+    .intro p{font-size:14px;color:var(--ct);line-height:1.6;max-width:56ch}
+    .toc{background:var(--card);border:1px solid var(--borda);border-radius:12px;padding:1rem 1.25rem;margin-bottom:2.5rem;columns:2;gap:1.5rem}
+    .toc a{display:block;font-size:13px;color:var(--txt);text-decoration:none;padding:4px 0;break-inside:avoid}
+    .toc a b{color:var(--verde-e);font-weight:700;margin-right:6px}
+    .toc a:hover{color:var(--verde-e)}
+    .sec{margin-bottom:2.25rem;scroll-margin-top:70px}
+    .sec-head{display:flex;align-items:center;gap:10px;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--borda)}
+    .sec-num{font-family:'DM Serif Display',serif;font-size:20px;color:var(--verde);flex-shrink:0;width:28px}
+    .sec-head h3{font-size:16px;font-weight:700;color:var(--txt)}
+    .sec-body{padding-left:38px;font-size:14px;line-height:1.7;color:var(--txt)}
+    .sec-body p{margin:0 0 .65rem}
+    .sec-body ul{margin:0 0 .65rem;padding-left:1.1rem}
+    .sec-body li{margin-bottom:.3rem}
+    .box{background:var(--verde-c);border-radius:10px;padding:12px 16px;margin-top:.65rem;font-size:13px;line-height:1.6;color:var(--verde-e)}
+    .box b{display:block;margin-bottom:2px;color:var(--txt)}
+    .doclist{display:grid;grid-template-columns:1fr 1fr;gap:5px 16px;font-size:13px;margin-top:.5rem}
+    .doclist span{color:var(--ct)}
+    .callout{background:var(--amarelo-c);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;margin-top:.65rem}
+    .voltar-topo{display:inline-block;margin-top:2rem;font-size:12.5px;color:var(--verde-e);text-decoration:none;font-weight:600}
+    @media(max-width:520px){.toc{columns:1}.sec-body{padding-left:0;margin-top:.4rem}}
+  </style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="index.html">← Início</a>
+  <h1>❓ Ajuda</h1>
+</div>
+
+<div class="wrap">
+
+  <div class="intro">
+    <h2>Como o sistema funciona</h2>
+    <p>Um resumo de tudo que o sistema faz, por área — útil pra você se lembrar de algum detalhe, ou pra explicar pra um cliente como funciona o atendimento.</p>
+  </div>
+
+  <nav class="toc">
+    <a href="#s1"><b>01</b>Entrando no sistema</a>
+    <a href="#s2"><b>02</b>Tela Hoje</a>
+    <a href="#s3"><b>03</b>Agenda</a>
+    <a href="#s4"><b>04</b>Alertas e campanhas</a>
+    <a href="#s5"><b>05</b>Pacientes e cadastro</a>
+    <a href="#s6"><b>06</b>Ficha da paciente</a>
+    <a href="#s7"><b>07</b>Documentos</a>
+    <a href="#s8"><b>08</b>Financeiro e relatórios</a>
+    <a href="#s9"><b>09</b>Estoque</a>
+    <a href="#s10"><b>10</b>Gestão</a>
+    <a href="#s11"><b>11</b>Configurações</a>
+    <a href="#s12"><b>12</b>Agendamento online</a>
+  </nav>
+
+  <div class="sec" id="s1">
+    <div class="sec-head"><span class="sec-num">01</span><h3>Entrando no sistema</h3></div>
+    <div class="sec-body">
+      <p>Cada clínica tem seu próprio link de acesso e PIN — os dados de uma clínica nunca aparecem pra outra. Se houver mais de uma pessoa usando o sistema, uma tela de seleção pergunta quem é antes de pedir o PIN.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s2">
+    <div class="sec-head"><span class="sec-num">02</span><h3>Tela Hoje</h3></div>
+    <div class="sec-body">
+      <p>A tela inicial resume o dia: total de pacientes, aniversariantes, alertas de retorno dos próximos 15 dias e lembretes pessoais.</p>
+      <ul>
+        <li><strong>Consultas de hoje</strong> — confirmar via WhatsApp, marcar realizada ou falta, abrir ficha; "Fechar dia" marca as pendentes restantes como falta</li>
+        <li><strong>Consultas de amanhã</strong> — lembrete de confirmação de presença</li>
+        <li><strong>Verificações pós-procedimento</strong> — quem tem checagem agendada nos próximos dias</li>
+        <li><strong>Aniversariantes</strong> — parabenizar por WhatsApp com um clique</li>
+        <li><strong>Lembretes</strong> — seus lembretes pessoais com prazo</li>
+        <li><strong>A receber (7 dias)</strong> — cobranças pendentes/vencidas, marcar recebido direto daqui</li>
+        <li><strong>Retornos nos próximos 15 dias</strong> — envia lembrete pra toda a lista de uma vez, automático</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3">
+    <div class="sec-head"><span class="sec-num">03</span><h3>Agenda</h3></div>
+    <div class="sec-body">
+      <p>Visualização por mês, semana ou dia. Marcar consulta nova permite escolher recorrência (semanal, quinzenal, mensal, repetindo até 12 vezes) e busca automática de paciente já cadastrada.</p>
+      <div class="box"><b>📲 Confirmar todos</b>Envia a confirmação de consulta pra todas as pacientes do dia selecionado, de uma vez.</div>
+      <p style="margin-top:.65rem">Bloquear horário (folga, almoço) e pedidos vindos do agendamento online público também aparecem aqui, pra aceitar ou recusar.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s4">
+    <div class="sec-head"><span class="sec-num">04</span><h3>Alertas e campanhas</h3></div>
+    <div class="sec-body">
+      <p>Reúne quem precisa de algum contato: retorno pendente, quem tem Instagram, quem está aguardando resposta, quem está atrasado.</p>
+      <p><strong>Campanhas</strong> disparam mensagem em massa em 3 passos: escolher o público (por procedimento e prazo de retorno), escolher a mensagem (modelo pronto ou personalizada) e enviar uma a uma, com prévia antes de cada disparo.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s5">
+    <div class="sec-head"><span class="sec-num">05</span><h3>Pacientes e cadastro</h3></div>
+    <div class="sec-body">
+      <p>Lista completa com busca por nome ou telefone, e exportação em planilha.</p>
+      <p>O cadastro de paciente nova inclui: dados pessoais, endereço com preenchimento automático por CEP, quem indicou (alimenta o ranking de indicações do relatório), como conheceu a clínica, convênio, e já dá pra lançar tratamentos anteriores. O sistema avisa na hora se o nome digitado for parecido com alguém já cadastrado, evitando duplicidade.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s6">
+    <div class="sec-head"><span class="sec-num">06</span><h3>Ficha da paciente</h3></div>
+    <div class="sec-body">
+      <p>Cada paciente tem uma ficha com seis abas:</p>
+      <ul>
+        <li><strong>Resumo</strong> — dados, retornos pendentes, último atendimento</li>
+        <li><strong>Atendimentos</strong> — linha do tempo completa</li>
+        <li><strong>Fotos</strong> — galeria e comparação Antes/Depois (lado a lado ou com slider)</li>
+        <li><strong>Documentos</strong> — tudo que já foi gerado pra ela, incluindo digitalização de fichas antigas em papel</li>
+        <li><strong>Lembretes</strong> — específicos dessa paciente</li>
+        <li><strong>Financeiro</strong> — pagamentos e pendências dela</li>
+      </ul>
+      <div class="callout">🔒 A ficha tem um botão de exportar os dados da paciente em conformidade com a LGPD, caso ela solicite algum dia.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s7">
+    <div class="sec-head"><span class="sec-num">07</span><h3>Documentos</h3></div>
+    <div class="sec-body">
+      <p>Catorze tipos de documento, todos imprimíveis, compartilháveis por WhatsApp e salvos no histórico da paciente:</p>
+      <div class="doclist">
+        <span>Ficha de Anamnese completa</span><span>Termo — Toxina Botulínica</span>
+        <span>Termo — Preenchimento Facial</span><span>Termo — Bioestimuladores</span>
+        <span>Autorização de Uso de Imagem</span><span>Ficha de Orçamento</span>
+        <span>Planejamento de Procedimentos</span><span>Ficha Clínica / Odontograma</span>
+        <span>Anamnese Odontológica</span><span>Receituário Médico</span>
+        <span>Receituário Produtos Estéticos</span><span>Receituário Simples</span>
+        <span>Orçamento Simples</span><span>Atestado</span>
+      </div>
+      <p style="margin-top:.85rem"><strong>Ficha de Orçamento</strong> é a mais completa: monta os tratamentos com valores (harmonização ou odontológico), vincula produtos do estoque com lote e validade, e tem a seção <strong>Fechar atendimento</strong> — forma de pagamento, pago ou a receber, pagamento parcial com lembrete automático de cobrança do restante.</p>
+      <div class="box"><b>✅ Concluir atendimento</b>Um clique faz tudo: lança no financeiro, dá baixa no estoque dos produtos usados, atualiza o histórico da paciente.</div>
+      <p style="margin-top:.65rem">O <strong>Orçamento Simples</strong> (mais enxuto) pode ser "puxado" pra dentro da Ficha de Orçamento completa depois, sem redigitar os itens.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s8">
+    <div class="sec-head"><span class="sec-num">08</span><h3>Financeiro e relatórios</h3></div>
+    <div class="sec-body">
+      <p>O Financeiro mostra entradas e pendências, filtráveis por período e categoria.</p>
+      <p>O Relatório é o mais rico: visão mensal ou anual com gráfico de receita e novos pacientes, inadimplência, ticket médio por procedimento, previsão de fluxo de caixa, procedimentos mais realizados, de onde vêm as indicações, comissão por profissional (quando configurada) e um ranking de pacientes que mais indicam gente nova.</p>
+      <p>A Auditoria registra toda ação relevante no sistema — quem alterou o quê e quando.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s9">
+    <div class="sec-head"><span class="sec-num">09</span><h3>Estoque</h3></div>
+    <div class="sec-body">
+      <p>Controle de produtos com alertas de estoque crítico e itens vencendo em 30 dias. Cada produto guarda fornecedor, lote em uso e registro na Anvisa, pra rastreabilidade de verdade.</p>
+      <p>Movimentações (entrada, saída, uso em procedimento, descarte, ajuste) ficam registradas com lote e validade — e a baixa por uso em procedimento já acontece sozinha quando um atendimento é concluído na Ficha de Orçamento.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s10">
+    <div class="sec-head"><span class="sec-num">10</span><h3>Gestão</h3></div>
+    <div class="sec-body">
+      <p>Um painel com ferramentas de gestão mais avançada: Custo-hora, Ficha Técnica, DRE, Convênios e Backup.</p>
+      <p>Custo-hora calcula quanto custa sua hora de trabalho e o preço mínimo por procedimento. Ficha Técnica cadastra os insumos de cada procedimento pro sistema calcular o custo real automaticamente. DRE mostra o resultado líquido do período. Convênios guarda tabela de preço por plano de saúde parceiro. Backup exporta tudo — pacientes, financeiro, sistema inteiro.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s11">
+    <div class="sec-head"><span class="sec-num">11</span><h3>Configurações</h3></div>
+    <div class="sec-body">
+      <p>Identidade da clínica (logo, nome, cor, endereço, registro profissional), troca de PIN, e a aba <strong>Equipe</strong> — login por funcionária, com permissão granular por tela (Financeiro, Estoque, etc.) e percentual de comissão configurável.</p>
+      <p>A integração de <strong>WhatsApp</strong> liga ou desliga: confirmação de consulta, lembrete de retorno, cobrança e parabéns de aniversário. É aqui também que ficam os números autorizados a mandar comando por texto direto pro sistema, tipo <em>"agenda: 20/09"</em> pra ver a agenda do dia, ou <em>"agendar: nome, data, hora"</em> pra marcar uma consulta nova pelo WhatsApp.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s12">
+    <div class="sec-head"><span class="sec-num">12</span><h3>Agendamento online</h3></div>
+    <div class="sec-body">
+      <p>Uma página pública, sem login, pra pacientes agendarem sozinhas: escolhem data e horário livre, preenchem nome e telefone, e o pedido cai como solicitação pendente na Agenda do sistema — a clínica aceita ou recusa, e a confirmação de verdade sai pelo WhatsApp.</p>
+    </div>
+  </div>
+
+  <a href="#top" class="voltar-topo">↑ Voltar ao topo</a>
+
+</div>
+
+<script>
+const authData = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+if(!authData.ok || authData.expires < Date.now()) window.location.href='login.html?r=ajuda.html';
+</script>
+</body>
+</html>
