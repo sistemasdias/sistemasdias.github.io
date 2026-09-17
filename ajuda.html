@@ -284,7 +284,25 @@
 
 <script>
 const authData = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
-if(!authData.ok || authData.expires < Date.now()) window.location.href='login.html?r=ajuda.html';
+const clinicaOk = !!authData.ok && !(authData.expires < Date.now());
+
+// Sessão do painel admin (supabase-js guarda em sb-<ref>-auth-token) —
+// permite abrir o guia a partir do admin-assinaturas sem PIN de clínica.
+let adminOk = false;
+try {
+  const chave = Object.keys(localStorage).find(k => /^sb-.*-auth-token$/.test(k));
+  if (chave) {
+    const s = JSON.parse(localStorage.getItem(chave));
+    adminOk = !!(s && s.access_token && (!s.expires_at || s.expires_at * 1000 > Date.now()));
+  }
+} catch (e) {}
+
+if (!clinicaOk && !adminOk) window.location.href = 'login.html?r=ajuda.html';
+if (!clinicaOk && adminOk) {
+  const voltar = document.querySelector('.hdr a');
+  voltar.href = 'admin-assinaturas.html';
+  voltar.textContent = '← Assinaturas';
+}
 </script>
 </body>
 </html>

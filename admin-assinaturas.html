@@ -143,6 +143,34 @@
   .resumo .card .num { font-size: 22px; font-weight: 700; }
   .resumo .card .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
+  /* ---------- Materiais de onboarding ---------- */
+  .materiais {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .materiais .titulo { font-weight: 600; font-size: 14px; }
+  .materiais .sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .materiais .links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .materiais a {
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 13px;
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .materiais a:hover { border-color: var(--accent); color: var(--accent); }
+
   /* ---------- Lista de clientes ---------- */
   .lista { display: flex; flex-direction: column; gap: 10px; }
   .cliente {
@@ -394,6 +422,17 @@
       <div class="card">
         <div class="num" id="resumo-total-recebido">—</div>
         <div class="label">Total recebido (histórico)</div>
+      </div>
+    </div>
+
+    <div class="materiais">
+      <div>
+        <div class="titulo">📚 Materiais de onboarding</div>
+        <div class="sub">Pra apresentar o sistema a um cliente novo.</div>
+      </div>
+      <div class="links">
+        <a href="ajuda.html" target="_blank">📖 Guia do sistema</a>
+        <a href="admin-roteiro.html">🎬 Roteiro do vídeo</a>
       </div>
     </div>
 

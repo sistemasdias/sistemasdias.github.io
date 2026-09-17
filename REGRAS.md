@@ -101,3 +101,11 @@ As duas convivem hoje com propósitos diferentes: `criar-clinica` pra
 chamada direta/manual (Postman, script), `criar-cliente-completo` pro botão
 do painel. Se um dia quiser consolidar as duas, avaliar com calma — não é
 urgente.
+
+**Materiais de onboarding** (seção "📚 Materiais" no painel): o guia abre o
+`ajuda.html` do próprio sistema — o bloqueio dele aceita a sessão Supabase do
+admin além do `clinica_auth`, então não precisa PIN de clínica pra ler. O
+roteiro do vídeo fica em `admin-roteiro.html`, protegido pela mesma sessão
+do painel (sem sessão, redireciona pro `admin-assinaturas.html`). Quando o
+sistema mudar, atualizar os dois junto com o guia — é a mesma lista de
+funcionalidades em três formatos (guia, roteiro, e o artefato externo).

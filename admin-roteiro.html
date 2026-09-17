@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roteiro do vídeo — Sistema Dias</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #f6f5f3; --panel: #ffffff; --ink: #1c1b19; --muted: #6b6862;
+    --line: #e5e2dc; --accent: #2f6f4f; --accent-bg: #e7f2ea; --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+  header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 17px; margin: 0; }
+  header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  header a:hover { color: var(--ink); }
+  .actions { display: flex; gap: 10px; align-items: center; }
+  button { cursor: pointer; font-size: 13px; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 8px; padding: 8px 13px; font-family: inherit; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px; }
+  .intro { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+  .intro strong { color: var(--ink); }
+  .toc { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 24px; columns: 2; gap: 20px; }
+  .toc a { display: block; font-size: 13px; color: var(--ink); text-decoration: none; padding: 3px 0; break-inside: avoid; }
+  .toc a b { color: var(--accent); margin-right: 6px; }
+  .toc a:hover { color: var(--accent); }
+  .cap { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 16px; scroll-margin-top: 70px; }
+  .cap h2 { font-size: 16px; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .acao { display: inline-block; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-bg); border-radius: 6px; padding: 4px 10px; margin: 12px 0 6px; }
+  blockquote { margin: 0 0 8px; padding: 10px 14px; border-left: 3px solid var(--line); font-size: 14.5px; line-height: 1.65; color: var(--ink); }
+  .dicas { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 22px; font-size: 13.5px; line-height: 1.6; }
+  .dicas h2 { font-size: 15px; margin: 0 0 8px; }
+  .dicas ul { margin: 0; padding-left: 18px; }
+  .dicas li { margin-bottom: 4px; }
+  #gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }
+  #conteudo { display: none; }
+  @media (max-width: 560px) { .toc { columns: 1; } main { padding: 16px; } header { padding: 14px 16px; } }
+  @media print { header, .toc, .intro { display: none; } .cap { border: none; padding: 0 0 16px; break-inside: avoid; } body { background: #fff; } }
+</style>
+</head>
+<body>
+
+<div id="gate">Verificando acesso…</div>
+
+<div id="conteudo">
+<header>
+  <div class="actions">
+    <a href="admin-assinaturas.html">← Assinaturas</a>
+    <h1>🎬 Roteiro do vídeo</h1>
+  </div>
+  <div class="actions">
+    <button onclick="window.print()">🖨️ Imprimir</button>
+  </div>
+</header>
+
+<main>
+
+  <div class="intro">
+    Organizado em <strong>13 capítulos independentes</strong>. Grave cada um separado — fica mais fácil de refazer se errar, e dá pra mandar em partes pros clientes. Cada etiqueta <strong>AÇÃO</strong> é o que clicar antes de falar aquele trecho. Tempo estimado se gravar tudo: <strong>40–50 minutos</strong>.
+  </div>
+
+  <nav class="toc">
+    <a href="#c1"><b>01</b>Entrando no sistema</a>
+    <a href="#c2"><b>02</b>Tela Hoje</a>
+    <a href="#c3"><b>03</b>Agenda</a>
+    <a href="#c4"><b>04</b>Alertas e Campanhas</a>
+    <a href="#c5"><b>05</b>Pacientes e Cadastro</a>
+    <a href="#c6"><b>06</b>Ficha da paciente</a>
+    <a href="#c7"><b>07</b>Documentos</a>
+    <a href="#c8"><b>08</b>Financeiro, Relatório e Auditoria</a>
+    <a href="#c9"><b>09</b>Estoque</a>
+    <a href="#c10"><b>10</b>Gestão</a>
+    <a href="#c11"><b>11</b>Configurações</a>
+    <a href="#c12"><b>12</b>Agendamento Online</a>
+    <a href="#c13"><b>13</b>Recursos gerais</a>
+    <a href="#fim"><b>—</b>Fechamento e dicas</a>
+  </nav>
+
+  <section class="cap" id="c1">
+    <h2>Capítulo 1 — Entrando no sistema</h2>
+    <div class="acao">AÇÃO: tela de login</div>
+    <blockquote>"Cada clínica tem o próprio link e o próprio PIN de acesso — só vocês entram aqui, ninguém mais vê os dados de vocês. Se tiver mais de uma pessoa usando o sistema na clínica, primeiro aparece uma tela pra escolher quem é, e depois o PIN de cada uma."</blockquote>
+    <div class="acao">AÇÃO: digitar PIN e entrar; apontar o contador no cabeçalho</div>
+    <blockquote>"Por segurança, se ficar 60 minutos sem mexer, o sistema desconecta sozinho — esse contador aqui em cima mostra quanto tempo falta."</blockquote>
+  </section>
+
+  <section class="cap" id="c2">
+    <h2>Capítulo 2 — Tela "Hoje" (o painel do dia a dia)</h2>
+    <div class="acao">AÇÃO: aba Hoje</div>
+    <blockquote>"Essa é a tela que abre primeiro — o resumo do seu dia. Aqui em cima: total de pacientes, aniversários de hoje, alertas de retorno dos próximos 15 dias, e seus lembretes. E dois botões rápidos: agendar consulta e novo paciente."</blockquote>
+    <div class="acao">AÇÃO: se houver, apontar os avisos em destaque no topo</div>
+    <blockquote>"Quando tem alguma coisa pendente, aparece em destaque aqui antes de tudo: anamnese que a paciente preencheu pelo celular e está esperando você revisar, pedido de agendamento que veio do link público, e atendimento que foi feito mas ainda não teve o pagamento confirmado — esse botão leva direto pra ficha pra fechar."</blockquote>
+    <div class="acao">AÇÃO: apontar "Consultas de hoje"</div>
+    <blockquote>"Aqui embaixo, as consultas de hoje. Em cada uma dá pra: mandar WhatsApp, marcar como realizada, marcar falta, abrir a ficha da paciente. E no final do dia, o botão 'Fechar dia' marca automaticamente quem faltou."</blockquote>
+    <div class="acao">AÇÃO: "Consultas amanhã" + card de lembretes</div>
+    <blockquote>"Aqui, as consultas de amanhã — já mostra quem confirmou e quem ainda não. Esse botão 'Disparar lembretes' manda o lembrete de uma vez pra todo mundo que ainda não confirmou."</blockquote>
+    <div class="acao">AÇÃO: "Verificações pós-procedimento", se houver</div>
+    <blockquote>"Esse painel mostra quem tem uma checagem agendada — tipo ver como ficou uma toxina ou preenchimento alguns dias depois."</blockquote>
+    <div class="acao">AÇÃO: "Aniversariantes"</div>
+    <blockquote>"Aniversariantes do dia, com botão de parabenizar pelo WhatsApp."</blockquote>
+    <div class="acao">AÇÃO: "Lembretes"</div>
+    <blockquote>"Seus lembretes pessoais, com prazo. Marca como feito quando resolver."</blockquote>
+    <div class="acao">AÇÃO: "A receber (próx. 7 dias)"</div>
+    <blockquote>"Cobranças pendentes ou vencidas dos próximos dias, com botão de marcar como recebido direto daqui."</blockquote>
+    <div class="acao">AÇÃO: "Retornos nos próximos 15 dias" + botão de enviar lembretes</div>
+    <blockquote>"E esse aqui é ótimo: pacientes que estão perto da data de retorno de algum procedimento. Um clique manda o lembrete pra todo mundo dessa lista de uma vez, automático, sem precisar abrir WhatsApp um por um."</blockquote>
+  </section>
+
+  <section class="cap" id="c3">
+    <h2>Capítulo 3 — Agenda</h2>
+    <div class="acao">AÇÃO: aba Agenda; apontar o painel de ocupação no topo</div>
+    <blockquote>"Aqui é a agenda completa. Logo no topo tem o painel de ocupação do mês: quantas consultas tem, a taxa de ocupação, o horário mais procurado e o dia da semana mais movimentado — bom pra você entender onde está sobrando e onde está faltando horário."</blockquote>
+    <div class="acao">AÇÃO: clicar num dia; alternar Lista / Dia / Semana</div>
+    <blockquote>"Clicando num dia, vê a lista de consultas — e dá pra ver como lista, como linha do tempo do dia, ou a semana inteira. Cada consulta tem dois botões de WhatsApp: um automático, que já manda a confirmação sozinho, e um manual, que abre uma conversa em branco caso você queira escrever algo diferente."</blockquote>
+    <div class="acao">AÇÃO: "+ Agendar"</div>
+    <blockquote>"Pra marcar uma consulta: nome (com busca de paciente já cadastrada), telefone, procedimento, profissional, data e hora. E dá pra marcar como recorrente — semanal, quinzenal ou mensal, repetindo até 12 vezes de uma vez só."</blockquote>
+    <div class="acao">AÇÃO: "🚫 Bloquear"</div>
+    <blockquote>"Pra bloquear um horário — folga, almoço, o que for — é só clicar aqui e informar o início, fim e o motivo."</blockquote>
+    <div class="acao">AÇÃO: "📲 Confirmar todos"</div>
+    <blockquote>"Esse manda a confirmação de consulta pra todo mundo agendado naquele dia, de uma vez. A mensagem já vai com um link 'Salvar na sua agenda', pra paciente colocar direto no Google Calendar, no iPhone ou no Outlook."</blockquote>
+    <div class="acao">AÇÃO: apontar o botão 📱 e a lista "Todas as consultas do mês"</div>
+    <blockquote>"Esse botão roxo é onde se configura o agendamento online — vou mostrar no final. E aqui embaixo, a lista de todas as consultas do mês."</blockquote>
+  </section>
+
+  <section class="cap" id="c4">
+    <h2>Capítulo 4 — Alertas e Campanhas</h2>
+    <div class="acao">AÇÃO: aba Alertas; mostrar filtros e o seletor de período</div>
+    <blockquote>"Essa aba junta pacientes que precisam de algum contato: retorno pendente, quem tem Instagram cadastrado, quem já recebeu mensagem e está aguardando resposta, e quem está atrasado. Dá pra filtrar o período — próximos 30, 60, 90 dias, um ano ou tudo."</blockquote>
+    <div class="acao">AÇÃO: "📣 Campanhas"</div>
+    <blockquote>"E aqui dá pra disparar uma campanha de mensagem em massa: escolhe o procedimento e o prazo de retorno, marca quem vai receber, escolhe um modelo de mensagem — ou escreve uma personalizada — e manda uma por uma, com prévia antes de cada envio."</blockquote>
+    <div class="acao">AÇÃO: "✏️ Editar templates"</div>
+    <blockquote>"E em 'Editar templates' você muda o texto padrão de cada mensagem — retorno, botox, preenchimento, aniversário — pra ficar do jeito da sua clínica."</blockquote>
+  </section>
+
+  <section class="cap" id="c5">
+    <h2>Capítulo 5 — Pacientes e Cadastro</h2>
+    <div class="acao">AÇÃO: aba Pacientes</div>
+    <blockquote>"Lista de todas as pacientes, com busca por nome ou apelido. Dá pra exportar tudo em uma planilha também."</blockquote>
+    <div class="acao">AÇÃO: aba Cadastrar</div>
+    <blockquote>"Pra cadastrar uma paciente nova: nome, apelido, telefone, nascimento, CPF, RG, endereço — que preenche sozinho só de digitar o CEP, ou se não souber o CEP, busca pelo endereço —, quem indicou ela, como conheceu a clínica, Instagram, Facebook, convênio, link da pasta no Google Drive, e já dá pra lançar os tratamentos que ela já fez antes de entrar no sistema."</blockquote>
+    <div class="acao">AÇÃO: apontar "Responsável / Contato"</div>
+    <blockquote>"Esse campo 'Responsável' vincula a paciente a outra pessoa já cadastrada — serve pra dependente, ou quando o contato é de outra pessoa."</blockquote>
+    <blockquote>"Uma coisa legal: se você digitar um nome parecido com alguém que já existe, ou um telefone que já está cadastrado, o sistema avisa na hora, pra evitar cadastro duplicado."</blockquote>
+  </section>
+
+  <section class="cap" id="c6">
+    <h2>Capítulo 6 — Ficha da paciente</h2>
+    <div class="acao">AÇÃO: abrir uma paciente; apontar a foto de perfil</div>
+    <blockquote>"Aqui é a ficha individual — o resumo completo de cada paciente, com foto de perfil que dá pra tirar na hora ou escolher da galeria."</blockquote>
+    <div class="acao">AÇÃO: aba Resumo</div>
+    <blockquote>"Resumo: dados pessoais, retornos pendentes, último atendimento, observações, e o histórico de alterações — quem mudou o quê nos dados dela."</blockquote>
+    <div class="acao">AÇÃO: aba Atendimentos; abrir um</div>
+    <blockquote>"Linha do tempo de todos os atendimentos. Clicando em um, abre o detalhe: procedimentos, financeiro, verificação pós-procedimento, observações — e dá pra editar."</blockquote>
+    <div class="acao">AÇÃO: aba Fotos</div>
+    <blockquote>"Fotos: galeria normal, e uma aba de Antes/Depois com comparação lado a lado ou com um slider pra arrastar e comparar."</blockquote>
+    <div class="acao">AÇÃO: aba Documentos</div>
+    <blockquote>"Todos os documentos gerados pra essa paciente, e também dá pra digitalizar fichas antigas em papel, tirando uma foto."</blockquote>
+    <div class="acao">AÇÃO: aba Financeiro</div>
+    <blockquote>"O financeiro dessa paciente especificamente: o que já pagou, o que está pendente."</blockquote>
+    <div class="acao">AÇÃO: botão "Link de Anamnese"</div>
+    <blockquote>"E esse aqui é muito útil: 'Link de Anamnese'. Gera um link, você copia ou manda por WhatsApp, e a paciente preenche a anamnese pelo celular dela, antes da consulta. Quando ela responde, aparece lá na Tela Hoje pra você revisar."</blockquote>
+    <div class="acao">AÇÃO: botão Exportar dados, se quiser mencionar</div>
+    <blockquote>"E tem um botão de exportar os dados dela — importante pra atender pedido de LGPD, se algum dia uma paciente pedir os dados dela."</blockquote>
+  </section>
+
+  <section class="cap" id="c7">
+    <h2>Capítulo 7 — Documentos (a parte mais completa do sistema)</h2>
+    <div class="acao">AÇÃO: abrir Documentos de uma paciente</div>
+    <blockquote>"Aqui ficam todos os tipos de documento que a clínica pode gerar: Ficha de Anamnese completa, três tipos de Termo de Consentimento — Toxina, Preenchimento e Bioestimuladores —, Autorização de Uso de Imagem, Ficha de Orçamento, Planejamento de Procedimentos, Ficha Clínica com Odontograma, Anamnese Odontológica, três tipos de Receituário, Orçamento Simples e Atestado. Todos saem com o cabeçalho da clínica — logo, registro, endereço."</blockquote>
+    <div class="acao">AÇÃO: abrir a Anamnese; mostrar o campo de assinatura</div>
+    <blockquote>"Anamnese, Autorização de Imagem e Atestado têm assinatura digital na tela — a paciente assina com o dedo, no celular ou no tablet."</blockquote>
+    <div class="acao">AÇÃO: botão WhatsApp de um documento</div>
+    <blockquote>"Todos imprimem e salvam no histórico. E o botão de WhatsApp gera um PDF de verdade do documento e já abre o compartilhar do celular com o arquivo anexado. Os documentos salvos ficam listados embaixo — dá pra reabrir, reenviar ou excluir."</blockquote>
+    <div class="acao">AÇÃO: abrir a Ficha de Orçamento</div>
+    <blockquote>"Essa aqui merece destaque, porque é o coração do sistema. Você monta os tratamentos sugeridos com valores, escolhe harmonização ou odontológico, e vincula os produtos usados — com rastreabilidade de lote e validade."</blockquote>
+    <div class="acao">AÇÃO: rolar até "Fechar atendimento"</div>
+    <blockquote>"Quando o procedimento é feito de verdade, desce até aqui: escolhe a forma de pagamento, se foi pago na hora ou fica pra receber, e até dá pra registrar pagamento parcial — o sistema calcula o restante e já cria um lembrete de cobrança sozinho."</blockquote>
+    <div class="acao">AÇÃO: clicar "Concluir atendimento"</div>
+    <blockquote>"Um clique em 'Concluir atendimento' faz tudo de uma vez: lança no financeiro, dá baixa no estoque dos produtos usados, e atualiza o histórico da paciente."</blockquote>
+    <div class="acao">AÇÃO: mencionar o "Puxar do Orçamento Simples"</div>
+    <blockquote>"E se você já tinha feito um Orçamento Simples antes — mais rápido, sem tanto detalhe —, tem um botão que puxa os itens de lá direto pra essa ficha completa, sem precisar digitar tudo de novo."</blockquote>
+  </section>
+
+  <section class="cap" id="c8">
+    <h2>Capítulo 8 — Financeiro, Relatório e Auditoria</h2>
+    <div class="acao">AÇÃO: aba Financeiro; apontar cards, botões e abas</div>
+    <blockquote>"Aqui em cima os cards de resumo do mês e os alertas. Dá pra lançar receita ou despesa, filtrar por mês e ano, e buscar por paciente ou procedimento. Cinco abas: Receitas, Despesas, Fluxo de Caixa, Procedimentos — o ranking do que mais rendeu — e Inadimplência, que tem botão de cobrar direto pelo WhatsApp."</blockquote>
+    <div class="acao">AÇÃO: apontar "Importar histórico" e "Excel"</div>
+    <blockquote>"'Importar histórico' traz pro financeiro os atendimentos antigos que estavam só no cadastro. E 'Excel' exporta tudo em planilha."</blockquote>
+    <div class="acao">AÇÃO: aba Relatório</div>
+    <blockquote>"O Relatório é bem completo. Escolhe o período — este mês, mês passado, 3, 6, 12 meses ou tudo. Cards de atendimentos, pacientes atendidos, ticket médio e faturamento. E depois: inadimplência, ticket médio por procedimento, previsão de fluxo de caixa dos próximos meses, os procedimentos mais realizados, de onde vêm as indicações, faturamento estimado, comissão por profissional se você tiver isso configurado, como as pacientes conheceram a clínica, aniversariantes do mês, e retornos vencidos que nunca foram reagendados — com opção de arquivar em massa."</blockquote>
+    <div class="acao">AÇÃO: ranking de embaixadoras</div>
+    <blockquote>"Tem até um ranking de 'embaixadoras' — as pacientes que mais indicam gente nova pra clínica, com o faturamento que essas indicações geraram."</blockquote>
+    <div class="acao">AÇÃO: botões "Anual" e "Executivo"</div>
+    <blockquote>"O botão 'Anual' abre a visão do ano inteiro, com receita e novos pacientes mês a mês. E 'Executivo' monta um resumo pronto pra copiar e mandar — pro contador, pro sócio, pra quem for."</blockquote>
+    <div class="acao">AÇÃO: aba Auditoria, se visível</div>
+    <blockquote>"E a Auditoria registra tudo que acontece no sistema — quem alterou o quê e quando —, com filtro por tipo de ação e período. Importante pra segurança e rastreabilidade."</blockquote>
+  </section>
+
+  <section class="cap" id="c9">
+    <h2>Capítulo 9 — Estoque</h2>
+    <div class="acao">AÇÃO: abrir Estoque; mostrar as 4 abas</div>
+    <blockquote>"Controle completo de produtos, em quatro abas. Dashboard: visão geral, o que está no crítico ou vencendo em 30 dias, e exportar pra Excel. Produtos: busca e filtro por categoria — toxina, preenchimento, bioestimulador, fios, e por aí vai. Cada produto tem fornecedor, fabricante, lote, validade e registro na Anvisa — importante pra rastreabilidade de verdade."</blockquote>
+    <div class="acao">AÇÃO: aba Movimentações</div>
+    <blockquote>"As movimentações registram entrada, saída, uso em procedimento, descarte ou ajuste, com lote, fabricação, validade e paciente — e, como te mostrei, a baixa por uso em procedimento já acontece sozinha quando você fecha um atendimento na Ficha de Orçamento."</blockquote>
+    <div class="acao">AÇÃO: aba Fornecedores</div>
+    <blockquote>"E a aba de Fornecedores, com CNPJ, contato, telefone e e-mail de cada um."</blockquote>
+  </section>
+
+  <section class="cap" id="c10">
+    <h2>Capítulo 10 — Gestão (relatórios avançados)</h2>
+    <div class="acao">AÇÃO: abrir Gestão</div>
+    <blockquote>"Esse é um painel que junta atalhos pras telas principais e as ferramentas mais avançadas: Custo-hora, que calcula quanto custa sua hora de trabalho e o preço mínimo de cada procedimento; Ficha Técnica, onde você cadastra os insumos de cada procedimento pro sistema calcular o custo real sozinho; DRE, o resultado líquido do período; Convênios, com tabela de preço por convênio; e Backup, que exporta tudo — pacientes, financeiro, agenda, estoque — pra você ter uma cópia de segurança quando quiser."</blockquote>
+    <div class="acao">AÇÃO: seção "Documentos e PDF"</div>
+    <blockquote>"E aqui tem os Documentos PDF: a Ficha do paciente completa — você escolhe o que incluir: dados, consultas, plano de tratamento, financeiro —, um Orçamento ou Proposta com validade e forma de pagamento, e Recibo de pagamento."</blockquote>
+  </section>
+
+  <section class="cap" id="c11">
+    <h2>Capítulo 11 — Configurações</h2>
+    <div class="acao">AÇÃO: abrir Configurações</div>
+    <blockquote>"Aqui você ajusta a identidade da clínica: logo, nome, cor, especialidade, registro profissional, contato e endereço."</blockquote>
+    <div class="acao">AÇÃO: seção PIN</div>
+    <blockquote>"Pode trocar o PIN de acesso quando quiser."</blockquote>
+    <div class="acao">AÇÃO: seção Equipe</div>
+    <blockquote>"Em Equipe, você cadastra login pra cada funcionária, decide se ela é administradora ou só tem acesso a telas específicas — Financeiro, Estoque, o que for — e se ela recebe comissão."</blockquote>
+    <div class="acao">AÇÃO: seção Integração WhatsApp</div>
+    <blockquote>"E aqui liga o WhatsApp automático. Quando está ativado, os botões de WhatsApp do sistema mandam a mensagem sozinhos, sem abrir o WhatsApp Web. Escolhe o provedor, testa a conexão, e liga ou desliga cada notificação: confirmação de consulta, lembrete de retorno, cobrança, parabéns de aniversário. Aqui também se cadastra a instância conectada — o nome e o número."</blockquote>
+    <div class="acao">AÇÃO: apontar a caixa de comandos e os números autorizados</div>
+    <blockquote>"E os comandos por WhatsApp: você cadastra os números autorizados — pode ser mais de um — e esses números conseguem mandar comando por texto direto pro WhatsApp da clínica. São oito comandos, e o formato tem que ser exatamente esse: 'agendar: Nome completo, DD/MM HH:MM, Procedimento' pra marcar uma consulta nova — o procedimento é opcional. 'agenda: DD/MM' lista as consultas daquele dia. 'confirmar agenda: DD/MM' manda a confirmação de presença pra todo mundo agendado naquele dia, de uma vez. 'cancelar: Nome completo, DD/MM' cancela uma consulta marcada — se tiver mais de uma com esse nome no mesmo dia, é só incluir a hora. 'receber: DD/MM' ou 'receber: hoje' lista o que está a receber naquele dia, com o total. 'paciente: nome' devolve telefone, último atendimento e próxima consulta de alguém, ótimo quando alguém liga e você não está no sistema. 'estoque: produto' mostra a quantidade disponível daquele item. E 'aniversario' lista quem faz aniversário hoje. Se o número que mandar não estiver na lista de autorizados, o sistema simplesmente ignora — não responde nada."</blockquote>
+  </section>
+
+  <section class="cap" id="c12">
+    <h2>Capítulo 12 — Agendamento Online (a página pública)</h2>
+    <div class="acao">AÇÃO: na Agenda, clicar o botão 📱</div>
+    <blockquote>"Aqui é onde se configura: liga ou desliga, escolhe os dias da semana, horário de início e fim, quanto dura cada horário, com quantos dias de antecedência no máximo a paciente pode marcar — e pega o link pra copiar ou mandar por WhatsApp."</blockquote>
+    <div class="acao">AÇÃO: abrir o link de agendamento online</div>
+    <blockquote>"Essa é a página que a paciente vê. Ela preenche nome e telefone, escolhe data e horário livre, e manda o pedido. Isso não confirma sozinho — vira uma solicitação, que aparece na Agenda e na Tela Hoje pra você aceitar ou recusar, e ela recebe a confirmação de verdade pelo WhatsApp."</blockquote>
+    <blockquote>"A anamnese online, que mostrei na ficha da paciente, funciona do mesmo jeito: é uma página pública, ela preenche pelo celular sem precisar de acesso ao sistema."</blockquote>
+  </section>
+
+  <section class="cap" id="c13">
+    <h2>Capítulo 13 — Recursos gerais</h2>
+    <div class="acao">AÇÃO: no celular, mostrar o botão "Instalar"; no computador, o cabeçalho</div>
+    <blockquote>"Pra fechar, alguns recursos que valem pra tudo. No celular, o sistema pode ser instalado na tela inicial e abre como um aplicativo, sem a barra do navegador. A lupa aqui — ou Ctrl+K no computador — é a busca global: procura paciente por nome, apelido ou telefone, e consulta por nome ou procedimento, de qualquer tela. Tem modo escuro, atalho direto pros Documentos, a página de Ajuda com esse resumo todo, e o botão de Suporte, que abre a conversa comigo no WhatsApp."</blockquote>
+  </section>
+
+  <section class="cap" id="fim">
+    <h2>Fechamento</h2>
+    <blockquote>"É basicamente isso — um sistema completo de agenda, pacientes, orçamento, financeiro e estoque, tudo conectado, com boa parte da comunicação automatizada pelo WhatsApp. Qualquer dúvida, é só chamar."</blockquote>
+  </section>
+
+  <div class="dicas">
+    <h2>Dicas pra gravar</h2>
+    <ul>
+      <li>Grave capítulo por capítulo — mais fácil de refazer um errado sem perder o resto.</li>
+      <li>Use um paciente de teste/exemplo, sem dado real, já que a gravação pode ficar salva ou ser reaproveitada depois.</li>
+      <li>Não precisa decorar a fala — o importante é mostrar a tela certa; as palavras podem ser suas.</li>
+    </ul>
+  </div>
+
+</main>
+</div>
+
+<script>
+const SUPABASE_URL = "https://nathaeuqbeqlvkftbmes.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg";
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Mesma sessão do admin-assinaturas — sem login, volta pra lá.
+supa.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.replace("admin-assinaturas.html"); return; }
+  document.getElementById("gate").style.display = "none";
+  document.getElementById("conteudo").style.display = "block";
+});
+</script>
+</body>
+</html>
