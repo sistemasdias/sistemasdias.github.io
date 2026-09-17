@@ -384,7 +384,10 @@ textarea{resize:vertical}
         </label>
       </div>
       <div id="orc-categoria-print" style="font-size:13px;font-weight:600;color:var(--verde-e);margin-bottom:1rem;display:none"></div>
-      <div class="sec-title">Tratamentos Sugeridos</div>
+      <div class="sec-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Tratamentos Sugeridos</span>
+        <button class="btn sm no-print" style="font-size:12px" onclick="puxarOrcamentoSimples()">🔄 Puxar do Orçamento Simples</button>
+      </div>
       <div id="orc-itens"></div>
       <button class="btn" style="margin-bottom:1rem" onclick="addItemOrc()">+ Adicionar tratamento</button>
       <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:10px 14px;background:var(--verde-c);border-radius:8px">
@@ -884,6 +887,15 @@ textarea{resize:vertical}
       <div class="fgr no-print" style="margin-bottom:1rem;max-width:220px">
         <label>Data</label><input type="date" id="orcs-data"/>
       </div>
+      <div class="sec-title">Tipo de Orçamento</div>
+      <div style="display:flex;gap:10px;margin-bottom:1rem" id="orcs-categoria-sel" class="no-print">
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--borda);border-radius:8px;cursor:pointer">
+          <input type="radio" name="orcs-categoria" value="Harmonização Orofacial" checked/> ✨ Harmonização Orofacial
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--borda);border-radius:8px;cursor:pointer">
+          <input type="radio" name="orcs-categoria" value="Odontologia"/> 🦷 Odontológico (Dente)
+        </label>
+      </div>
       <div class="sec-title">Itens do Orçamento</div>
       <div id="orcs-itens"></div>
       <button class="btn no-print" style="margin-bottom:1rem" onclick="addItemOrcSimples()">+ Adicionar item</button>
@@ -1354,6 +1366,8 @@ function abrirOrcamentoSimples(){
   document.getElementById('orcs-obs').value='';
   document.getElementById('orcs-validade-dias').value='';
   document.getElementById('orcs-validade').value='';
+  const radioHarm=document.querySelector('input[name="orcs-categoria"][value="Harmonização Orofacial"]');
+  if(radioHarm) radioHarm.checked=true;
   document.getElementById('orcs-itens').innerHTML='';
   addItemOrcSimples();
   addItemOrcSimples();
@@ -1737,6 +1751,35 @@ function addItemOrc(){
     <input type="number" class="orc-val" placeholder="R$" min="0" step="0.01" oninput="calcTotal()" style="width:110px;text-align:right;flex-shrink:0"/>
     <button class="btn dan" aria-label="Remover item" style="padding:6px 8px;flex-shrink:0" onclick="this.closest('.orc-linha').remove();calcTotal()" title="Remover item">✕</button>`;
   el.appendChild(d);
+}
+
+// Puxa os itens do último "Orçamento Simples" salvo dessa paciente pra
+// dentro da Ficha de Orçamento — sem tocar em nada que já esteja
+// preenchido (nem nos tratamentos já digitados, nem em Condições de
+// Pagamento/Observações/Validade). Só acrescenta os itens no final da
+// lista de tratamentos.
+async function puxarOrcamentoSimples(){
+  if(!pacSelecionada){toast('Selecione um paciente primeiro!','vermelho');return;}
+  const{data:docs}=await db.from('documentos').select('dados').eq('paciente_id',pacSelecionada.id).eq('tipo','orcamento-simples').order('criado_em',{ascending:false}).limit(1);
+  const dadosSimples=docs?.[0]?.dados;
+  const itens=dadosSimples?.itens||[];
+  const validos=itens.filter(i=>i.desc);
+  if(!validos.length){toast('Nenhum Orçamento Simples encontrado pra essa paciente.','vermelho');return;}
+  const categoria=dadosSimples.categoriaPadrao||'Harmonização Orofacial';
+
+  validos.forEach(item=>{
+    addItemOrc();
+    const linhas=document.querySelectorAll('#orc-itens .orc-linha');
+    const linha=linhas[linhas.length-1];
+    const selectCat=linha.querySelector('.orc-linha-cat');
+    const inputTrat=linha.querySelector('.orc-trat');
+    const inputVal=linha.querySelector('.orc-val');
+    if(selectCat){ selectCat.value=categoria; aplicarCategoriaLinha(selectCat); }
+    if(inputTrat) inputTrat.value=item.desc||'';
+    if(inputVal) inputVal.value=item.val||'';
+  });
+  calcTotal();
+  toast(`${validos.length} ${validos.length===1?'item puxado':'itens puxados'} do Orçamento Simples ✓`,'verde');
 }
 
 // Se o paciente tem convênio e existe um preço cadastrado para esse procedimento,
@@ -2127,6 +2170,7 @@ async function salvarDoc(tipo){
     dados.conteudo=document.getElementById('recs-area')?.innerHTML||'';
   } else if(tipo==='orcamento-simples'){
     dados.data=document.getElementById('orcs-data')?.value||'';
+    dados.categoriaPadrao=document.querySelector('input[name="orcs-categoria"]:checked')?.value||'Harmonização Orofacial';
     dados.itens=getOrcsItens();
     dados.pagamento=document.getElementById('orcs-pagamento')?.value||'';
     dados.obs=document.getElementById('orcs-obs')?.value||'';
@@ -2363,6 +2407,8 @@ async function verDoc(id,tipo){
     document.getElementById('recs-area').innerHTML=d.conteudo||'';
   } else if(tipo==='orcamento-simples'){
     if(d.data) document.getElementById('orcs-data').value=d.data;
+    const radioCat=document.querySelector(`input[name="orcs-categoria"][value="${d.categoriaPadrao||'Harmonização Orofacial'}"]`);
+    if(radioCat) radioCat.checked=true;
     if(d.pagamento) document.getElementById('orcs-pagamento').value=d.pagamento;
     if(d.obs) document.getElementById('orcs-obs').value=d.obs;
     if(d.validade) document.getElementById('orcs-validade').value=d.validade;
