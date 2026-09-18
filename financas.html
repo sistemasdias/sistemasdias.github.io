@@ -42,7 +42,7 @@ header{padding:20px 0 4px}
 .mesnav{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .mesnav button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);color:var(--muted);font-size:17px;line-height:1;background:var(--surface)}
 .mesnav button:hover{color:var(--ink);border-color:var(--ink)}
-.mesnav h2{font-size:15px;font-weight:500;text-transform:capitalize}
+.mesnav h2{font-size:15px;font-weight:500}
 .mesnav small{display:block;color:var(--muted);font-size:12px;font-weight:400}
 
 /* ---------- herói: total + fatia por pessoa ---------- */
@@ -269,6 +269,7 @@ const num = t => { const s=String(t||'').replace(/[^\d,.-]/g,'').replace(/\.(?=\
 const hoje = () => new Date();
 const comp = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
 const ymd  = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const mesAno = d => MES[d.getMonth()].charAt(0).toUpperCase()+MES[d.getMonth()].slice(1)+' de '+d.getFullYear();
 
 let EU=null, MEMBROS=[], CARTOES=[], REF=new Date(), REF_EX=new Date(), PARC=1;
 
@@ -333,7 +334,7 @@ $('#mesProx').onclick = () => { REF.setMonth(REF.getMonth()+1); renderFatura(); 
 
 async function renderFatura(){
   const c = comp(REF);
-  $('#mesTit').childNodes[0].nodeValue = MES[REF.getMonth()]+' de '+REF.getFullYear();
+  $('#mesTit').childNodes[0].nodeValue = mesAno(REF);
 
   const {data:rows} = await sb.from('fin_vw_parcelas').select('*').eq('competencia', c);
   const lista = rows||[];
@@ -446,7 +447,7 @@ $('#exProx').onclick = () => { REF_EX.setMonth(REF_EX.getMonth()+1); renderExtra
 $('#exMembro').onchange = renderExtrato;
 
 async function renderExtrato(){
-  $('#exTit').textContent = MES[REF_EX.getMonth()]+' de '+REF_EX.getFullYear();
+  $('#exTit').textContent = mesAno(REF_EX);
   let q = sb.from('fin_vw_parcelas').select('*').eq('competencia', comp(REF_EX)).order('data_compra',{ascending:false});
   if($('#exMembro').value) q = q.eq('membro_id', $('#exMembro').value);
   const {data} = await q;
