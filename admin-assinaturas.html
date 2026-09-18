@@ -506,25 +506,36 @@
 <!-- ============ MODAL: registrar pagamento ============ -->
 <div class="modal-overlay" id="modal-pagamento">
   <div class="modal">
-    <h2>Registrar pagamento</h2>
-    <p class="sub">Marca o mês corrente como pago</p>
-    <input type="hidden" id="pag-assinatura-id">
+    <div id="pag-form">
+      <h2>Registrar pagamento</h2>
+      <p class="sub">Marca o mês corrente como pago</p>
+      <input type="hidden" id="pag-assinatura-id">
 
-    <label for="pag-data">Data do pagamento</label>
-    <input type="date" id="pag-data">
+      <label for="pag-data">Data do pagamento</label>
+      <input type="date" id="pag-data">
 
-    <label for="pag-forma">Forma de pagamento</label>
-    <select id="pag-forma">
-      <option value="Pix">Pix</option>
-      <option value="Boleto">Boleto</option>
-      <option value="Cartão">Cartão</option>
-      <option value="Transferência">Transferência</option>
-      <option value="Outro">Outro</option>
-    </select>
+      <label for="pag-forma">Forma de pagamento</label>
+      <select id="pag-forma">
+        <option value="Pix">Pix</option>
+        <option value="Boleto">Boleto</option>
+        <option value="Cartão">Cartão</option>
+        <option value="Transferência">Transferência</option>
+        <option value="Outro">Outro</option>
+      </select>
 
-    <div class="modal-actions">
-      <button class="btn-ghost" onclick="fecharModal('modal-pagamento')">Cancelar</button>
-      <button class="btn-accent" onclick="confirmarPagamento()">Confirmar</button>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="fecharModal('modal-pagamento')">Cancelar</button>
+        <button class="btn-accent" onclick="confirmarPagamento()">Confirmar</button>
+      </div>
+    </div>
+
+    <div id="pag-sucesso" style="display:none">
+      <h2>✅ Pagamento registrado!</h2>
+      <p class="sub" id="pag-sucesso-texto">Quer avisar a clínica por WhatsApp?</p>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="fecharModalPagamentoSucesso()">Fechar</button>
+        <a class="btn-accent" id="btn-pag-confirmacao-wpp" target="_blank" style="flex:1;text-align:center;text-decoration:none;font-weight:600;font-family:inherit;border-radius:8px;cursor:pointer;padding:10px;display:inline-block">📲 Enviar confirmação</a>
+      </div>
     </div>
   </div>
 </div>
@@ -754,6 +765,12 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug,
         <a href="${linkWhatsAppCobranca(a, atraso)}" target="_blank">💬 Enviar aviso</a>
       </div>` : "";
 
+    const avisoTrial = trial && !trial.vencido && trial.restam <= 3 ? `
+      <div class="aviso-vence">
+        <span>⌛ Trial termina ${trial.restam <= 0 ? "hoje" : `em ${trial.restam}d`} — que tal avisar sobre virar assinante?</span>
+        <a href="${linkWhatsAppTrial(a)}" target="_blank">💬 Avisar cliente</a>
+      </div>` : "";
+
     const diasVence = diasParaVencer(a);
     const avisoVence = status === "pendente" && diasVence >= 0 && diasVence <= 3 ? `
       <div class="aviso-vence">
@@ -808,6 +825,7 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug,
         </div>
         ${avisoAtraso}
         ${avisoVence}
+        ${avisoTrial}
         ${avisoCancelado}
         ${historicoHtml}
       </div>
@@ -853,6 +871,18 @@ function linkWhatsAppLembrete(assinatura) {
 function linkWhatsAppSimples(assinatura, telefoneDigitos) {
   const msg = `Olá, ${assinatura.nome_cliente}! Tudo bem?`;
   return `https://wa.me/55${telefoneDigitos}?text=${encodeURIComponent(msg)}`;
+}
+
+function linkWhatsAppTrial(assinatura) {
+  const msg = `Olá, ${assinatura.nome_cliente}! Tudo bem? Seu período de teste do sistema está quase acabando. Posso te ajudar a ativar a assinatura pra você não perder o acesso? Qualquer dúvida, me chama por aqui!`;
+  return `https://wa.me/${_waNumeroOuVazio(assinatura)}?text=${encodeURIComponent(msg)}`;
+}
+
+function linkWhatsAppConfirmacaoPagamento(assinatura) {
+  const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const hoje = new Date();
+  const msg = `Olá, ${assinatura.nome_cliente}! Recebemos seu pagamento da mensalidade de ${MESES[hoje.getMonth()]}/${hoje.getFullYear()} 😊 Muito obrigado! Qualquer dúvida, é só chamar.`;
+  return `https://wa.me/${_waNumeroOuVazio(assinatura)}?text=${encodeURIComponent(msg)}`;
 }
 
 function escapeHtml(str) {
@@ -975,7 +1005,13 @@ async function salvarCliente() {
 function abrirModalPagamento(assinaturaId) {
   document.getElementById("pag-assinatura-id").value = assinaturaId;
   document.getElementById("pag-data").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("pag-form").style.display = "block";
+  document.getElementById("pag-sucesso").style.display = "none";
   document.getElementById("modal-pagamento").classList.add("open");
+}
+
+function fecharModalPagamentoSucesso() {
+  fecharModal("modal-pagamento");
 }
 
 // ---------------- Editar assinatura ----------------
@@ -1097,8 +1133,21 @@ async function confirmarPagamento() {
     return;
   }
 
-  fecharModal("modal-pagamento");
   carregarDados();
+
+  const temTelefone = !!(assinatura && (assinatura.telefone_contato || "").replace(/\D/g, ""));
+  document.getElementById("pag-sucesso-texto").textContent = temTelefone
+    ? "Quer avisar a clínica por WhatsApp?"
+    : "Essa clínica não tem telefone de contato salvo — edite a assinatura pra adicionar.";
+  const btnWpp = document.getElementById("btn-pag-confirmacao-wpp");
+  if (temTelefone && assinatura) {
+    btnWpp.style.display = "inline-block";
+    btnWpp.href = linkWhatsAppConfirmacaoPagamento(assinatura);
+  } else {
+    btnWpp.style.display = "none";
+  }
+  document.getElementById("pag-form").style.display = "none";
+  document.getElementById("pag-sucesso").style.display = "block";
 }
 
 // ---------------- Exportar CSV ----------------
