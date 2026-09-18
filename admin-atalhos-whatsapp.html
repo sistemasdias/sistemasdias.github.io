@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atalhos de WhatsApp — Sistema Dias</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #f6f5f3; --panel: #ffffff; --ink: #1c1b19; --muted: #6b6862;
+    --line: #e5e2dc; --accent: #2f6f4f; --accent-bg: #e7f2ea; --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+  header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 16px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+  header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  header a:hover { color: var(--ink); }
+  header h1 { font-size: 17px; margin: 0; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px; }
+  .intro { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+  .intro strong { color: var(--ink); }
+  .item { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 14px; }
+  .item-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .item-icone { font-size: 20px; }
+  .item-nome { font-weight: 700; font-size: 14.5px; }
+  .item-badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; margin-left: auto; white-space: nowrap; }
+  .badge-auto { background: var(--accent-bg); color: var(--accent); }
+  .badge-manual { background: #f1f0ec; color: var(--muted); }
+  .badge-condicional { background: #faf1dc; color: #9a7b1f; }
+  .item-onde { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
+  .item-quando { font-size: 13px; color: var(--ink); margin: 0 0 10px; line-height: 1.55; }
+  .msg { background: var(--bg); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 13px; font-size: 12.5px; color: var(--muted); line-height: 1.6; font-style: italic; }
+  .msg b { color: var(--ink); font-style: normal; }
+  #gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }
+  #conteudo { display: none; }
+  @media (max-width: 560px) { main { padding: 16px; } header { padding: 14px 16px; } }
+</style>
+</head>
+<body>
+
+<div id="gate">Verificando acesso…</div>
+
+<div id="conteudo">
+<header>
+  <a href="admin-assinaturas.html">← Assinaturas</a>
+  <h1>💬 Atalhos de WhatsApp</h1>
+</header>
+
+<main>
+
+  <div class="intro">
+    Todo botão de WhatsApp do painel de Assinaturas, o que dispara cada um e a mensagem que já vem pronta. Nenhum manda sozinho sem você clicar — abrem o WhatsApp com o texto preenchido, exceto a <strong>boas-vindas automática</strong>, que tenta enviar sozinha pela instância do sistema.
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-icone">🎉</span>
+      <span class="item-nome">Boas-vindas ao criar cliente</span>
+      <span class="item-badge badge-auto">Automático</span>
+    </div>
+    <p class="item-onde">Modal "Cliente criado!", logo depois de salvar um cliente novo.</p>
+    <p class="item-quando">Dispara sozinho pela instância Evolution do sistema assim que o cliente é criado. Se não conseguir (instância desconectada), avisa na tela e deixa o botão <strong>📲 Enviar por WhatsApp</strong> pra você mandar manual.</p>
+    <div class="msg">"Olá, <b>{nome de quem vai logar}</b>! Tudo bem? 🎉<br>Seu acesso ao sistema já está pronto:<br>🔗 Link: {link} · 📧 E-mail: {email} · 🔑 PIN: {pin}<br>Qualquer dúvida, me chama por aqui!"</div>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-icone">💬</span>
+      <span class="item-nome">WhatsApp (conversa direta)</span>
+      <span class="item-badge badge-manual">Manual</span>
+    </div>
+    <p class="item-onde">Botão fixo em todo card de cliente que tem telefone de contato salvo.</p>
+    <p class="item-quando">Pra falar qualquer coisa — abre a conversa já com o número certo, sem precisar procurar o contato.</p>
+    <div class="msg">"Olá, <b>{nome do cliente}</b>! Tudo bem?"</div>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-icone">⚠️</span>
+      <span class="item-nome">Enviar aviso (atraso)</span>
+      <span class="item-badge badge-condicional">Aparece sozinho</span>
+    </div>
+    <p class="item-onde">Banner vermelho no card do cliente.</p>
+    <p class="item-quando">Aparece quando a mensalidade está <strong>15 dias ou mais em atraso</strong> e a clínica ainda não foi bloqueada.</p>
+    <div class="msg">"Olá, <b>{nome}</b>! [...] a mensalidade do sistema (venc. dia <b>{dia}</b>) está em aberto há <b>{dias}</b> dias. Para evitar o bloqueio do acesso ao final do mês, poderia regularizar o pagamento? [...]"</div>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-icone">⏳</span>
+      <span class="item-nome">Enviar lembrete (vencimento)</span>
+      <span class="item-badge badge-condicional">Aparece sozinho</span>
+    </div>
+    <p class="item-onde">Banner amarelo no card do cliente.</p>
+    <p class="item-quando">Aparece quando o mês ainda está <strong>pendente</strong> e faltam <strong>3 dias ou menos</strong> pro vencimento (ou vence hoje).</p>
+    <div class="msg">"Olá, <b>{nome}</b>! [...] a mensalidade do sistema vence dia <b>{dia}</b>. [...]"</div>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-icone">⌛</span>
+      <span class="item-nome">Avisar cliente (trial acabando)</span>
+      <span class="item-badge badge-condicional">Aparece sozinho</span>
+    </div>
+    <p class="item-onde">Banner amarelo no card do cliente.</p>
+    <p class="item-quando">Aparece quando a clínica está em <strong>trial</strong> e faltam <strong>3 dias ou menos</strong> pra acabar (ou termina hoje).</p>
+    <div class="msg">"Olá, <b>{nome}</b>! [...] Seu período de teste do sistema está quase acabando. Posso te ajudar a ativar a assinatura pra você não perder o acesso? [...]"</div>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-icone">📲</span>
+      <span class="item-nome">Enviar confirmação (pagamento)</span>
+      <span class="item-badge badge-manual">Manual</span>
+    </div>
+    <p class="item-onde">Tela de sucesso do modal "Registrar pagamento", logo após confirmar.</p>
+    <p class="item-quando">Depois de marcar um mês como pago, oferece mandar um agradecimento — só aparece se o cliente tiver telefone salvo.</p>
+    <div class="msg">"Olá, <b>{nome}</b>! Recebemos seu pagamento da mensalidade de <b>{mês/ano}</b> 😊 Muito obrigado! [...]"</div>
+  </div>
+
+</main>
+</div>
+
+<script>
+const SUPABASE_URL = "https://nathaeuqbeqlvkftbmes.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg";
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Mesma sessão do admin-assinaturas — sem login, volta pra lá.
+supa.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.replace("admin-assinaturas.html"); return; }
+  document.getElementById("gate").style.display = "none";
+  document.getElementById("conteudo").style.display = "block";
+});
+</script>
+</body>
+</html>
