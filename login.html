@@ -93,7 +93,7 @@
 
 <div class="box" id="box">
   <div class="logo-wrap">
-    <img id="login-logo" src="logo.jpg" alt="Logo"/>
+    <img id="login-logo" alt="Logo" style="display:none"/>
   </div>
   <h1 id="login-nome">Clínica</h1>
   <p class="sub" id="login-esp"></p>
@@ -139,7 +139,8 @@
 // ── Dados da clínica — espera a busca real terminar antes de mostrar ──
 (async () => {
   await window.CLINICA_CONFIG_PRONTO;
-  document.getElementById('login-logo').src = CLINICA_CONFIG.logo || 'logo.jpg';
+  const logoEl = document.getElementById('login-logo');
+  if (CLINICA_CONFIG.logo) { logoEl.src = CLINICA_CONFIG.logo; logoEl.style.display = ''; }
   document.getElementById('login-nome').textContent = CLINICA_CONFIG.nome || 'Clínica';
   document.getElementById('login-esp').textContent = CLINICA_CONFIG.especialidade || '';
   document.title = 'Acesso — ' + (CLINICA_CONFIG.nome || 'Clínica');
@@ -225,6 +226,15 @@ async function carregarUsuarios() {
       headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
     });
     const usuarios = await res.json();
+
+    if ((!Array.isArray(usuarios) || usuarios.length === 0) && (await window.CLINICA_CONFIG_PRONTO, window.CLINICA_BLOQUEADA)) {
+      document.getElementById('tela-selecao').innerHTML = `
+        <div style="text-align:center;padding:1rem 0;color:var(--ct)">
+          <div style="font-size:14px;font-weight:600;margin-bottom:.5rem">Acesso suspenso</div>
+          <div style="font-size:12px">O acesso desta clínica está temporariamente suspenso. Fale com o suporte do sistema pelo WhatsApp (17) 98211-3993.</div>
+        </div>`;
+      return;
+    }
 
     if (!Array.isArray(usuarios) || usuarios.length === 0) {
       // Nenhum usuário ativo pra esse slug (slug errado ou clínica sem login

@@ -3,14 +3,17 @@
 var SB_URL = 'https://nathaeuqbeqlvkftbmes.supabase.co';
 var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg';
 
+// Valores NEUTROS: nunca usar dados de uma clínica real como padrão — se a
+// busca falhar (link errado, clínica bloqueada), a tela não pode mostrar a
+// marca de outra clínica. Os dados reais vêm sempre do banco.
 var CLINICA_CONFIG = {
-  nome: 'Dra. Anna Carolina Dias',
-  especialidade: 'Harmonização Orofacial',
-  logo: 'logo.jpg',
+  nome: 'Clínica',
+  especialidade: '',
+  logo: '',
   cor: '#1D9E75',
   pinLength: 4,
-  loginEmail: 'clinica@annacarolina.com',
-  registro: 'CRO 82281'
+  loginEmail: '',
+  registro: ''
 };
 
 // ── Renovação automática do token ──
@@ -212,12 +215,28 @@ async function carregarConfigClinica() {
 
     if (!c) {
       // Página pública ou sem sessão válida: identifica a clínica pela URL
-      const slug = obterSlugClinicaDaUrl();
+      let slug = obterSlugClinicaDaUrl();
+      if (!slug) { try { slug = localStorage.getItem('clinica_slug') || null; } catch(e) {} }
+      if (!slug) return;
       const resPub = await fetch(`${SB_URL}/rest/v1/config_clinica_publica?select=*&slug=eq.${encodeURIComponent(slug)}&limit=1`, {
         headers: { 'apikey': SB_KEY }
       });
       const dataPub = await resPub.json();
       c = Array.isArray(dataPub) ? dataPub[0] : null;
+      if (!c) {
+        // Não veio config: descobre se a clínica existe mas está bloqueada,
+        // pra mostrar a mensagem certa (sem expor nenhum dado dela).
+        try {
+          const resSt = await fetch(`${SB_URL}/rest/v1/rpc/status_clinica_publico`, {
+            method: 'POST',
+            headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_slug: slug })
+          });
+          const st = await resSt.json();
+          if (st === 'bloqueada') window.CLINICA_BLOQUEADA = true;
+        } catch(e) {}
+        return;
+      }
     }
 
     if (c) {
