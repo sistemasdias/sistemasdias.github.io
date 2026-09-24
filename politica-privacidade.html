@@ -40,7 +40,7 @@
 <body>
 
 <div class="header">
-  <div class="header-logo"><img id="header-logo" src="logo.jpg" alt="Logo"/></div>
+  <div class="header-logo"><img id="header-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo"/></div>
   <h1 id="header-nome">Clínica</h1>
   <p id="header-esp"></p>
 </div>
@@ -51,14 +51,14 @@
     <h1 class="titulo">Política de Privacidade</h1>
     <div class="atualizado">Última atualização: 22 de julho de 2026</div>
 
-    <p>Esta Política de Privacidade descreve como a <strong>Clínica <span id="pp-nome-intro">Dra. Anna Carolina Dias</span></strong> ("nós", "clínica") coleta, usa, armazena e protege os dados pessoais de pacientes e visitantes, em conformidade com a Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018 — LGPD).</p>
+    <p>Esta Política de Privacidade descreve como a <strong>Clínica <span id="pp-nome-intro"></span></strong> ("nós", "clínica") coleta, usa, armazena e protege os dados pessoais de pacientes e visitantes, em conformidade com a Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018 — LGPD).</p>
     <p>Ao utilizar nossos serviços, nosso sistema de agendamento online, nossa ficha de anamnese digital ou qualquer outro canal de atendimento, você concorda com as práticas descritas neste documento.</p>
 
     <h2>Quem somos (controladora dos dados)</h2>
-    <p><strong>Controladora:</strong> <span id="pp-controladora">Dra. Anna Carolina Dias — CRO 82281 (Harmonização Orofacial)</span><br/>
+    <p><strong>Controladora:</strong> <span id="pp-controladora"></span><br/>
     <strong>CNPJ/CPF:</strong> <span id="pp-cnpj-cpf">296.114.268-79</span><br/>
-    <strong>Endereço:</strong> <span id="pp-endereco">Rua Capitão Daniel da Cunha Morais, 632, Centro, Tanabi/SP — CEP 15170-027</span><br/>
-    <strong>Telefone/WhatsApp:</strong> <span id="pp-telefone">(17) 98211-3940</span></p>
+    <strong>Endereço:</strong> <span id="pp-endereco"></span><br/>
+    <strong>Telefone/WhatsApp:</strong> <span id="pp-telefone"></span></p>
 
     <h2>Quais dados coletamos</h2>
     <p><strong>Identificação e contato:</strong> nome completo, apelido, CPF, RG, data de nascimento, sexo, telefone, endereço, e-mail, Instagram, como conheceu a clínica.</p>
@@ -101,7 +101,7 @@
     <p>Você pode, mediante solicitação: confirmar a existência de tratamento, acessar, corrigir, solicitar anonimização ou eliminação de dados desnecessários, solicitar portabilidade, ser informado sobre compartilhamentos, revogar consentimento e se opor a tratamentos indevidos.</p>
 
     <h2>Como exercer seus direitos</h2>
-    <p>Para exercer qualquer desses direitos, ou tirar dúvidas sobre esta política, entre em contato com a encarregada pelo tratamento de dados, <strong id="pp-encarregada">Dra. Anna Carolina Dias</strong>, pelo WhatsApp <strong id="pp-telefone2">(17) 98211-3940</strong>.</p>
+    <p>Para exercer qualquer desses direitos, ou tirar dúvidas sobre esta política, entre em contato com a encarregada pelo tratamento de dados, <strong id="pp-encarregada"></strong>, pelo WhatsApp <strong id="pp-telefone2"></strong>.</p>
 
     <h2>Cookies e tecnologias similares</h2>
     <p>Nosso sistema usa armazenamento local do navegador exclusivamente para manter sua sessão de acesso ativa — não utilizamos cookies de rastreamento ou de publicidade de terceiros.</p>
@@ -110,7 +110,7 @@
     <p>Esta política pode ser atualizada periodicamente. A data da última atualização está sempre indicada no topo deste documento.</p>
 
     <h2>Foro</h2>
-    <p>Fica eleito o foro da comarca de <span id="pp-foro">Tanabi/SP</span> para dirimir eventuais controvérsias decorrentes desta política.</p>
+    <p>Fica eleito o foro da comarca de <span id="pp-foro"></span> para dirimir eventuais controvérsias decorrentes desta política.</p>
   </div>
 </div>
 
@@ -133,7 +133,7 @@
     return;
   }
 
-  document.getElementById('header-logo').src = c.logo || 'logo.jpg';
+  document.getElementById('header-logo').src=c.logo||LOGO_VAZIO; document.getElementById('header-logo').style.display=c.logo?'':'none';
   document.getElementById('header-nome').textContent = c.nome || 'Clínica';
   document.getElementById('header-esp').textContent = c.especialidade || '';
   document.title = 'Política de Privacidade — ' + (c.nome || 'Clínica');
@@ -146,7 +146,7 @@
   document.getElementById('pp-telefone').textContent = c.telefone || '';
   document.getElementById('pp-encarregada').textContent = c.nome || 'Clínica';
   document.getElementById('pp-telefone2').textContent = c.telefone || '';
-  document.getElementById('pp-foro').textContent = (c.cidade && c.uf) ? `${c.cidade}/${c.uf}` : 'Tanabi/SP';
+  document.getElementById('pp-foro').textContent = (c.cidade && c.uf) ? `${c.cidade}/${c.uf}` : 'domicílio da clínica';
 })();
 </script>
 </body>

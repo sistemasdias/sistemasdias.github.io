@@ -35,7 +35,7 @@
 <body>
 
 <div class="header">
-  <div class="header-logo"><img id="header-logo" src="logo.jpg" alt="Logo"/></div>
+  <div class="header-logo"><img id="header-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo"/></div>
   <h1 id="header-nome">Clínica</h1>
   <p id="header-esp"></p>
 </div>
@@ -47,7 +47,7 @@
     <div class="atualizado">Última atualização: 22 de julho de 2026</div>
 
     <h2>Aceitação dos termos</h2>
-    <p>Ao utilizar a ferramenta de agendamento online da Clínica <span id="tu-nome1">Dra. Anna Carolina Dias</span>, você declara ter lido, compreendido e concordado com estes Termos de Uso e com a nossa <a href="politica-privacidade.html" style="color:var(--verde-e);font-weight:600">Política de Privacidade</a>.</p>
+    <p>Ao utilizar a ferramenta de agendamento online da Clínica <span id="tu-nome1"></span>, você declara ter lido, compreendido e concordado com estes Termos de Uso e com a nossa <a href="politica-privacidade.html" style="color:var(--verde-e);font-weight:600">Política de Privacidade</a>.</p>
 
     <h2>Objeto</h2>
     <p>Estes termos regulam o uso da ferramenta de agendamento online, que permite solicitar horários de consulta sem necessidade de contato telefônico prévio. A solicitação é um <strong>pedido de agendamento</strong>, sujeito à confirmação da clínica — o horário só é considerado marcado após confirmação via WhatsApp.</p>
@@ -82,13 +82,13 @@
     <p>A clínica não se responsabiliza por indisponibilidades temporárias decorrentes de falhas de conexão, instabilidade de provedores externos ou outros eventos fora de seu controle razoável. Nesses casos, recomenda-se contato direto por telefone/WhatsApp.</p>
 
     <h2>Propriedade intelectual</h2>
-    <p>O sistema de agendamento é de uso exclusivo da Clínica <span id="tu-nome2">Dra. Anna Carolina Dias</span>, sendo vedada sua reprodução ou engenharia reversa para fins comerciais por terceiros.</p>
+    <p>O sistema de agendamento é de uso exclusivo da Clínica <span id="tu-nome2"></span>, sendo vedada sua reprodução ou engenharia reversa para fins comerciais por terceiros.</p>
 
     <h2>Alterações nestes termos</h2>
     <p>Estes termos podem ser atualizados periodicamente, com a data da última atualização sempre indicada no topo deste documento.</p>
 
     <h2>Foro</h2>
-    <p>Fica eleito o foro da comarca de <span id="tu-foro">Tanabi/SP</span> para dirimir eventuais controvérsias decorrentes destes termos.</p>
+    <p>Fica eleito o foro da comarca de <span id="tu-foro"></span> para dirimir eventuais controvérsias decorrentes destes termos.</p>
   </div>
 </div>
 
@@ -113,14 +113,14 @@
     return;
   }
 
-  document.getElementById('header-logo').src = c.logo || 'logo.jpg';
+  document.getElementById('header-logo').src=c.logo||LOGO_VAZIO; document.getElementById('header-logo').style.display=c.logo?'':'none';
   document.getElementById('header-nome').textContent = c.nome || 'Clínica';
   document.getElementById('header-esp').textContent = c.especialidade || '';
   document.title = 'Termos de Uso — ' + (c.nome || 'Clínica');
 
   document.getElementById('tu-nome1').textContent = c.nome || 'Clínica';
   document.getElementById('tu-nome2').textContent = c.nome || 'Clínica';
-  document.getElementById('tu-foro').textContent = (c.cidade && c.uf) ? `${c.cidade}/${c.uf}` : 'Tanabi/SP';
+  document.getElementById('tu-foro').textContent = (c.cidade && c.uf) ? `${c.cidade}/${c.uf}` : 'domicílio da clínica';
 })();
 </script>
 </body>

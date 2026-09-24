@@ -62,7 +62,7 @@
 <!-- HEADER -->
 <div class="header">
   <div class="header-logo">
-    <img id="hdr-logo" src="logo.jpg" alt="Logo da clínica"/>
+    <img id="hdr-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo da clínica"/>
   </div>
   <h1 id="hdr-nome">Carregando…</h1>
   <p id="hdr-sub"></p>
@@ -209,7 +209,7 @@ let pacData  = null;
 function aplicarBrandingAnamnese(){
   const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
   document.getElementById('page-title').textContent='Ficha de Anamnese — '+(c.nome||'Clínica');
-  document.getElementById('hdr-logo').src=c.logo||'logo.jpg';
+  document.getElementById('hdr-logo').src=c.logo||LOGO_VAZIO; document.getElementById('hdr-logo').style.display=c.logo?'':'none';
   document.getElementById('hdr-logo').alt=c.nome||'Clínica';
   document.getElementById('hdr-nome').textContent=c.nome||'Clínica';
   document.getElementById('hdr-sub').textContent=[c.especialidade,c.registro,c.telefone].filter(Boolean).join(' · ').toUpperCase();

@@ -153,7 +153,7 @@
 
   <!-- Preview ao vivo -->
   <div class="preview-card" id="preview-card">
-    <img class="preview-logo" id="prev-logo" src="logo.jpg" alt="Logo"/>
+    <img class="preview-logo" id="prev-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo"/>
     <div>
       <div class="preview-nome" id="prev-nome">Clínica</div>
       <div class="preview-esp" id="prev-esp"></div>
@@ -169,14 +169,15 @@
     <div class="sec-body">
       <div class="logo-row" style="margin-bottom:1rem">
         <div class="logo-preview" id="logo-preview" onclick="document.getElementById('logo-file').click()" title="Clique para trocar o logo">
-          <img id="logo-img" src="logo.jpg" alt="Logo" onerror="this.style.display='none';document.getElementById('logo-icon').style.display='block'"/>
+          <img id="logo-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo" onerror="this.style.display='none';document.getElementById('logo-icon').style.display='block'"/>
           <span class="icon" id="logo-icon" style="display:none">🖼️</span>
         </div>
         <div class="logo-info">
           <div class="fi">
-            <label>URL do logo</label>
-            <input type="text" id="cfg-logo" placeholder="logo.jpg ou https://..." oninput="atualizarPreview()"/>
-            <span class="hint">Use o nome do arquivo (ex: logo.jpg) se estiver no repositório, ou cole uma URL externa.</span>
+            <label>Logo da clínica</label>
+            <button type="button" onclick="document.getElementById('logo-file').click()" style="align-self:flex-start;padding:8px 14px;border:1px solid var(--verde);background:#fff;color:var(--verde);border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit">📤 Enviar logo</button>
+            <input type="hidden" id="cfg-logo"/>
+            <span class="hint" id="logo-hint">Clique no quadrado ou no botão e escolha a imagem (PNG, JPG ou WEBP, até 3 MB). Ela é salva e aplicada em todo o sistema — login, documentos, ícone e app.</span>
           </div>
           <input type="file" id="logo-file" accept="image/*" style="display:none" onchange="previewLogoFile(this)"/>
         </div>
@@ -185,18 +186,18 @@
       <div class="fg">
         <div class="fi">
           <label>Nome da clínica / profissional</label>
-          <input type="text" id="cfg-nome" placeholder="Ex: Dra. Anna Carolina Dias" oninput="atualizarPreview()"/>
+          <input type="text" id="cfg-nome" placeholder="Ex: Clínica Dra. Fulana de Tal" oninput="atualizarPreview()"/>
         </div>
         <div class="fi">
           <label>Especialidade</label>
-          <input type="text" id="cfg-esp" placeholder="Ex: Harmonização Orofacial" oninput="atualizarPreview()"/>
+          <input type="text" id="cfg-esp" placeholder="Ex: Odontologia" oninput="atualizarPreview()"/>
         </div>
       </div>
 
       <div class="fg">
         <div class="fi">
           <label>Registro profissional (CRO/CRM etc.)</label>
-          <input type="text" id="cfg-registro" placeholder="Ex: CRO 82281" oninput="atualizarPreview()"/>
+          <input type="text" id="cfg-registro" placeholder="Ex: CRO 00000" oninput="atualizarPreview()"/>
         </div>
         <div class="fi">
           <label>CNPJ ou CPF (documentos legais)</label>
@@ -245,7 +246,7 @@
         </div>
         <div class="fi">
           <label>Instagram</label>
-          <input type="text" id="cfg-insta" placeholder="@draannacarolina"/>
+          <input type="text" id="cfg-insta" placeholder="@suaclinica"/>
         </div>
       </div>
 
@@ -490,7 +491,7 @@
           <div class="fg full" style="margin-bottom:.875rem">
             <div class="fi">
               <label>Nome da instância</label>
-              <input type="text" id="wz-evo-instance" placeholder="Ex: clinica-anna"/>
+              <input type="text" id="wz-evo-instance" placeholder="Ex: clinica-minha-clinica"/>
             </div>
           </div>
         </div>
@@ -558,7 +559,7 @@
       <div class="fg" style="margin-bottom:.875rem">
         <div class="fi">
           <label>Nome da instância</label>
-          <input type="text" id="wz-evo-inst-nome" placeholder="Ex: clinica-anna"/>
+          <input type="text" id="wz-evo-inst-nome" placeholder="Ex: clinica-minha-clinica"/>
           <span class="hint">Precisa ser igual ao nome da instância criada na Evolution API</span>
         </div>
         <div class="fi">
@@ -593,7 +594,7 @@
         <div class="fg full" style="margin-bottom:.75rem">
           <div class="fi">
             <label>Números autorizados</label>
-            <input type="text" id="wz-evo-numeros-autorizados" placeholder="Ex: 5517982113940"/>
+            <input type="text" id="wz-evo-numeros-autorizados" placeholder="Ex: 5517999999999"/>
           </div>
         </div>
         <button onclick="salvarNumerosAutorizados()" style="padding:.5rem 1.25rem;background:var(--verde);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">💾 Salvar números</button>
@@ -825,7 +826,7 @@ async function init(){
   if(data && data.length){
     const c = data[0];
     configId = c.id;
-    document.getElementById('cfg-logo').value  = c.logo_url || 'logo.jpg';
+    document.getElementById('cfg-logo').value  = c.logo_url || '';
     document.getElementById('cfg-nome').value  = c.nome || '';
     document.getElementById('cfg-esp').value   = c.especialidade || '';
     document.getElementById('cfg-registro').value = c.registro_profissional || '';
@@ -1019,7 +1020,7 @@ async function salvarFuncionario(){
 function atualizarPreview(){
   const nome = document.getElementById('cfg-nome').value || 'Clínica';
   const esp  = document.getElementById('cfg-esp').value || '';
-  const logo = document.getElementById('cfg-logo').value || 'logo.jpg';
+  const logo = document.getElementById('cfg-logo').value || LOGO_VAZIO;
   document.getElementById('prev-nome').textContent = nome;
   document.getElementById('prev-esp').textContent  = esp;
   document.getElementById('prev-logo').src = logo;
@@ -1027,17 +1028,38 @@ function atualizarPreview(){
   document.title = 'Configurações — ' + nome;
 }
 
-function previewLogoFile(input){
+async function previewLogoFile(input){
   const file = input.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('logo-img').src = e.target.result;
-    document.getElementById('prev-logo').src = e.target.result;
-    document.getElementById('cfg-logo').value = file.name;
-    toast('Logo visualizado. O arquivo precisa estar no repositório para funcionar online.','ok');
-  };
-  reader.readAsDataURL(file);
+  if(!/^image\/(png|jpeg|webp)$/.test(file.type)){ toast('Use uma imagem PNG, JPG ou WEBP.','err'); input.value=''; return; }
+  if(file.size > 3*1024*1024){ toast('A imagem passa de 3 MB. Use uma menor.','err'); input.value=''; return; }
+  const hint = document.getElementById('logo-hint');
+  hint.textContent = 'Enviando logo...';
+  try{
+    const { data: clinicaId, error: eId } = await sb.rpc('current_clinica_id');
+    if(eId || !clinicaId) throw new Error('não foi possível identificar a clínica');
+    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+    const caminho = `${clinicaId}/logo-${Date.now()}.${ext}`;
+    const { error: eUp } = await sb.storage.from('logos').upload(caminho, file, { contentType: file.type, upsert: false });
+    if(eUp) throw eUp;
+    const url = sb.storage.from('logos').getPublicUrl(caminho).data.publicUrl;
+    document.getElementById('cfg-logo').value = url;
+    atualizarPreview();
+    // Salva na hora só a logo, pra não depender de lembrar do botão "Salvar"
+    if(configId){
+      const { error: eSave } = await sb.from('config_clinica').update({ logo_url: url, updated_at: new Date().toISOString() }).eq('id', configId);
+      if(eSave) throw eSave;
+      hint.textContent = 'Logo salva e aplicada. Recarregue as outras telas abertas para ver.';
+      toast('Logo atualizada!','ok');
+    } else {
+      hint.textContent = 'Logo enviada. Clique em "Salvar todas as configurações" para aplicar.';
+    }
+  }catch(e){
+    hint.textContent = 'Não foi possível enviar a logo: ' + (e.message || e);
+    toast('Erro ao enviar a logo.','err');
+  }finally{
+    input.value='';
+  }
 }
 
 // ── Cor ──

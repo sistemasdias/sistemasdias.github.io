@@ -191,6 +191,9 @@ Deno.serve(async (req) => {
     const telefoneContato = String(body?.telefoneContato || '').replace(/\D/g, '') || null;
     const emailLogin = String(body?.emailLogin || '').trim().toLowerCase();
     const nomeUsuario = String(body?.nomeUsuario || '').trim();
+    const especialidade = String(body?.especialidade || '').trim() || null;
+    const logoBase64 = typeof body?.logoBase64 === 'string' ? body.logoBase64 : null;
+    const logoTipo = ['image/png', 'image/jpeg', 'image/webp'].includes(body?.logoTipo) ? body.logoTipo : null;
 
     if (!nomeClinica || !slug || !emailLogin || !nomeUsuario) {
       return jsonResponse({ error: 'Preencha nome da clínica, identificador, e-mail de login e nome do usuário.' }, 400);
@@ -274,9 +277,33 @@ Deno.serve(async (req) => {
     const { error: erroConfig } = await adminClient.from('config_clinica').insert({
       clinica_id: clinicaId,
       nome: nomeClinica,
+      especialidade,
     });
     if (erroConfig) {
       return jsonResponse({ error: 'Login e usuário criados, mas houve erro ao criar a configuração da clínica: ' + erroConfig.message, clinicaId, slug, emailLogin, pin }, 500);
+    }
+
+    // 7. Logo (opcional) — sobe pro Storage na pasta da própria clínica e já
+    // grava em config_clinica.logo_url, pra ela entrar no sistema com a marca
+    // certa desde o primeiro acesso. Falha aqui não desfaz o cadastro: só
+    // avisa, e a logo pode ser enviada depois em Configurações.
+    let avisoLogo: string | null = null;
+    if (logoBase64 && logoTipo) {
+      try {
+        const bytes = Uint8Array.from(atob(logoBase64), (c) => c.charCodeAt(0));
+        if (bytes.length > 3 * 1024 * 1024) throw new Error('imagem maior que 3 MB');
+        const ext = logoTipo === 'image/png' ? 'png' : logoTipo === 'image/webp' ? 'webp' : 'jpg';
+        const caminho = `${clinicaId}/logo-${Date.now()}.${ext}`;
+        const { error: erroUp } = await adminClient.storage.from('logos').upload(caminho, bytes, { contentType: logoTipo, upsert: false });
+        if (erroUp) throw erroUp;
+        const url = adminClient.storage.from('logos').getPublicUrl(caminho).data.publicUrl;
+        const { error: erroLogo } = await adminClient.from('config_clinica').update({ logo_url: url }).eq('clinica_id', clinicaId);
+        if (erroLogo) throw erroLogo;
+      } catch (e) {
+        avisoLogo = 'Cliente criado, mas a logo não foi salva (' + String((e as Error)?.message || e) + '). Envie depois em Configurações da clínica.';
+      }
+    } else if (logoBase64 || body?.logoTipo) {
+      avisoLogo = 'Cliente criado, mas o formato da logo não é aceito (use PNG, JPG ou WEBP). Envie depois em Configurações da clínica.';
     }
 
     const backupDisparado = await dispararBackupImediato();
@@ -287,7 +314,7 @@ Deno.serve(async (req) => {
       whatsappEnviado = await enviarBoasVindasWhatsApp(telefoneContato, nomeUsuario, slug, emailLogin, pin);
     }
 
-    return jsonResponse({ ok: true, clinicaId, slug, emailLogin, pin, contaJaExistia: false, backupDisparado, whatsappEnviado, instanciaClinica });
+    return jsonResponse({ ok: true, clinicaId, slug, emailLogin, pin, contaJaExistia: false, backupDisparado, whatsappEnviado, instanciaClinica, avisoLogo });
   } catch (e) {
     return jsonResponse({ error: String(e?.message || e) }, 500);
   }

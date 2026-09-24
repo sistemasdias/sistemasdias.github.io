@@ -7,7 +7,7 @@
 // CACHE_NAME); sem internet, cai no cache. Mudar o CACHE_NAME continua
 // servindo pra forçar limpeza geral de cache antigo em todos os aparelhos.
 
-const CACHE_NAME = 'clinica-cache-v67';
+const CACHE_NAME = 'clinica-cache-v68';
 
 // Arquivos do app que ficam em cache (shell do app)
 const APP_SHELL = [
@@ -15,7 +15,6 @@ const APP_SHELL = [
   './login.html',
   './config.js',
   './manifest.json',
-  './logo.jpg',
   './paciente.html',
   './gestao.html',
   './pdf.html',

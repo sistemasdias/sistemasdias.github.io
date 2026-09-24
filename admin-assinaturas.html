@@ -485,6 +485,12 @@
     <label for="novo-nome-usuario">Nome de quem vai logar</label>
     <input type="text" id="novo-nome-usuario" placeholder="Ex: Dra. Fulana">
 
+    <label for="novo-especialidade">Especialidade (opcional)</label>
+    <input type="text" id="novo-especialidade" placeholder="Ex: Odontologia">
+
+    <label for="novo-logo">Logo da clínica (opcional — PNG, JPG ou WEBP, até 3 MB)</label>
+    <input type="file" id="novo-logo" accept="image/png,image/jpeg,image/webp">
+
     <p class="sub" style="margin-top:6px">Cria tudo de uma vez: assinatura, clínica e o login dela (com um PIN gerado na hora, mostrado só depois de salvar pra você repassar). Se já existir uma clínica com esse identificador e ela já tiver login configurado, só a assinatura é criada — o login dela não é mexido.</p>
 
     <div class="modal-actions">
@@ -919,6 +925,20 @@ async function salvarCliente() {
   const telefone = document.getElementById("novo-telefone").value.trim();
   const emailLogin = document.getElementById("novo-email-login").value.trim();
   const nomeUsuario = document.getElementById("novo-nome-usuario").value.trim();
+  const especialidade = document.getElementById("novo-especialidade").value.trim();
+  const arquivoLogo = document.getElementById("novo-logo").files[0] || null;
+  let logoBase64 = null, logoTipo = null;
+  if (arquivoLogo) {
+    if (!/^image\/(png|jpeg|webp)$/.test(arquivoLogo.type)) { alert("A logo precisa ser PNG, JPG ou WEBP."); return; }
+    if (arquivoLogo.size > 3 * 1024 * 1024) { alert("A logo passa de 3 MB. Use uma imagem menor."); return; }
+    logoTipo = arquivoLogo.type;
+    logoBase64 = await new Promise((ok, erro) => {
+      const r = new FileReader();
+      r.onload = () => ok(String(r.result).split(",")[1]);
+      r.onerror = () => erro(r.error);
+      r.readAsDataURL(arquivoLogo);
+    });
+  }
 
   if (!nome || !tenant || !emailLogin || !nomeUsuario) {
     alert("Preencha nome da clínica, identificador, e-mail de login e nome de quem vai logar.");
@@ -948,7 +968,10 @@ async function salvarCliente() {
         plano,
         telefoneContato: telefone,
         emailLogin,
-        nomeUsuario
+        nomeUsuario,
+        especialidade,
+        logoBase64,
+        logoTipo
       })
     });
     const resultado = await res.json();
@@ -967,7 +990,10 @@ async function salvarCliente() {
     document.getElementById("novo-telefone").value = "";
     document.getElementById("novo-email-login").value = "";
     document.getElementById("novo-nome-usuario").value = "";
+    document.getElementById("novo-especialidade").value = "";
+    document.getElementById("novo-logo").value = "";
     carregarDados();
+    if (resultado.avisoLogo) alert(resultado.avisoLogo);
 
     if (resultado.contaJaExistia) {
       alert(`Assinatura criada! Essa clínica (${resultado.slug}) já tinha login configurado antes, então ele não foi mexido.`);

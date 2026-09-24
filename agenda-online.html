@@ -67,7 +67,7 @@
 
 <div class="header">
   <div class="header-logo">
-    <img id="hdr-logo" src="logo.jpg" alt="Logo da clínica"/>
+    <img id="hdr-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo da clínica"/>
   </div>
   <h1 id="hdr-nome">Carregando…</h1>
   <p id="hdr-sub"></p>
@@ -191,7 +191,7 @@ async function resolverClinicaId() {
 
 function aplicarBrandingClinica() {
   document.getElementById('page-title').textContent = `Agendar Consulta — ${CLINICA_CONFIG.nome}`;
-  document.getElementById('hdr-logo').src = CLINICA_CONFIG.logo || 'logo.jpg';
+  document.getElementById('hdr-logo').src=CLINICA_CONFIG.logo||LOGO_VAZIO; document.getElementById('hdr-logo').style.display=CLINICA_CONFIG.logo?'':'none';
   document.getElementById('hdr-logo').alt = CLINICA_CONFIG.nome;
   document.getElementById('hdr-nome').textContent = CLINICA_CONFIG.nome;
   const sub = [CLINICA_CONFIG.especialidade, CLINICA_CONFIG.registro, CLINICA_CONFIG.telefone]

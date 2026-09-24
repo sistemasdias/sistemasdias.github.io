@@ -403,7 +403,7 @@ function cabecalho(tipo){
   if(c.telefone)contatos.push('Tel: '+c.telefone);
   if(c.email)contatos.push(c.email);
   var end=[c.rua&&c.numero?c.rua+', '+c.numero:c.rua||'',c.cidade&&c.uf?c.cidade+'/'+c.uf:''].filter(Boolean).join(' — ');
-  return '<div class="doc-header" style="background:'+(c.cor_principal||'#0F6E56')+'"><div><div class="doc-clinica-nome">'+esc(c.nome||CLINICA_CONFIG.nome)+'</div><div class="doc-clinica-esp">'+esc(c.especialidade||CLINICA_CONFIG.especialidade)+'</div>'+(contatos.length||end?'<div class="doc-clinica-contact">'+[...contatos,end].filter(Boolean).join(' · ')+'</div>':'')+'</div><div style="text-align:right"><img class="doc-logo" src="'+(c.logo_url||'logo.jpg')+'" onerror="this.style.display=\'none\'"/><div><span class="doc-tipo" style="margin-top:8px;display:inline-block">'+tipo+'</span></div></div></div>';
+  return '<div class="doc-header" style="background:'+(c.cor_principal||'#0F6E56')+'"><div><div class="doc-clinica-nome">'+esc(c.nome||CLINICA_CONFIG.nome)+'</div><div class="doc-clinica-esp">'+esc(c.especialidade||CLINICA_CONFIG.especialidade)+'</div>'+(contatos.length||end?'<div class="doc-clinica-contact">'+[...contatos,end].filter(Boolean).join(' · ')+'</div>':'')+'</div><div style="text-align:right"><img class="doc-logo" src="'+(c.logo_url||CLINICA_CONFIG.logo||'')+'" onerror="this.style.display=\'none\'"/><div><span class="doc-tipo" style="margin-top:8px;display:inline-block">'+tipo+'</span></div></div></div>';
 }
 function assinatura(esq,dir){
   esq=esq||'Paciente';dir=dir||CFG.nome||CLINICA_CONFIG.nome;

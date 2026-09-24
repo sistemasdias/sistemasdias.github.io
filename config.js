@@ -6,6 +6,10 @@ var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 // Valores NEUTROS: nunca usar dados de uma clínica real como padrão — se a
 // busca falhar (link errado, clínica bloqueada), a tela não pode mostrar a
 // marca de outra clínica. Os dados reais vêm sempre do banco.
+// Imagem transparente usada no lugar da logo enquanto ela não carrega (ou se
+// a clínica não tiver logo) — nunca cair na logo de outra clínica.
+var LOGO_VAZIO = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
 var CLINICA_CONFIG = {
   nome: 'Clínica',
   especialidade: '',
@@ -273,6 +277,7 @@ function _setLinkHead(rel, href) {
 function _logoParaPng(src, tam) {
   return new Promise((ok) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous'; // logo no Storage do Supabase (outro domínio)
     img.onload = () => {
       try {
         const cv = document.createElement('canvas');
