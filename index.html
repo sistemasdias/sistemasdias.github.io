@@ -1362,7 +1362,16 @@ const TRLIST=[
 ];
 const PRAZOS=[0,1,2,3,6,12,18,24];
 
-function opsTrat(){return TRLIST.map(t=>t.g?`<optgroup label="${t.g}"></optgroup>`:`<option value="${t.n}" data-m="${t.m}">${t.n}</option>`).join('');}
+// Clínica que não é de harmonização: grupo de Harmonização vai pro fim da lista
+function _trlistOrdenada(){
+  if(ehClinicaHarmonizacao()) return TRLIST;
+  const ini=TRLIST.findIndex(t=>t.g&&/Harmoniza/.test(t.g));
+  if(ini<0) return TRLIST;
+  let fim=TRLIST.findIndex((t,i)=>i>ini&&t.g);
+  if(fim<0) fim=TRLIST.length;
+  return [...TRLIST.slice(0,ini),...TRLIST.slice(fim),...TRLIST.slice(ini,fim)];
+}
+function opsTrat(){return _trlistOrdenada().map(t=>t.g?`<optgroup label="${t.g}"></optgroup>`:`<option value="${t.n}" data-m="${t.m}">${t.n}</option>`).join('');}
 function opsPrazo(sel){return PRAZOS.map(m=>`<option value="${m}" ${sel==m?'selected':''}>${m===0?'Sem retorno':m===1?'1 mês':m+' meses'}</option>`).join('');}
 
 function addTrat(lid,nome='',prazo=0,valor=''){
@@ -2534,7 +2543,7 @@ async function salvarAtend(){
       const{error:eFinAtend}=await db.rpc('lancar_financeiro_atendimento',{
         p_tipo:'receita',p_data:dataAtend,
         p_descricao:`${descProcedimentos} — ${pacNome}`,
-        p_categoria:'Harmonização Orofacial',
+        p_categoria:CATEGORIA_PADRAO(),
         p_valor:valorTotal,
         p_forma_pagamento:'pix',
         p_status:'pendente',
@@ -2900,7 +2909,7 @@ async function importarHistorico(){
       const desc=(a.trats||[]).map(t=>t.nome).join(' + ')+' — '+p.nome;
       const chave=a.data+'|'+desc;
       if(chaves.has(chave)) return;
-      inserir.push({tipo:'receita',data:a.data,descricao:desc,categoria:'Harmonização Orofacial',valor,forma_pagamento:'pix',status:'recebido',obs:'Importado do histórico de atendimentos'});
+      inserir.push({tipo:'receita',data:a.data,descricao:desc,categoria:CATEGORIA_PADRAO(),valor,forma_pagamento:'pix',status:'recebido',obs:'Importado do histórico de atendimentos'});
     });
     // Também verificar tratamentos_adicionais
     const datasUnicas=[...new Set((p.tratamentos_adicionais||[]).map(t=>t.dataAtendimento).filter(Boolean))];
@@ -2914,7 +2923,7 @@ async function importarHistorico(){
       const desc=trats.map(t=>t.nome).join(' + ')+' — '+p.nome;
       const chave=data+'|'+desc;
       if(chaves.has(chave)) return;
-      inserir.push({tipo:'receita',data,descricao:desc,categoria:'Harmonização Orofacial',valor,forma_pagamento:'pix',status:'recebido',obs:'Importado do histórico de atendimentos'});
+      inserir.push({tipo:'receita',data,descricao:desc,categoria:CATEGORIA_PADRAO(),valor,forma_pagamento:'pix',status:'recebido',obs:'Importado do histórico de atendimentos'});
     });
   });
   
@@ -3535,7 +3544,7 @@ async function lancarReceitaAtendimento(pacNome, trats, dataAtend){
   const{error:eFinRap}=await db.from('financeiro').insert({
     tipo:'receita', data:dataAtend,
     descricao:`${desc} - ${pacNome}`,
-    categoria:'Harmonização Orofacial',
+    categoria:CATEGORIA_PADRAO(),
     valor:valorTotal, forma_pagamento:'pix',
     status:'pendente', obs:'Lançado automaticamente ao registrar atendimento'
   });
@@ -4037,6 +4046,18 @@ function toggleRecQtd(){
   const freq=document.getElementById('ag-rec-freq').value;
   document.getElementById('ag-rec-qtd-bloco').style.display=freq?'flex':'none';
 }
+// Opções do campo "Procedimento" da agenda conforme a especialidade da clínica
+(async()=>{
+  try{
+    if(window.CLINICA_CONFIG_PRONTO) await window.CLINICA_CONFIG_PRONTO;
+    if(ehClinicaHarmonizacao()) return;
+    const sel=document.getElementById('ag-proc'); if(!sel) return;
+    const ops=['Consulta / avaliação','Profilaxia (limpeza dental)','Restauração (resina composta)',
+      'Tratamento de canal','Retratamento de canal','Manutenção ortodôntica','Instalação de aparelho ortodôntico',
+      'Documentação ortodôntica','Extração','Clareamento dental','Urgência odontológica','Outro'];
+    sel.innerHTML='<option value="">Selecione...</option>'+ops.map(o=>`<option>${o}</option>`).join('');
+  }catch(e){}
+})();
 const _CAMPOS_AGENDA=['ag-nome','ag-tel','ag-proc','ag-data','ag-hora','ag-obs'];
 
 function abrAg(data){
@@ -4065,7 +4086,7 @@ function editCons(c){
   if(mOnline2){mOnline2.classList.remove('open');mOnline2.style.display='';}
   agEditando=c;agPacId=null;
   desvincularPacAg();
-  document.getElementById('ag-titulo').textContent='✏️ Editar consulta';document.getElementById('ag-id').value=c.id;document.getElementById('ag-nome').value=c.nome;document.getElementById('ag-tel').value=c.telefone||'';document.getElementById('ag-proc').value=c.procedimento||'';document.getElementById('ag-data').value=c.data;document.getElementById('ag-hora').value=c.hora.slice(0,5);document.getElementById('ag-obs').value=c.observacao||'';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display=c.status!=='cancelado'?'inline-flex':'none';document.getElementById('ag-prof').value=c.profissional_id||'';
+  document.getElementById('ag-titulo').textContent='✏️ Editar consulta';document.getElementById('ag-id').value=c.id;document.getElementById('ag-nome').value=c.nome;document.getElementById('ag-tel').value=c.telefone||'';(()=>{const sp=document.getElementById('ag-proc');const v=c.procedimento||'';if(v&&![...sp.options].some(o=>o.value===v)){const o=document.createElement('option');o.textContent=v;sp.appendChild(o);}sp.value=v;})();document.getElementById('ag-data').value=c.data;document.getElementById('ag-hora').value=c.hora.slice(0,5);document.getElementById('ag-obs').value=c.observacao||'';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display=c.status!=='cancelado'?'inline-flex':'none';document.getElementById('ag-prof').value=c.profissional_id||'';
   document.getElementById('ag-canc-serie-btn').style.display=(c.serie_id&&c.status!=='cancelado')?'inline-flex':'none';
   document.getElementById('ag-rec-bloco').style.display='none';
   const mAgE=document.getElementById('m-ag');
@@ -4914,7 +4935,7 @@ const AN_PERGUNTAS=[
   {id:'acidos',label:'Usa ou já usou ácidos na pele?'},
   {id:'cuidado-diario',label:'Faz algum tipo de cuidado diário estético facial ou corporal?'},
   {id:'trat-medico',label:'Está sob algum tipo de tratamento médico?'},
-  {id:'cirurgia',label:'Já fez alguma cirurgia ou procedimento de harmonização?'},
+  {id:'cirurgia',label:'Já fez alguma cirurgia ou procedimento estético/odontológico?'},
   {id:'patologia-derm',label:'Alguma patologia dermatológica?'},
   {id:'alteracao-vasc',label:'Tem alguma alteração vascular? (petéquias, cianose, eritema, etc)'},
 ];

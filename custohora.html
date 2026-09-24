@@ -269,7 +269,7 @@
       <div class="card">
         <div class="ct">🧴 Insumos e variáveis mensais</div>
 
-        <div class="sugs">
+        <div class="sugs" id="sugs-var">
           <button class="sug-btn" onclick="sugerirVar('Luvas descartáveis')">Luvas</button>
           <button class="sug-btn" onclick="sugerirVar('Seringas')">Seringas</button>
           <button class="sug-btn" onclick="sugerirVar('Anestésico tópico')">Anestésico</button>
@@ -341,7 +341,7 @@
         <div class="fadd-row" style="margin-bottom:.625rem">
           <div class="ac-wrap">
             <input class="finp" style="width:100%" type="text" id="p-nome"
-              placeholder="Procedimento (ex: Botox)"
+              placeholder="Procedimento (ex: Restauração)"
               oninput="acProc(this.value)"
               onkeydown="acKey(event)"
               autocomplete="off"/>
@@ -661,6 +661,22 @@ function toast(msg,tipo='ok'){
 }
 
 (async()=>{ if(!(await exigirPermissao('custohora'))) return; init(); })();
+</script>
+
+<script>
+// Sugestões de procedimentos/insumos conforme a especialidade da clínica
+(async()=>{
+  try{
+    if(window.CLINICA_CONFIG_PRONTO) await window.CLINICA_CONFIG_PRONTO;
+    if(ehClinicaHarmonizacao()) return;
+    const sp=document.getElementById('sugs-proc');
+    if(sp) sp.innerHTML=[['Consulta / avaliação',30],['Profilaxia',40],['Restauração',45],['Canal (unirradicular)',60],['Canal (multirradicular)',90],['Manutenção ortodôntica',20]]
+      .map(([n,m])=>`<button class="sug-btn" onclick="addProc('${n}',${m})">${n} ${m}min</button>`).join('');
+    const sv=document.getElementById('sugs-var');
+    if(sv) sv.innerHTML=['Luvas descartáveis','Anestésico','Resina composta','Limas endodônticas','Braquetes / fios ortodônticos','Material de limpeza']
+      .map(n=>`<button class="sug-btn" onclick="sugerirVar('${n}')">${n.split(' ')[0]==='Luvas'?'Luvas':n}</button>`).join('');
+  }catch(e){}
+})();
 </script>
 </body>
 </html>

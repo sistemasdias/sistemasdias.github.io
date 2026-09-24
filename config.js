@@ -20,6 +20,18 @@ var CLINICA_CONFIG = {
   registro: ''
 };
 
+// ── Especialidade da clínica → categoria padrão ──
+// O sistema tem duas categorias de atendimento: "Harmonização Orofacial" e
+// "Odontologia". A padrão (orçamentos, lançamentos no financeiro, listas de
+// procedimentos) segue a especialidade cadastrada em Configurações — assim uma
+// clínica de ortodontia não cai em "Harmonização" por padrão.
+function ehClinicaHarmonizacao() {
+  return /harmoniza|orofacial|est[eé]tica facial|toxina|botox/i.test(CLINICA_CONFIG.especialidade || '');
+}
+function CATEGORIA_PADRAO() {
+  return ehClinicaHarmonizacao() ? 'Harmonização Orofacial' : 'Odontologia';
+}
+
 // ── Renovação automática do token ──
 function _prazoRealToken(accessToken) {
   // Decodifica o JWT em si (campo "exp") — é o prazo real que o Supabase usa

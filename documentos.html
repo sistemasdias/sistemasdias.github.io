@@ -1072,6 +1072,12 @@ async function carregar(){
 async function aplicarBrandingDocumentos(){
   if(window.CLINICA_CONFIG_PRONTO) await window.CLINICA_CONFIG_PRONTO;
   const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
+  // Tipo de orçamento marcado por padrão = especialidade da clínica
+  ['orc-categoria','orcs-categoria'].forEach(nome=>{
+    const r=document.querySelector(`input[name="${nome}"][value="${CATEGORIA_PADRAO()}"]`);
+    if(r) r.checked=true;
+  });
+  if(typeof toggleCategoriaOrc==='function') toggleCategoriaOrc();
   document.querySelectorAll('.doc-clinic-logo').forEach(el=>{
     el.src=c.logo||LOGO_VAZIO; el.style.display=c.logo?'':'none';
     el.alt=c.nome||'Clínica';
@@ -1381,8 +1387,8 @@ function abrirOrcamentoSimples(){
   document.getElementById('orcs-obs').value='';
   document.getElementById('orcs-validade-dias').value='';
   document.getElementById('orcs-validade').value='';
-  const radioHarm=document.querySelector('input[name="orcs-categoria"][value="Harmonização Orofacial"]');
-  if(radioHarm) radioHarm.checked=true;
+  const radioPadrao=document.querySelector(`input[name="orcs-categoria"][value="${CATEGORIA_PADRAO()}"]`);
+  if(radioPadrao) radioPadrao.checked=true;
   document.getElementById('orcs-itens').innerHTML='';
   addItemOrcSimples();
   addItemOrcSimples();
@@ -1715,8 +1721,8 @@ async function abrirOrcamento(){
   // Buscar último orçamento salvo para recuperar produtos
   const{data:docsSalvos}=await db.from('documentos').select('dados').eq('paciente_id',p.id).eq('tipo','orcamento').order('criado_em',{ascending:false}).limit(1);
   const ultimoOrc=docsSalvos?.[0]?.dados||{};
-  // Restaurar categoria do último orçamento (ou Harmonização por padrão)
-  const radioCategoria=document.querySelector(`input[name="orc-categoria"][value="${ultimoOrc.categoriaPadrao||'Harmonização Orofacial'}"]`);
+  // Restaurar categoria do último orçamento (ou a categoria padrão da clínica)
+  const radioCategoria=document.querySelector(`input[name="orc-categoria"][value="${ultimoOrc.categoriaPadrao||CATEGORIA_PADRAO()}"]`);
   if(radioCategoria) radioCategoria.checked=true;
   document.getElementById('orc-validade-dias').value=ultimoOrc.validadeDias||'';
   if(plano){
@@ -1786,7 +1792,7 @@ async function puxarOrcamentoSimples(){
 
 function aplicarItensOrcSimples(dadosSimples){
   const itens=(dadosSimples?.itens||[]).filter(i=>i.desc);
-  const categoria=dadosSimples.categoriaPadrao||'Harmonização Orofacial';
+  const categoria=dadosSimples.categoriaPadrao||CATEGORIA_PADRAO();
   itens.forEach(item=>{
     addItemOrc();
     const linhas=document.querySelectorAll('#orc-itens .orc-linha');
@@ -1854,7 +1860,7 @@ async function autoPrecoConvenio(inputTrat){
 // Categoria padrão usada apenas para pré-marcar uma linha recém-criada — cada
 // linha tem sua própria categoria a partir daqui, e pode ser trocada individualmente
 function categoriaDefaultOrc(){
-  return document.querySelector('input[name="orc-categoria"]:checked')?.value||'Harmonização Orofacial';
+  return document.querySelector('input[name="orc-categoria"]:checked')?.value||CATEGORIA_PADRAO();
 }
 
 // Mantido por compatibilidade — atualiza só o texto padrão usado na impressão
@@ -1961,7 +1967,7 @@ function getOrcItens(){
     const dente=linha.querySelector('.orc-dente')?.value||'';
     const trat=linha.querySelector('.orc-trat')?.value||'';
     const val=parseFloat(linha.querySelector('.orc-val')?.value)||0;
-    const categoria=linha.querySelector('.orc-linha-cat')?.value||'Harmonização Orofacial';
+    const categoria=linha.querySelector('.orc-linha-cat')?.value||CATEGORIA_PADRAO();
     if(trat||val) itens.push({trat,val,dente,categoria});
   });
   return itens;
@@ -2128,7 +2134,7 @@ async function salvarDoc(tipo){
     dados.obs=document.getElementById('orc-obs')?.value||'';
     dados.validade=document.getElementById('orc-validade')?.value||'';
     dados.validadeDias=document.getElementById('orc-validade-dias')?.value||'';
-    dados.categoriaPadrao=document.querySelector('input[name="orc-categoria"]:checked')?.value||'Harmonização Orofacial';
+    dados.categoriaPadrao=document.querySelector('input[name="orc-categoria"]:checked')?.value||CATEGORIA_PADRAO();
     dados.historico=Array.from(document.querySelectorAll('#orc-historico tr')).map(tr=>
       Array.from(tr.querySelectorAll('input')).map(i=>i.value)
     ).filter(row=>row.some(v=>v));
@@ -2219,7 +2225,7 @@ async function salvarDoc(tipo){
     dados.conteudo=document.getElementById('recs-area')?.innerHTML||'';
   } else if(tipo==='orcamento-simples'){
     dados.data=document.getElementById('orcs-data')?.value||'';
-    dados.categoriaPadrao=document.querySelector('input[name="orcs-categoria"]:checked')?.value||'Harmonização Orofacial';
+    dados.categoriaPadrao=document.querySelector('input[name="orcs-categoria"]:checked')?.value||CATEGORIA_PADRAO();
     dados.itens=getOrcsItens();
     dados.pagamento=document.getElementById('orcs-pagamento')?.value||'';
     dados.obs=document.getElementById('orcs-obs')?.value||'';
@@ -2315,7 +2321,7 @@ async function verDoc(id,tipo){
             ultima.querySelector('.orc-val').value=item.val||'';
             if(ultima.querySelector('.orc-dente')) ultima.querySelector('.orc-dente').value=item.dente||'';
             const selCat=ultima.querySelector('.orc-linha-cat');
-            if(selCat){ selCat.value=item.categoria||'Harmonização Orofacial'; aplicarCategoriaLinha(selCat); }
+            if(selCat){ selCat.value=item.categoria||CATEGORIA_PADRAO(); aplicarCategoriaLinha(selCat); }
           }
         });
       }
@@ -2456,7 +2462,7 @@ async function verDoc(id,tipo){
     document.getElementById('recs-area').innerHTML=d.conteudo||'';
   } else if(tipo==='orcamento-simples'){
     if(d.data) document.getElementById('orcs-data').value=d.data;
-    const radioCat=document.querySelector(`input[name="orcs-categoria"][value="${d.categoriaPadrao||'Harmonização Orofacial'}"]`);
+    const radioCat=document.querySelector(`input[name="orcs-categoria"][value="${d.categoriaPadrao||CATEGORIA_PADRAO()}"]`);
     if(radioCat) radioCat.checked=true;
     if(d.pagamento) document.getElementById('orcs-pagamento').value=d.pagamento;
     if(d.obs) document.getElementById('orcs-obs').value=d.obs;
@@ -2951,7 +2957,7 @@ function fecharModalRealizado(){
 async function confirmarRealizado(){
   const dataAtend=document.getElementById('modal-data').value;
   if(!dataAtend){toast('Informe a data do atendimento!','vermelho');return;}
-  const categoriaOrc=document.querySelector('input[name="orc-categoria"]:checked')?.value||'Harmonização Orofacial';
+  const categoriaOrc=document.querySelector('input[name="orc-categoria"]:checked')?.value||CATEGORIA_PADRAO();
 
 const itens = window._modalRealizados || getOrcItens().filter(i=>i.trat);
 const selecionados = itens;
@@ -3424,7 +3430,7 @@ function preencherDocSalvo(tipo, dados) {
             if (val)  val.value  = item.val  || 0;
             if (dente) dente.value = item.dente || '';
             const selCat = ultima.querySelector('.orc-linha-cat');
-            if (selCat) { selCat.value = item.categoria || 'Harmonização Orofacial'; aplicarCategoriaLinha(selCat); }
+            if (selCat) { selCat.value = item.categoria ||CATEGORIA_PADRAO(); aplicarCategoriaLinha(selCat); }
           }
         });
         if (typeof calcTotal === 'function') calcTotal();
@@ -3627,7 +3633,7 @@ function renderItensPlano() {
     const isRealizado = item.status === 'realizado';
     const isCancelado = item.status === 'cancelado';
     const isOrcado = item.status === 'orcado';
-    const cat = item.categoria || 'Harmonização Orofacial';
+    const cat = item.categoria ||CATEGORIA_PADRAO();
     const ehDente = cat === 'Odontologia';
 
     const statusBadge = isPago 
@@ -3774,7 +3780,7 @@ function coletarRealizadosEPendentes() {
     const val = parseFloat(linha.querySelector('.orc-val')?.value) || 0;
     const check = linha.querySelector('.orc-check');
     const itemId = linha.dataset.itemId;
-    const categoria = linha.querySelector('.orc-linha-cat')?.value || 'Harmonização Orofacial';
+    const categoria = linha.querySelector('.orc-linha-cat')?.value ||CATEGORIA_PADRAO();
     const dente = linha.querySelector('.orc-dente')?.value || '';
     const item = window._planoAtual?.itens?.find(i => i.id === itemId);
 
@@ -3864,8 +3870,8 @@ window.confirmarRealizado = async function() {
     if (!planoId) {
       // Criar novo plano
       const todosItens = [
-        ...realizados.map(t => ({ procedimento: t.trat, valor: t.val, categoria: t.categoria||'Harmonização Orofacial', dente: t.dente||'', status: 'orcado' })),
-        ...pendentes.map(t => ({ procedimento: t.trat, valor: t.val, categoria: t.categoria||'Harmonização Orofacial', dente: t.dente||'', status: 'orcado' }))
+        ...realizados.map(t => ({ procedimento: t.trat, valor: t.val, categoria: t.categoria||CATEGORIA_PADRAO(), dente: t.dente||'', status: 'orcado' })),
+        ...pendentes.map(t => ({ procedimento: t.trat, valor: t.val, categoria: t.categoria||CATEGORIA_PADRAO(), dente: t.dente||'', status: 'orcado' }))
       ];
 
       const descProcs = [...realizados, ...pendentes].map(t => t.trat).join(' + ');
@@ -3927,7 +3933,7 @@ window.confirmarRealizado = async function() {
     // o valor pago/pendente é dividido proporcionalmente ao peso de cada categoria no total.
     const gruposPorCategoria = {};
     realizados.forEach(r => {
-      const cat = r.categoria || 'Harmonização Orofacial';
+      const cat = r.categoria ||CATEGORIA_PADRAO();
       (gruposPorCategoria[cat] = gruposPorCategoria[cat] || []).push(r);
     });
 
@@ -4022,7 +4028,7 @@ window.confirmarRealizado = async function() {
     const atsAntigos = pacAtual.atendimentos || [];
     const atsAtualizados = [...atsAntigos.filter(a => a.data !== dataAtend), {
       data: dataAtend,
-      trats: realizados.map(r => ({ nome: r.trat, valor: r.val, categoria: r.categoria||'Harmonização Orofacial', dente: r.dente||'' })),
+      trats: realizados.map(r => ({ nome: r.trat, valor: r.val, categoria: r.categoria||CATEGORIA_PADRAO(), dente: r.dente||'' })),
       valor: totalReal,
       formaPagamento: pgto,
       statusPagamento: statusPgto,
@@ -4101,7 +4107,7 @@ window.salvarDoc = async function(tipo) {
     const trat = linha.querySelector('.orc-trat')?.value || '';
     const val = parseFloat(linha.querySelector('.orc-val')?.value) || 0;
     const dente = linha.querySelector('.orc-dente')?.value || '';
-    const categoria = linha.querySelector('.orc-linha-cat')?.value || 'Harmonização Orofacial';
+    const categoria = linha.querySelector('.orc-linha-cat')?.value ||CATEGORIA_PADRAO();
     const itemId = linha.dataset.itemId;
     if (trat) itens.push({ trat, val, dente, categoria, itemId });
   });
@@ -4187,10 +4193,10 @@ window.salvarDoc = async function(tipo) {
     tipo: 'orcamento',
     dados: {
       plano_id: window._planoAtual?.id || null,
-      itens: itens.map(i => ({ trat: i.trat, val: i.val, dente: i.dente || '', categoria: i.categoria || 'Harmonização Orofacial' })),
+      itens: itens.map(i => ({ trat: i.trat, val: i.val, dente: i.dente || '', categoria: i.categoria ||CATEGORIA_PADRAO() })),
       pagamento: condicoes, obs, validade,
       validadeDias: document.getElementById('orc-validade-dias')?.value || '',
-      categoriaPadrao: document.querySelector('input[name="orc-categoria"]:checked')?.value || 'Harmonização Orofacial',
+      categoriaPadrao: document.querySelector('input[name="orc-categoria"]:checked')?.value ||CATEGORIA_PADRAO(),
       historico: Array.from(document.querySelectorAll('#orc-historico tr')).map(tr =>
         Array.from(tr.querySelectorAll('input')).map(i => i.value)
       ).filter(row => row.some(v => v)),

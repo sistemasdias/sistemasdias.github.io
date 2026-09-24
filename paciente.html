@@ -2312,7 +2312,7 @@ async function adicionarPagamentoPlano(planoId, descPlano) {
     const { error } = await db.rpc('lancar_financeiro_atendimento', {
       p_tipo: 'receita', p_data: data, p_valor: valor,
       p_descricao: `${descPlano} — ${escapeHtml(pac.nome)}`,
-      p_categoria: 'Harmonização Orofacial',
+      p_categoria: CATEGORIA_PADRAO(),
       p_forma_pagamento: pgto, p_status: 'recebido',
       p_paciente_id: pac.id, p_orcamento_id: planoId, p_obs: obs
     });
