@@ -324,11 +324,19 @@ async function aplicarIdentidadeVisual() {
       _setLinkHead('apple-touch-icon', png192);
     }
 
-    const linkManifest = document.querySelector('link[rel="manifest"]');
-    if (!linkManifest || !png192 || !png512) return;
+    // Só páginas marcadas como "app instalável" (index.html) ganham manifest.
+    // Não existe <link rel="manifest"> fixo no HTML de propósito: se existisse,
+    // o Chrome leria o manifest neutro antes deste e ofereceria "atualizar" o
+    // app instalado para o nome/ícone genérico.
+    if (!window.APP_INSTALAVEL || !png192 || !png512) return;
+    let linkManifest = document.querySelector('link[rel="manifest"]');
+    if (!linkManifest) { linkManifest = document.createElement('link'); linkManifest.rel = 'manifest'; document.head.appendChild(linkManifest); }
     const base = location.origin + location.pathname.replace(/[^/]*$/, '');
     const manifest = {
-      id: base,
+      // Mesmo "id" que os apps já instalados têm (o manifest antigo não tinha
+      // id, então o Chrome usava o start_url) — assim o app instalado é
+      // ATUALIZADO para a marca da clínica em vez de virar um app diferente.
+      id: base + 'index.html?utm_source=pwa',
       name: nome,
       short_name: nome.length > 12 ? nome.replace(/^(Cl[ií]nica\s+)?(Dra?\.\s+)?/i, '').slice(0, 12) : nome,
       description: 'Sistema de gestão — ' + nome,
