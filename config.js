@@ -255,8 +255,80 @@ async function carregarConfigClinica() {
       CLINICA_CONFIG.uf            = c.uf || '';
       CLINICA_CONFIG._id           = c.id;
       aplicarCorClinica(c.cor_principal || '#1D9E75');
+      aplicarIdentidadeVisual();
     }
   } catch(e) { /* usa fallback */ }
+}
+
+// ── Ícone da aba e app instalável (PWA) com a marca da PRÓPRIA clínica ──
+// Os arquivos estáticos (favicon.ico, manifest.json, icon-*.png) são neutros
+// ("SD"). Depois que a config da clínica carrega, troca o ícone da aba e gera
+// um manifest com o nome e a logo dela — assim o "Instalar app" nunca mostra
+// a marca de outra clínica.
+function _setLinkHead(rel, href) {
+  let el = document.querySelector(`link[rel="${rel}"]`);
+  if (!el) { el = document.createElement('link'); el.rel = rel; document.head.appendChild(el); }
+  el.href = href;
+}
+function _logoParaPng(src, tam) {
+  return new Promise((ok) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = tam;
+        const ctx = cv.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, tam, tam);
+        const esc = Math.min(tam / img.width, tam / img.height) * 0.9;
+        const w = img.width * esc, h = img.height * esc;
+        ctx.drawImage(img, (tam - w) / 2, (tam - h) / 2, w, h);
+        ok(cv.toDataURL('image/png'));
+      } catch (e) { ok(null); }
+    };
+    img.onerror = () => ok(null);
+    img.src = src;
+  });
+}
+async function aplicarIdentidadeVisual() {
+  try {
+    if (document.readyState === 'loading') {
+      await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
+    }
+    const nome = CLINICA_CONFIG.nome || 'Clínica';
+    const logo = CLINICA_CONFIG.logo;
+    const tituloApp = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (tituloApp) tituloApp.content = nome;
+    if (!logo) return;
+
+    const [png192, png512] = await Promise.all([_logoParaPng(logo, 192), _logoParaPng(logo, 512)]);
+    if (png192) {
+      _setLinkHead('icon', png192);
+      _setLinkHead('apple-touch-icon', png192);
+    }
+
+    const linkManifest = document.querySelector('link[rel="manifest"]');
+    if (!linkManifest || !png192 || !png512) return;
+    const base = location.origin + location.pathname.replace(/[^/]*$/, '');
+    const manifest = {
+      id: base,
+      name: nome,
+      short_name: nome.length > 12 ? nome.replace(/^(Cl[ií]nica\s+)?(Dra?\.\s+)?/i, '').slice(0, 12) : nome,
+      description: 'Sistema de gestão — ' + nome,
+      start_url: base + 'index.html?utm_source=pwa',
+      scope: base,
+      display: 'standalone',
+      orientation: 'portrait-primary',
+      background_color: '#ffffff',
+      theme_color: CLINICA_CONFIG.cor || '#0F6E56',
+      lang: 'pt-BR',
+      icons: [
+        { src: png192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: png512, sizes: '512x512', type: 'image/png', purpose: 'any' }
+      ]
+    };
+    linkManifest.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
+  } catch (e) { /* mantém os ícones neutros */ }
 }
 
 // ── Aplica a cor da clínica em TODAS as variáveis de tema do sistema ──

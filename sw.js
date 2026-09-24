@@ -7,7 +7,7 @@
 // CACHE_NAME); sem internet, cai no cache. Mudar o CACHE_NAME continua
 // servindo pra forçar limpeza geral de cache antigo em todos os aparelhos.
 
-const CACHE_NAME = 'clinica-cache-v66';
+const CACHE_NAME = 'clinica-cache-v67';
 
 // Arquivos do app que ficam em cache (shell do app)
 const APP_SHELL = [
@@ -97,8 +97,8 @@ self.addEventListener('message', (event) => {
     self.registration.showNotification(title || 'Clínica', {
       body: body || '',
       tag: tag || 'clinica-notif',
-      icon: './logo.jpg',
-      badge: './logo.jpg',
+      icon: './icon-192.png',
+      badge: './icon-192.png',
       data: { url: url || './index.html' },
       requireInteraction: false,
       vibrate: [200, 100, 200],
