@@ -20,6 +20,16 @@ var CLINICA_CONFIG = {
   registro: ''
 };
 
+// ── Telefone → número no formato do WhatsApp (DDI 55 + DDD + número) ──
+// Alguns cadastros têm o telefone salvo já com "+55" na frente; prefixar "55"
+// de novo gera um número inválido e a Evolution API responde "Bad Request".
+function numeroWhatsApp(telefone) {
+  const digitos = String(telefone || '').replace(/\D/g, '');
+  if (!digitos) return '';
+  if ((digitos.length === 12 || digitos.length === 13) && digitos.startsWith('55')) return digitos;
+  return '55' + digitos;
+}
+
 // ── Especialidade da clínica → categoria padrão ──
 // O sistema tem duas categorias de atendimento: "Harmonização Orofacial" e
 // "Odontologia". A padrão (orçamentos, lançamentos no financeiro, listas de

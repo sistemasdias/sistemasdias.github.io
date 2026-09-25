@@ -200,7 +200,7 @@ function aplicarBrandingClinica() {
   document.getElementById('lgpd-clinica-nome').textContent = 'clínica ' + CLINICA_CONFIG.nome;
   document.getElementById('msg-sucesso').textContent = `Sua solicitação de agendamento foi recebida. ${CLINICA_CONFIG.nome} confirmará em breve pelo WhatsApp.`;
   const waNum = (CLINICA_CONFIG.whatsapp || '').replace(/\D/g,'');
-  if (waNum) document.getElementById('wa-inativo').href = `https://wa.me/55${waNum}`;
+  if (waNum) document.getElementById('wa-inativo').href = `https://wa.me/${numeroWhatsApp(waNum)}`;
 }
 
 // Config padrão — lida do localStorage (configurada no painel da clínica)

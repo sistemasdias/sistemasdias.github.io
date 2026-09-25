@@ -926,7 +926,7 @@ function renderHero(){
   if(anivHoje(p.data_nascimento)) meta.push(`🎉 Aniversário hoje!`);
   document.getElementById('hero-meta').innerHTML=meta.map(m=>`<span class="hero-badge">${m}</span>`).join('');
 
-  const tel='55'+p.telefone.replace(/\D/g,'');
+  const tel=numeroWhatsApp(p.telefone);
   const actions=[];
   actions.push(`<a href="https://wa.me/${tel}" target="_blank" class="btn-hero" aria-label="Enviar WhatsApp">💬 WhatsApp</a>`);
   if(p.link_drive) actions.push(`<a href="${escapeHtml(p.link_drive)}" target="_blank" class="btn-hero" aria-label="Abrir pasta no Drive">📁 Drive</a>`);
@@ -2441,7 +2441,7 @@ function copiarLinkAnamnese(){
 }
 
 function enviarLinkWpp(){
-  const tel = '55'+pac.telefone.replace(/\D/g,'');
+  const tel = numeroWhatsApp(pac.telefone);
   const nomeClinicaMsg = (window.CLINICA_CONFIG && CLINICA_CONFIG.nome) ? `clínica da ${CLINICA_CONFIG.nome}` : 'nossa clínica';
   const msg = `Olá ${pac.apelido||pac.nome.split(' ')[0]}! 😊\n\nPrecisamos que você preencha sua ficha de anamnese antes da sua próxima consulta na ${nomeClinicaMsg}.\n\nÉ rápido e pode ser feito no celular:\n${_anamneseLinkUrl}\n\nObrigada! 💚`;
   window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');

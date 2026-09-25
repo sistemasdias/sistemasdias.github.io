@@ -960,7 +960,7 @@ function renderTblFornecedores(lista){
     <td><div style="font-weight:600">${escapeHtml(f.nome)}</div>${f.obs?`<div style="font-size:11px;color:var(--ct)">${escapeHtml(f.obs)}</div>`:''}</td>
     <td style="font-size:12px;color:var(--ct)">${escapeHtml(f.cnpj)||'—'}</td>
     <td style="font-size:12px">${escapeHtml(f.contato)||'—'}</td>
-    <td style="font-size:12px">${f.telefone?`<a href="https://wa.me/55${f.telefone.replace(/\D/g,'')}" target="_blank" style="color:var(--verde)">💬 ${escapeHtml(f.telefone)}</a>`:'—'}</td>
+    <td style="font-size:12px">${f.telefone?`<a href="https://wa.me/${numeroWhatsApp(f.telefone)}" target="_blank" style="color:var(--verde)">💬 ${escapeHtml(f.telefone)}</a>`:'—'}</td>
     <td style="font-size:12px">${f.email?`<a href="mailto:${escapeHtml(f.email)}" style="color:var(--azul)">${escapeHtml(f.email)}</a>`:'—'}</td>
     <td style="display:flex;gap:6px">
       <button class="btn sm" aria-label="Editar: ${escapeHtml(f.nome)}" onclick="editarFornecedor('${f.id}')" title="Editar: ${escapeHtml(f.nome)}">✏️</button>

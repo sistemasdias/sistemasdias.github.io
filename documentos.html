@@ -1175,7 +1175,7 @@ async function compartilharWhatsApp(tipo){
   toast('PDF baixado — anexe ele na conversa do WhatsApp que vai abrir','verde');
   const tel = ((pacSelecionada && pacSelecionada.telefone)||'').replace(/\D/g,'');
   const msg = encodeURIComponent('Olá! Segue o documento em anexo.');
-  window.open('https://wa.me/'+(tel?('55'+tel):'')+'?text='+msg, '_blank');
+  window.open('https://wa.me/'+numeroWhatsApp(tel)+'?text='+msg, '_blank');
 }
 
 function compartilharPainelAtivoWhatsApp(){
