@@ -139,6 +139,22 @@
   .integ-status.ok{background:var(--verde-c);color:var(--verde-e)}
   .integ-status.err{background:#FCE7F3;color:#9D174D}
   .integ-status.off{background:var(--bg);color:var(--ct)}
+
+  /* Minha assinatura */
+  [hidden]{display:none!important}
+  .ass-abas{display:flex;gap:6px;margin-bottom:.75rem;flex-wrap:wrap}
+  .ass-aba{padding:.5rem .9rem;border-radius:8px;border:1.5px solid var(--borda);background:var(--bg);font-size:13px;font-weight:600;color:var(--ct);cursor:pointer;font-family:inherit}
+  .ass-aba.on{background:var(--verde-c);border-color:var(--verde);color:var(--verde-e)}
+  .ass-quadro{position:relative;border:1.5px dashed var(--borda);border-radius:10px;background:#fff;max-width:600px}
+  .ass-quadro canvas{display:block;width:100%;height:auto;aspect-ratio:3/1;touch-action:none;cursor:crosshair;border-radius:10px}
+  .ass-quadro-dica{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:11px;color:#b5b2ab;pointer-events:none}
+  .ass-link{background:none;border:none;color:var(--verde-e);font-size:12px;font-weight:600;cursor:pointer;padding:.4rem 0;font-family:inherit}
+  .ass-upload{display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1rem;border:1.5px dashed var(--verde);border-radius:10px;background:var(--verde-c);color:var(--verde-e);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:.5rem}
+  .ass-previa{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:1rem 1.25rem;max-width:340px;text-align:center}
+  .ass-previa-img{min-height:70px;display:flex;align-items:flex-end;justify-content:center}
+  .ass-previa-img img{max-height:70px;max-width:100%}
+  .ass-previa-img span{font-size:12px;color:var(--ct);padding-bottom:.5rem}
+  .ass-previa-linha{border-top:1px solid #333;padding-top:6px;margin-top:2px;font-size:12px;color:#1a1916;min-height:1.2em}
   </style>
 </head>
 <body>
@@ -409,6 +425,58 @@
         <div id="func-msg" style="font-size:12px;margin:.5rem 0"></div>
         <button class="pkey conf" style="width:auto;padding:.6rem 1.2rem;margin-right:.5rem" id="btn-salvar-func" onclick="salvarFuncionario()">Salvar</button>
         <button class="pkey" style="width:auto;padding:.6rem 1.2rem" onclick="fecharFormFuncionario()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Minha assinatura (por profissional — cada um configura a sua) -->
+  <div class="secao" id="sec-minha-assinatura">
+    <div class="sec-hdr">
+      <span class="sec-icon">✍️</span>
+      <span class="sec-title">Minha assinatura</span>
+      <span class="sec-sub" id="ass-quem"></span>
+    </div>
+    <div class="sec-body">
+      <div style="font-size:12px;color:var(--ct);margin-bottom:1rem;line-height:1.6;background:var(--bg);border-radius:8px;padding:.75rem 1rem">
+        Sai nos receituários que você emitir, junto com seu nome e registro, e já vem preenchida no atestado.
+        Cada profissional configura a sua, entrando com o próprio acesso.
+      </div>
+
+      <div class="fg full" style="margin-bottom:1rem">
+        <div class="fi">
+          <label for="ass-registro">Seu registro profissional</label>
+          <input type="text" id="ass-registro" placeholder="Ex: CRO-SP 82281"/>
+        </div>
+      </div>
+
+      <div class="ass-abas" role="tablist">
+        <button type="button" class="ass-aba on" id="ass-aba-desenhar" onclick="assTrocarAba('desenhar')">✏️ Desenhar na tela</button>
+        <button type="button" class="ass-aba" id="ass-aba-imagem" onclick="assTrocarAba('imagem')">📷 Enviar foto / scan</button>
+      </div>
+
+      <div id="ass-painel-desenhar">
+        <div class="ass-quadro"><canvas id="ass-canvas" width="600" height="200"></canvas><span class="ass-quadro-dica" id="ass-canvas-dica">Assine aqui</span></div>
+        <button type="button" class="ass-link" onclick="assLimparCanvas()">Limpar</button>
+      </div>
+
+      <div id="ass-painel-imagem" hidden>
+        <label class="ass-upload" for="ass-arquivo">
+          <input type="file" id="ass-arquivo" accept="image/*" onchange="assCarregarArquivo(this)" hidden/>
+          <span>📁 Escolher imagem da assinatura</span>
+        </label>
+        <div class="fi"><span class="hint">Assine num papel branco com caneta escura e tire uma foto bem de perto (ou escaneie). O fundo branco é removido sozinho.</span></div>
+      </div>
+
+      <div class="label-sec" style="margin-top:1.25rem">Como vai sair no documento</div>
+      <div class="ass-previa">
+        <div class="ass-previa-img"><img id="ass-previa-img" alt="Prévia da assinatura" hidden/><span id="ass-previa-vazio">Nenhuma assinatura configurada</span></div>
+        <div class="ass-previa-linha" id="ass-previa-linha"></div>
+      </div>
+
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem;align-items:center">
+        <button type="button" class="pkey conf" style="width:auto;padding:.6rem 1.2rem" id="btn-salvar-ass" onclick="assSalvar()">💾 Salvar assinatura</button>
+        <button type="button" class="pkey" style="width:auto;padding:.6rem 1.2rem" id="btn-remover-ass" onclick="assRemover()" hidden>Remover</button>
+        <span id="ass-msg" style="font-size:12px"></span>
       </div>
     </div>
   </div>
@@ -819,9 +887,187 @@ function wzEnviarMensagem(telefone, mensagem, tipoNotif){
   return true; // está ativo e notif habilitada
 }
 
+// ══════════════════════════════════════════
+// MINHA ASSINATURA
+// ══════════════════════════════════════════
+let _assUsuario = null;
+let _assAtual = null;     // data URL salva no banco
+let _assNova = null;      // data URL ainda não salva (desenhada ou enviada)
+let _assDesenhou = false;
+
+function modoSoAssinatura(){
+  document.querySelectorAll('.wrap > .secao').forEach(s => { if (s.id !== 'sec-minha-assinatura') s.hidden = true; });
+  const prev = document.getElementById('preview-card'); if (prev) prev.hidden = true;
+  const bs = document.getElementById('btn-salvar'); if (bs) bs.hidden = true;
+  const h1 = document.querySelector('.hdr h1'); if (h1) h1.textContent = '✍️ Minha assinatura';
+  const badge = document.querySelector('.hdr .badge'); if (badge) badge.hidden = true;
+}
+
+async function assIniciar(usuario){
+  _assUsuario = usuario;
+  const { data } = await sb.from('usuarios').select('nome,assinatura,registro_profissional').eq('id', usuario.id).maybeSingle();
+  _assAtual = data?.assinatura || null;
+  let registro = data?.registro_profissional || '';
+  if (!registro && usuario.eh_admin) {
+    const { data: cfg } = await sb.from('config_clinica').select('registro_profissional').limit(1).maybeSingle();
+    registro = cfg?.registro_profissional || '';
+  }
+  document.getElementById('ass-registro').value = registro;
+  document.getElementById('ass-registro').addEventListener('input', assAtualizarPrevia);
+  document.getElementById('ass-quem').textContent = data?.nome || usuario.nome || '';
+  assPrepararCanvas();
+  assAtualizarPrevia();
+}
+
+function assTrocarAba(aba){
+  document.getElementById('ass-aba-desenhar').classList.toggle('on', aba === 'desenhar');
+  document.getElementById('ass-aba-imagem').classList.toggle('on', aba === 'imagem');
+  document.getElementById('ass-painel-desenhar').hidden = aba !== 'desenhar';
+  document.getElementById('ass-painel-imagem').hidden = aba !== 'imagem';
+}
+
+function assPrepararCanvas(){
+  const cv = document.getElementById('ass-canvas');
+  const ctx = cv.getContext('2d');
+  ctx.strokeStyle = '#14213d'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  let desenhando = false;
+  const pos = e => {
+    const r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height };
+  };
+  cv.addEventListener('pointerdown', e => {
+    desenhando = true; cv.setPointerCapture(e.pointerId);
+    const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    document.getElementById('ass-canvas-dica').hidden = true;
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!desenhando) return;
+    const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+    _assDesenhou = true;
+  });
+  const fim = () => {
+    if (!desenhando) return;
+    desenhando = false;
+    if (_assDesenhou) { _assNova = assRecortar(cv); assAtualizarPrevia(); }
+  };
+  cv.addEventListener('pointerup', fim);
+  cv.addEventListener('pointercancel', fim);
+}
+
+function assLimparCanvas(){
+  const cv = document.getElementById('ass-canvas');
+  cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+  document.getElementById('ass-canvas-dica').hidden = false;
+  _assDesenhou = false;
+  _assNova = null;
+  assAtualizarPrevia();
+}
+
+// Recorta as bordas vazias e reduz pra no máx. 600x200 — a assinatura sai
+// do tamanho certo no documento e o arquivo fica pequeno.
+function assRecortar(origem){
+  const w = origem.width, h = origem.height;
+  const px = origem.getContext('2d').getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (px[(y * w + x) * 4 + 3] > 10) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  if (x1 < 0) return null;
+  const pad = 6;
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
+  x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+  const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+  const esc = Math.min(1, 600 / cw, 200 / ch);
+  const out = document.createElement('canvas');
+  out.width = Math.round(cw * esc); out.height = Math.round(ch * esc);
+  out.getContext('2d').drawImage(origem, x0, y0, cw, ch, 0, 0, out.width, out.height);
+  return out.toDataURL('image/png');
+}
+
+// Foto/scan de assinatura no papel: o fundo claro vira transparente e o
+// traço vira tinta escura, pra ficar limpo em cima da linha do documento.
+function assCarregarArquivo(input){
+  const arq = input.files && input.files[0];
+  input.value = '';
+  if (!arq) return;
+  if (!arq.type.startsWith('image/')) { toast('Escolha um arquivo de imagem', 'err'); return; }
+  const url = URL.createObjectURL(arq);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const esc = Math.min(1, 1400 / img.width, 1400 / img.height);
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(img.width * esc); cv.height = Math.round(img.height * esc);
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    const dados = ctx.getImageData(0, 0, cv.width, cv.height);
+    const p = dados.data;
+    for (let i = 0; i < p.length; i += 4) {
+      const lum = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
+      if (lum > 170) { p[i + 3] = 0; continue; }
+      const forca = Math.min(1, (170 - lum) / 110);
+      p[i] = 20; p[i + 1] = 33; p[i + 2] = 61; p[i + 3] = Math.round(255 * forca);
+    }
+    ctx.putImageData(dados, 0, 0);
+    const recortada = assRecortar(cv);
+    if (!recortada) { toast('Não achei a assinatura na imagem — tente uma foto mais nítida', 'err'); return; }
+    _assNova = recortada;
+    assAtualizarPrevia();
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast('Não consegui abrir essa imagem', 'err'); };
+  img.src = url;
+}
+
+function assAtualizarPrevia(){
+  const src = _assNova || _assAtual;
+  const img = document.getElementById('ass-previa-img');
+  img.hidden = !src;
+  if (src) img.src = src;
+  document.getElementById('ass-previa-vazio').hidden = !!src;
+  const registro = document.getElementById('ass-registro').value.trim();
+  document.getElementById('ass-previa-linha').textContent =
+    [document.getElementById('ass-quem').textContent, registro].filter(Boolean).join(' — ');
+  document.getElementById('btn-remover-ass').hidden = !_assAtual;
+}
+
+async function assSalvar(){
+  const msg = document.getElementById('ass-msg');
+  const assinatura = _assNova || _assAtual;
+  if (!assinatura) { msg.style.color = 'var(--vermelho)'; msg.textContent = 'Desenhe ou envie a assinatura primeiro.'; return; }
+  const btn = document.getElementById('btn-salvar-ass');
+  btn.disabled = true; msg.textContent = '';
+  const { error } = await sb.rpc('salvar_minha_assinatura', {
+    p_assinatura: assinatura,
+    p_registro: document.getElementById('ass-registro').value.trim()
+  });
+  btn.disabled = false;
+  if (error) { msg.style.color = 'var(--vermelho)'; msg.textContent = '❌ ' + error.message; return; }
+  _assAtual = assinatura; _assNova = null;
+  assAtualizarPrevia();
+  msg.style.color = 'var(--verde-e)'; msg.textContent = '✅ Assinatura salva';
+}
+
+async function assRemover(){
+  if (!confirm('Remover sua assinatura? Os receituários novos voltam a sair só com o nome da clínica.')) return;
+  const { error } = await sb.rpc('salvar_minha_assinatura', {
+    p_assinatura: null,
+    p_registro: document.getElementById('ass-registro').value.trim()
+  });
+  const msg = document.getElementById('ass-msg');
+  if (error) { msg.style.color = 'var(--vermelho)'; msg.textContent = '❌ ' + error.message; return; }
+  _assAtual = null; _assNova = null;
+  assLimparCanvas();
+  msg.style.color = 'var(--ct)'; msg.textContent = 'Assinatura removida';
+}
+
 // ── Init ──
 async function init(){
-  if(!(await exigirPermissao('configuracoes'))) return;
+  const usuario = await usuarioAtual();
+  if(!usuario){ window.location.replace('login.html'); return; }
+  assIniciar(usuario);
+  // Sem permissão de Configurações: a pessoa ainda pode configurar a PRÓPRIA
+  // assinatura — o resto da página fica escondido.
+  if(!temPermissao(usuario,'configuracoes')){ modoSoAssinatura(); return; }
   const {data} = await sb.from('config_clinica').select('*').limit(1);
   if(data && data.length){
     const c = data[0];

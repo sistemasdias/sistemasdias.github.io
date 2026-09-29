@@ -1061,8 +1061,73 @@ async function carregar(){
   const{data}=await db.from('pacientes').select('*').order('nome');
   pacs=data||[];
   await carregarProdutosEstoque();
+  await carregarMinhaAssinatura();
   await aplicarBrandingDocumentos();
   await carregarProfissionaisDoc();
+}
+
+// ── Assinatura do profissional (configurada em Configurações → Minha assinatura) ──
+// Receituários mostram a assinatura + nome/registro de quem EMITIU. Ao salvar,
+// isso fica gravado no próprio documento: reabrir ou reenviar depois continua
+// saindo com a assinatura de quem prescreveu, não com a de quem está logado.
+const PAINEIS_RECEITA = ['receituario', 'receituario-estetico', 'receituario-simples'];
+const TIPOS_COM_ASSINANTE = [...PAINEIS_RECEITA, 'atestado'];
+let _minhaAssinatura = null;   // { img, nome, registro } de quem está logado
+let _assinaturaExibida = null; // a que está aparecendo nos documentos agora
+
+async function carregarMinhaAssinatura(){
+  try{
+    const u = await usuarioAtual();
+    if(!u) return;
+    const{data}=await db.from('usuarios').select('nome,assinatura,registro_profissional').eq('id',u.id).maybeSingle();
+    if(data && data.assinatura) _minhaAssinatura={img:data.assinatura,nome:data.nome||'',registro:data.registro_profissional||''};
+  }catch(e){ console.warn('[assinatura]',e); }
+}
+
+function assinaturaDoDoc(doc){
+  const d=(doc&&doc.dados)||{};
+  if(!d.assinanteNome) return null; // documento de antes da assinatura por profissional
+  return {img:doc.assinatura_profissional||null,nome:d.assinanteNome,registro:d.assinanteRegistro||''};
+}
+
+function mostrarAssinatura(ass){
+  _assinaturaExibida=ass||null;
+  const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
+  const texto=ass?[ass.nome,ass.registro].filter(Boolean).join(' — '):[c.nome,c.registro].filter(Boolean).join(' — ');
+  PAINEIS_RECEITA.forEach(tipo=>{
+    const linha=document.querySelector(`#panel-${tipo} .doc-clinic-assinatura`);
+    if(!linha) return;
+    linha.parentElement.querySelectorAll('.doc-assinatura-img').forEach(el=>el.remove());
+    linha.textContent=texto;
+    if(ass&&ass.img){
+      const img=document.createElement('img');
+      img.className='doc-assinatura-img';
+      img.src=ass.img;
+      img.alt='Assinatura';
+      img.style.cssText='display:block;margin:0 auto;max-height:64px;max-width:90%';
+      linha.parentElement.insertBefore(img,linha);
+      linha.style.marginTop='2px';
+    } else {
+      linha.style.marginTop='3rem';
+    }
+  });
+  const nomeAtestado=document.getElementById('atestado-assinatura-nome');
+  if(nomeAtestado) nomeAtestado.textContent=texto;
+}
+
+// Desenha a assinatura no quadro do atestado mantendo a proporção
+function preencherCanvasComAssinatura(id,dataUrl){
+  const canvas=document.getElementById(id);
+  if(!canvas||!dataUrl) return;
+  const img=new Image();
+  img.onload=()=>{
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const esc=Math.min(canvas.width/img.width,canvas.height/img.height)*0.9;
+    const w=img.width*esc,h=img.height*esc;
+    ctx.drawImage(img,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
+  };
+  img.src=dataUrl;
 }
 
 // Preenche a marca da clínica (logo, especialidade/CRO, endereço, assinatura)
@@ -1088,6 +1153,7 @@ async function aplicarBrandingDocumentos(){
   document.querySelectorAll('.doc-clinic-assinatura').forEach(el=>{
     el.textContent=[c.nome,c.registro].filter(Boolean).join(' — ');
   });
+  mostrarAssinatura(_assinaturaExibida); // receituários: mantém a assinatura de quem emitiu
   document.title='Documentos — '+(c.nome||'Clínica');
   const h1=document.getElementById('doc-h1-nome');
   if(h1) h1.textContent=c.nome||'Clínica';
@@ -1126,7 +1192,9 @@ async function gerarPdfDoPainel(tipo){
     useCORS: true,
     backgroundColor: '#ffffff',
     // Replica exatamente o que a impressão esconde (campos de edição, botões)
-    ignoreElements: (node) => node.classList && (node.classList.contains('no-print') || node.classList.contains('btn'))
+    ignoreElements: (node) => node.classList && (node.classList.contains('no-print') || node.classList.contains('btn')),
+    // …e mostra o que só a impressão mostra (rodapé com assinatura, nome e registro)
+    onclone: (doc) => doc.querySelectorAll('.orc-print-footer').forEach(el => { el.style.display = 'block'; })
   });
   const imgData = canvas.toDataURL('image/jpeg', 0.92);
   const { jsPDF } = window.jspdf;
@@ -1320,6 +1388,7 @@ function abrirReceituario(){
   document.getElementById('rec-obs').value='';
   document.getElementById('rec-medicamentos').innerHTML='';
   addMedicamento(); // Já abre com 1 medicamento em branco
+  mostrarAssinatura(_minhaAssinatura);
 }
 
 function addMedicamento(dados){
@@ -1351,6 +1420,7 @@ function abrirReceituarioEstetico(){
   // Desmarcar todos os cuidados
   for(let i=1;i<=8;i++) document.getElementById('rece-c'+i).checked=false;
   addProdutoEstetico();
+  mostrarAssinatura(_minhaAssinatura);
 }
 
 function addProdutoEstetico(dados){
@@ -1376,6 +1446,7 @@ function abrirReceituarioSimples(){
   document.getElementById('recs-pac-info').innerHTML=`<div><div class="pac-info-nome">${escapeHtml(p.nome)}</div><div class="pac-info-sub">${escapeHtml(p.telefone)}${p.data_nascimento?' · Nasc: '+fDt(p.data_nascimento):''}${p.cpf?' · CPF: '+escapeHtml(p.cpf):''}</div></div>`;
   document.getElementById('recs-data').value=HOJE;
   const recsArea=document.getElementById('recs-area'); if(recsArea) recsArea.innerHTML='';
+  mostrarAssinatura(_minhaAssinatura);
 }
 
 // ── ORÇAMENTO SIMPLES ──
@@ -1412,9 +1483,12 @@ async function abrirAtestado(){
   document.getElementById('atestado-logo').src=c.logo||LOGO_VAZIO; document.getElementById('atestado-logo').style.display=c.logo?'':'none';
   document.getElementById('atestado-esp-cro').textContent=[c.especialidade,c.registro].filter(Boolean).join(' · ');
   document.getElementById('atestado-endereco').textContent=[c.endereco,c.telefone?('Tel: '+c.telefone):''].filter(Boolean).join(' · ');
-  document.getElementById('atestado-assinatura-nome').textContent=[c.nome,c.registro].filter(Boolean).join(' — ');
+  mostrarAssinatura(_minhaAssinatura);
 
-  if(typeof _modoVer==='undefined'||!_modoVer) limparSig('sig-atestado-pro');
+  if(typeof _modoVer==='undefined'||!_modoVer){
+    limparSig('sig-atestado-pro');
+    if(_minhaAssinatura) preencherCanvasComAssinatura('sig-atestado-pro',_minhaAssinatura.img);
+  }
   iniciarSig('sig-atestado-pro');
 
   atualizarTextoAtestado();
@@ -2107,8 +2181,16 @@ function getSig(id){
 async function salvarDoc(tipo){
   if(!pacSelecionada){toast('Selecione um paciente primeiro!','vermelho');return;}
   const sigPac=getSig(`sig-${tipo}-pac`)||getSig(`sig-an-pac`)||getSig(`sig-img-pac`)||null;
-  const sigPro=getSig(`sig-${tipo}-pro`)||getSig(`sig-an-pro`)||getSig(`sig-img-pro`)||null;
+  // Receituários não têm quadro de assinatura: grava a assinatura do profissional
+  // que está aparecendo no documento (não cai nos quadros de outros painéis).
+  const sigPro=PAINEIS_RECEITA.includes(tipo)
+    ?(_assinaturaExibida&&_assinaturaExibida.img)||null
+    :getSig(`sig-${tipo}-pro`)||getSig(`sig-an-pro`)||getSig(`sig-img-pro`)||null;
   let dados={};
+  if(TIPOS_COM_ASSINANTE.includes(tipo)&&_assinaturaExibida){
+    dados.assinanteNome=_assinaturaExibida.nome;
+    dados.assinanteRegistro=_assinaturaExibida.registro;
+  }
   if(tipo==='anamnese'){
     dados.respostas={};
     anTodasPerguntas().forEach(q=>{
@@ -2492,6 +2574,8 @@ async function verDoc(id,tipo){
     atualizarTextoAtestado();
   }
 
+  if(TIPOS_COM_ASSINANTE.includes(tipo)) mostrarAssinatura(assinaturaDoDoc(data));
+
   // Restaurar assinaturas - iniciarSig não limpa mais o canvas, então pode fazer direto
   const sigIds={
     pac: [`sig-${tipo}-pac`, `sig-an-pac`, `sig-img-pac`],
@@ -2499,7 +2583,7 @@ async function verDoc(id,tipo){
   };
   setTimeout(()=>{
     if(data.assinatura_paciente) sigIds.pac.forEach(id=>restaurarSig(id,data.assinatura_paciente));
-    if(data.assinatura_profissional) sigIds.pro.forEach(id=>restaurarSig(id,data.assinatura_profissional));
+    if(data.assinatura_profissional&&!PAINEIS_RECEITA.includes(tipo)) sigIds.pro.forEach(id=>restaurarSig(id,data.assinatura_profissional));
   },150);
 
   toast('Documento carregado ✓','verde');
@@ -3339,6 +3423,7 @@ carregar().then(()=>{
     await new Promise(r => setTimeout(r, 300));
 
     preencherDocSalvo(tipo, doc.dados || {});
+    if (TIPOS_COM_ASSINANTE.includes(tipo)) mostrarAssinatura(assinaturaDoDoc(doc));
 
     // Restaurar assinaturas salvas (mesma lógica do "Ver" de dentro da tela de Documentos)
     const sigIds = {
@@ -3347,7 +3432,7 @@ carregar().then(()=>{
     };
     setTimeout(() => {
       if (doc.assinatura_paciente) sigIds.pac.forEach(id => restaurarSig(id, doc.assinatura_paciente));
-      if (doc.assinatura_profissional) sigIds.pro.forEach(id => restaurarSig(id, doc.assinatura_profissional));
+      if (doc.assinatura_profissional && !PAINEIS_RECEITA.includes(tipo)) sigIds.pro.forEach(id => restaurarSig(id, doc.assinatura_profissional));
     }, 150);
 
     window.scrollTo(0, 0);
