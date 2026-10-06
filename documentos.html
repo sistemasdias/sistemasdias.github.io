@@ -4198,11 +4198,26 @@ window.confirmarRealizado = async function() {
 
 // ── SOBRESCREVER salvarDoc para orçamento ──
 const _salvarDocOriginal = window.salvarDoc;
+// Clique duplo em "Salvar orçamento" rodava duas gravações em paralelo e criava
+// dois planos no mesmo milissegundo (um ficava "pago", o outro "orçado").
+let _salvandoOrcamento = false;
 window.salvarDoc = async function(tipo) {
   if (tipo !== 'orcamento') {
     return _salvarDocOriginal.apply(this, arguments);
   }
+  if (_salvandoOrcamento) return;
+  _salvandoOrcamento = true;
+  const btnSalvarOrc = document.querySelector(`[onclick="salvarDoc('orcamento')"]`);
+  if (btnSalvarOrc) btnSalvarOrc.disabled = true;
+  try {
+    return await _salvarOrcamento();
+  } finally {
+    _salvandoOrcamento = false;
+    if (btnSalvarOrc) btnSalvarOrc.disabled = false;
+  }
+};
 
+async function _salvarOrcamento() {
   if (!pacSelecionada) { toast('Selecione um paciente primeiro!', 'vermelho'); return; }
 
   const itens = [];
