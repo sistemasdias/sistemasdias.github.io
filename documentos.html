@@ -1275,7 +1275,9 @@ async function excluirDoc(id){
   // Documentos comuns — exclusão simples
   if(doc.tipo!=='orcamento'){
     if(!confirm('Excluir este documento?'))return;
-    await db.from('documentos').delete().eq('id',id);
+    const{error:eDel}=await db.from('documentos').delete().eq('id',id);
+    if(eDel){toast('Erro ao excluir documento','vermelho');return;}
+    await registrarExclusaoDocumento(doc,'');
     toast('Documento excluído');carregarDocsSalvos();
     return;
   }
@@ -1363,9 +1365,22 @@ async function excluirDoc(id){
 
   // 4. Excluir o documento
   await db.from('documentos').delete().eq('id',id);
+  await registrarExclusaoDocumento(doc,resumo.join(' · '));
 
   toast('Orçamento excluído ✓ '+(resumo.length?resumo.join(' · '):''),'verde');
   carregarDocsSalvos();
+}
+
+// Registra na Auditoria (mesma ação/formato que a ficha do paciente usa)
+async function registrarExclusaoDocumento(doc,detalhe){
+  try{
+    const data=fDt((doc.data_assinatura||doc.criado_em||'').split('T')[0]);
+    await db.from('historico_paciente').insert({
+      paciente_id:doc.paciente_id,
+      acao:'Documento excluído',
+      descricao:`Tipo: ${doc.tipo} · Data: ${data}`+(detalhe?` · ${detalhe}`:'')+' · pela tela de Documentos'
+    });
+  }catch(e){ console.warn('[auditoria exclusão]',e); }
 }
 
 // ABRIR DOCUMENTO
@@ -4144,6 +4159,9 @@ window.confirmarRealizado = async function() {
       lembretes
     }).eq('id', pacSelecionada.id);
 
+    // Antes da baixa de estoque: ela marca a ficha como "produtos baixados"
+    await salvarFichaOrcamentoSeFaltar(planoId);
+
     // ── BAIXA DE ESTOQUE ──
     const produtosUsados = getProdutosOrcamento();
     if(produtosUsados.length > 0){
@@ -4276,23 +4294,60 @@ window.salvarDoc = async function(tipo) {
   await db.from('documentos').insert({
     paciente_id: pacSelecionada.id,
     tipo: 'orcamento',
-    dados: {
-      plano_id: window._planoAtual?.id || null,
-      itens: itens.map(i => ({ trat: i.trat, val: i.val, dente: i.dente || '', categoria: i.categoria ||CATEGORIA_PADRAO() })),
-      pagamento: condicoes, obs, validade,
-      validadeDias: document.getElementById('orc-validade-dias')?.value || '',
-      categoriaPadrao: document.querySelector('input[name="orc-categoria"]:checked')?.value ||CATEGORIA_PADRAO(),
-      historico: Array.from(document.querySelectorAll('#orc-historico tr')).map(tr =>
-        Array.from(tr.querySelectorAll('input')).map(i => i.value)
-      ).filter(row => row.some(v => v)),
-      produtos: getProdutosOrcamento()
-    },
+    dados: dadosFichaOrcamento(window._planoAtual?.id),
     data_assinatura: HOJE
   });
 
   carregarDocsSalvos();
   toast('Orçamento salvo ✓', 'verde');
 };
+
+// Dados da Ficha de Orçamento como ficam gravados em `documentos` (lidos da tela)
+function dadosFichaOrcamento(planoId) {
+  const itens = [];
+  document.querySelectorAll('#orc-itens .orc-linha').forEach(linha => {
+    const trat = linha.querySelector('.orc-trat')?.value || '';
+    if (!trat) return;
+    itens.push({
+      trat,
+      val: parseFloat(linha.querySelector('.orc-val')?.value) || 0,
+      dente: linha.querySelector('.orc-dente')?.value || '',
+      categoria: linha.querySelector('.orc-linha-cat')?.value || CATEGORIA_PADRAO()
+    });
+  });
+  return {
+    plano_id: planoId || null,
+    itens,
+    pagamento: document.getElementById('orc-pagamento')?.value || null,
+    obs: document.getElementById('orc-obs')?.value || null,
+    validade: document.getElementById('orc-validade')?.value || null,
+    validadeDias: document.getElementById('orc-validade-dias')?.value || '',
+    categoriaPadrao: document.querySelector('input[name="orc-categoria"]:checked')?.value || CATEGORIA_PADRAO(),
+    historico: Array.from(document.querySelectorAll('#orc-historico tr')).map(tr =>
+      Array.from(tr.querySelectorAll('input')).map(i => i.value)
+    ).filter(row => row.some(v => v)),
+    produtos: getProdutosOrcamento()
+  };
+}
+
+// "Concluir atendimento" sem ter clicado em "Salvar orçamento" deixava plano e
+// financeiro gravados, mas a ficha não aparecia em Documentos. Salva aqui se
+// ainda não existir uma ficha desse plano (não duplica em atendimentos seguintes).
+async function salvarFichaOrcamentoSeFaltar(planoId) {
+  if (!pacSelecionada || !planoId) return;
+  const { data: existente } = await db.from('documentos').select('id')
+    .eq('paciente_id', pacSelecionada.id).eq('tipo', 'orcamento')
+    .eq('dados->>plano_id', planoId).limit(1);
+  if (existente && existente.length) return;
+  const { error } = await db.from('documentos').insert({
+    paciente_id: pacSelecionada.id,
+    tipo: 'orcamento',
+    dados: dadosFichaOrcamento(planoId),
+    data_assinatura: HOJE
+  });
+  if (error) { console.error('[ficha orçamento automática]', error); return; }
+  carregarDocsSalvos();
+}
 
 console.log('✅ Patch Plano de Tratamento carregado');
 </script>
