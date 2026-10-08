@@ -390,7 +390,10 @@ textarea{resize:vertical}
       <div id="orc-categoria-print" style="font-size:13px;font-weight:600;color:var(--verde-e);margin-bottom:1rem;display:none"></div>
       <div class="sec-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>Tratamentos Sugeridos</span>
-        <button class="btn sm no-print" style="font-size:12px" onclick="puxarOrcamentoSimples()">🔄 Puxar do Orçamento Simples</button>
+        <span class="no-print" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn sm no-print" style="font-size:12px" onclick="puxarOrcamentoSimples()">🔄 Puxar do Orçamento Simples</button>
+          <button class="btn sm no-print" style="font-size:12px" onclick="puxarOdontograma()">🦷 Puxar do Odontograma</button>
+        </span>
       </div>
       <div id="orc-itens"></div>
       <button class="btn" style="margin-bottom:1rem" onclick="addItemOrc()">+ Adicionar tratamento</button>
@@ -1000,7 +1003,7 @@ textarea{resize:vertical}
   <!-- MODAL: escolher qual Orçamento Simples puxar (quando há mais de um salvo) -->
   <div id="modal-escolha-orcs" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center">
     <div style="background:var(--card);border-radius:16px;padding:1.5rem;width:92%;max-width:420px;max-height:80vh;overflow-y:auto">
-      <div style="font-size:15px;font-weight:700;margin-bottom:4px">Qual Orçamento Simples puxar?</div>
+      <div id="escolha-orcs-titulo" style="font-size:15px;font-weight:700;margin-bottom:4px">Qual Orçamento Simples puxar?</div>
       <div style="font-size:12.5px;color:var(--ct);margin-bottom:1rem">Essa paciente tem mais de um salvo — escolha um:</div>
       <div id="escolha-orcs-lista"></div>
       <button class="btn" style="width:100%" onclick="fecharEscolhaOrcSimples()">Cancelar</button>
@@ -1898,12 +1901,56 @@ function aplicarItensOrcSimples(dadosSimples){
   toast(`${itens.length} ${itens.length===1?'item puxado':'itens puxados'} do Orçamento Simples ✓`,'verde');
 }
 
+// ── Puxar itens da Ficha Clínica / Odontograma pra Ficha de Orçamento ──
+// Mesmo comportamento do Orçamento Simples: só ACRESCENTA linhas (não mexe em
+// condições de pagamento/observações/validade); categoria sempre Odontologia;
+// se houver mais de uma ficha salva, abre a escolha.
+function itensDoOdontograma(dados){
+  return (dados?.trats||[])
+    .map(t=>({desc:(t.trat||'').trim()||(t.dente?`Tratamento no dente ${t.dente}`:''),dente:(t.dente||'').trim(),val:parseFloat(t.val)||0}))
+    .filter(t=>t.desc&&(t.val>0||(t.dente&&t.desc)));
+}
+
+async function puxarOdontograma(){
+  if(!pacSelecionada){toast('Selecione um paciente primeiro!','vermelho');return;}
+  const{data:docs,error}=await db.from('documentos').select('dados,criado_em').eq('paciente_id',pacSelecionada.id).eq('tipo','odontograma').order('criado_em',{ascending:false});
+  if(error){toast('Não foi possível ler os odontogramas: '+error.message,'vermelho');return;}
+  const validos=(docs||[]).filter(d=>itensDoOdontograma(d.dados).length);
+  if(!validos.length){toast('Nenhum Odontograma com tratamentos encontrado pra essa paciente.','vermelho');return;}
+  if(validos.length===1){ aplicarItensOdontograma(validos[0].dados); return; }
+  abrirEscolhaOrcSimples(validos,'odonto');
+}
+
+function aplicarItensOdontograma(dados){
+  const itens=itensDoOdontograma(dados);
+  itens.forEach(item=>{
+    addItemOrc();
+    const linhas=document.querySelectorAll('#orc-itens .orc-linha');
+    const linha=linhas[linhas.length-1];
+    const selectCat=linha.querySelector('.orc-linha-cat');
+    if(selectCat){ selectCat.value='Odontologia'; aplicarCategoriaLinha(selectCat); }
+    const inputTrat=linha.querySelector('.orc-trat');
+    const inputVal=linha.querySelector('.orc-val');
+    const inputDente=linha.querySelector('.orc-dente');
+    if(inputTrat) inputTrat.value=item.desc;
+    if(inputVal) inputVal.value=item.val||'';
+    if(inputDente) inputDente.value=item.dente;
+  });
+  calcTotal();
+  toast(`${itens.length} ${itens.length===1?'item puxado':'itens puxados'} do Odontograma ✓`,'verde');
+}
+
 let _orcsEscolhaOpcoes=[];
-function abrirEscolhaOrcSimples(opcoes){
+let _escolhaOrigem='simples';
+function abrirEscolhaOrcSimples(opcoes,origem){
+  _escolhaOrigem=origem||'simples';
   _orcsEscolhaOpcoes=opcoes;
+  document.getElementById('escolha-orcs-titulo').textContent=_escolhaOrigem==='odonto'?'Qual Odontograma puxar?':'Qual Orçamento Simples puxar?';
   const lista=document.getElementById('escolha-orcs-lista');
   lista.innerHTML=opcoes.map((o,i)=>{
-    const itens=(o.dados?.itens||[]).filter(it=>it.desc);
+    const itens=_escolhaOrigem==='odonto'
+      ?itensDoOdontograma(o.dados).map(it=>({desc:it.desc+(it.dente&&!/dente/i.test(it.desc)?` (dente ${it.dente})`:''),val:it.val}))
+      :(o.dados?.itens||[]).filter(it=>it.desc);
     const total=itens.reduce((s,it)=>s+(parseFloat(it.val)||0),0);
     const primeiro=itens[0]?.desc||'';
     const resumo=itens.length>1?`${primeiro} + ${itens.length-1}`:primeiro;
@@ -1920,7 +1967,9 @@ function abrirEscolhaOrcSimples(opcoes){
 function escolherOrcSimples(i){
   const escolhido=_orcsEscolhaOpcoes[i];
   document.getElementById('modal-escolha-orcs').style.display='none';
-  if(escolhido) aplicarItensOrcSimples(escolhido.dados);
+  if(!escolhido) return;
+  if(_escolhaOrigem==='odonto') aplicarItensOdontograma(escolhido.dados);
+  else aplicarItensOrcSimples(escolhido.dados);
 }
 
 function fecharEscolhaOrcSimples(){
