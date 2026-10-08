@@ -3939,6 +3939,7 @@ function resetFechamentoAtendimento() {
 // ── SOBRESCREVER confirmarRealizado ──
 window.confirmarRealizado = async function() {
   if (!pacSelecionada) { toast('Selecione um paciente', 'vermelho'); return; }
+  if (semConexao()) return;
 
   const dataAtend = document.getElementById('modal-data')?.value;
   if (!dataAtend) { toast('Informe a data do atendimento!', 'vermelho'); return; }
@@ -3975,7 +3976,7 @@ window.confirmarRealizado = async function() {
       ];
 
       const descProcs = [...realizados, ...pendentes].map(t => t.trat).join(' + ');
-      const { data: novoPlano, error: ePlano } = await db.from('planos_tratamento').insert({
+      const { data: novoPlano, error: ePlano } = await dbE.from('planos_tratamento').insert({
         paciente_id: pacSelecionada.id,
         status: 'ativo',
         validade: document.getElementById('orc-validade')?.value || null,
@@ -3987,12 +3988,12 @@ window.confirmarRealizado = async function() {
       planoId = novoPlano?.id;
 
       // Inserir itens
-      await db.from('plano_itens').insert(
+      await dbE.from('plano_itens').insert(
         todosItens.map(i => ({ ...i, plano_id: planoId, paciente_id: pacSelecionada.id }))
       );
 
       // Buscar itens criados para ter os IDs
-      const { data: itens } = await db.from('plano_itens').select('*').eq('plano_id', planoId);
+      const { data: itens } = await dbE.from('plano_itens').select('*').eq('plano_id', planoId);
       window._planoAtual = { id: planoId, itens: itens || [] };
 
       // Reatribuir itemIds
@@ -4005,7 +4006,7 @@ window.confirmarRealizado = async function() {
     // 2. Marcar realizados como 'realizado' ou 'pago'
     // Garantir que temos os itens do plano para mapear itemIds
     if (planoId) {
-      const { data: itensAtuais } = await db.from('plano_itens').select('*').eq('plano_id', planoId).eq('status','orcado');
+      const { data: itensAtuais } = await dbE.from('plano_itens').select('*').eq('plano_id', planoId).eq('status','orcado');
       // Para cada realizado sem itemId, tentar encontrar pelo nome do procedimento
       realizados.forEach(r => {
         if (!r.itemId && itensAtuais) {
@@ -4018,7 +4019,7 @@ window.confirmarRealizado = async function() {
     for (const r of realizados) {
       const novoStatus = statusPgto === 'recebido' && !isParcial ? 'pago' : 'realizado';
       if (r.itemId) {
-        const {error: eItem} = await db.from('plano_itens').update({ 
+        const {error: eItem} = await dbE.from('plano_itens').update({ 
           status: novoStatus, 
           data_realizacao: dataAtend 
         }).eq('id', r.itemId);
@@ -4045,7 +4046,7 @@ window.confirmarRealizado = async function() {
       const descGrupo = itensGrupo.map(r => r.trat).join(' + ');
 
       if (valorPagoGrupo > 0) {
-        await db.from('financeiro').insert({
+        await dbE.from('financeiro').insert({
           paciente_id: pacSelecionada.id,
           orcamento_id: planoId,
           tipo: 'receita',
@@ -4060,7 +4061,7 @@ window.confirmarRealizado = async function() {
         });
       } else if (totalGrupo > 0 && statusPgto === 'pendente' && !isParcial) {
         // Status marcado como A receber sem parcial
-        await db.from('financeiro').insert({
+        await dbE.from('financeiro').insert({
           paciente_id: pacSelecionada.id,
           orcamento_id: planoId,
           tipo: 'receita',
@@ -4078,7 +4079,7 @@ window.confirmarRealizado = async function() {
       // Valor a receber (APENAS pagamento parcial; quando status='pendente' sem
       // parcial, o bloco acima já lançou o valor total do grupo)
       if (isParcial && valorPendenteGrupo > 0) {
-        await db.from('financeiro').insert({
+        await dbE.from('financeiro').insert({
           paciente_id: pacSelecionada.id,
           orcamento_id: planoId,
           tipo: 'receita',
@@ -4095,7 +4096,7 @@ window.confirmarRealizado = async function() {
     }
 
     // 5. Salvar atendimento no paciente (tratamentos_adicionais)
-    const { data: pacAtual } = await db.from('pacientes').select('*').eq('id', pacSelecionada.id).single();
+    const { data: pacAtual } = await dbE.from('pacientes').select('*').eq('id', pacSelecionada.id).single();
     
     const PRAZOS = {
       'Botox (toxina botulínica)':6,'Botox para bruxismo (masseter)':6,
@@ -4153,7 +4154,7 @@ window.confirmarRealizado = async function() {
       });
     }
 
-    await db.from('pacientes').update({
+    await dbE.from('pacientes').update({
       tratamentos_adicionais: [...tratsAntigos, ...novosTrats],
       atendimentos: atsAtualizados,
       lembretes
@@ -4167,9 +4168,9 @@ window.confirmarRealizado = async function() {
     if(produtosUsados.length > 0){
       await baixarProdutosEstoque(produtosUsados, pacSelecionada.id, planoId);
       // Marcar orçamento como baixado (preserva produtos para histórico, mas não restaura no próximo)
-      const{data:docOrc}=await db.from('documentos').select('id,dados').eq('paciente_id',pacSelecionada.id).eq('tipo','orcamento').order('criado_em',{ascending:false}).limit(1);
+      const{data:docOrc}=await dbE.from('documentos').select('id,dados').eq('paciente_id',pacSelecionada.id).eq('tipo','orcamento').order('criado_em',{ascending:false}).limit(1);
       if(docOrc&&docOrc[0]){
-        await db.from('documentos').update({dados:{...docOrc[0].dados,produtos_baixados:true}}).eq('id',docOrc[0].id);
+        await dbE.from('documentos').update({dados:{...docOrc[0].dados,produtos_baixados:true}}).eq('id',docOrc[0].id);
       }
     }
     limparProdutosOrc();
@@ -4179,7 +4180,7 @@ window.confirmarRealizado = async function() {
     // até reabrir a ficha, o que confundia mais agora que o fechamento é
     // na mesma tela (não é mais um modal que fecha e "some" da vista).
     if (planoId) {
-      const { data: itensAtualizados } = await db.from('plano_itens').select('*').eq('plano_id', planoId);
+      const { data: itensAtualizados } = await dbE.from('plano_itens').select('*').eq('plano_id', planoId);
       window._planoAtual = { id: planoId, itens: itensAtualizados || [] };
       renderItensPlano();
       calcTotal();
@@ -4190,7 +4191,7 @@ window.confirmarRealizado = async function() {
 
   } catch(e) {
     console.error('Erro ao confirmar:', e);
-    toast('Erro ao salvar. Verifique o console.', 'vermelho');
+    toast(mensagemErroGravacao(e), 'vermelho');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '✅ Concluir atendimento'; }
   }
@@ -4201,16 +4202,64 @@ const _salvarDocOriginal = window.salvarDoc;
 // Clique duplo em "Salvar orçamento" rodava duas gravações em paralelo e criava
 // dois planos no mesmo milissegundo (um ficava "pago", o outro "orçado").
 let _salvandoOrcamento = false;
+
+// Gravações (insert/update/delete/upsert) que falham — sem internet, sessão
+// vencida, permissão — passam a lançar erro em vez de passar em silêncio e
+// o sistema mostrar "salvo ✓" sem ter salvo nada.
+function _gravacaoEstrita(builder) {
+  return new Proxy(builder, {
+    get(alvo, chave) {
+      if (chave === 'then') {
+        return (ok, falha) => alvo.then(r => {
+          if (r && r.error) throw new Error(r.error.message || 'falha ao gravar');
+          return r;
+        }).then(ok, falha);
+      }
+      const v = alvo[chave];
+      if (typeof v !== 'function') return v;
+      return (...args) => {
+        const r = v.apply(alvo, args);
+        return r && typeof r === 'object' ? _gravacaoEstrita(r) : r;
+      };
+    }
+  });
+}
+const dbE = {
+  from(tabela) {
+    const t = db.from(tabela);
+    const o = { select: (...a) => t.select(...a) };
+    ['insert', 'update', 'delete', 'upsert'].forEach(m => { o[m] = (...a) => _gravacaoEstrita(t[m](...a)); });
+    return o;
+  }
+};
+
+function semConexao() {
+  if (navigator.onLine === false) {
+    toast('Sem internet — nada foi salvo. Mantenha esta tela aberta e tente de novo quando a conexão voltar.', 'vermelho');
+    return true;
+  }
+  return false;
+}
+function mensagemErroGravacao(e) {
+  const m = String((e && e.message) || e || '');
+  if (/fetch|network|failed|timeout/i.test(m)) return 'Falha de conexão — nada foi salvo (ou ficou pela metade). Confira a internet e tente de novo; não feche esta tela.';
+  return 'Não foi possível salvar: ' + m;
+}
+
 window.salvarDoc = async function(tipo) {
   if (tipo !== 'orcamento') {
     return _salvarDocOriginal.apply(this, arguments);
   }
   if (_salvandoOrcamento) return;
+  if (semConexao()) return;
   _salvandoOrcamento = true;
   const btnSalvarOrc = document.querySelector(`[onclick="salvarDoc('orcamento')"]`);
   if (btnSalvarOrc) btnSalvarOrc.disabled = true;
   try {
     return await _salvarOrcamento();
+  } catch (e) {
+    console.error('[salvar orçamento]', e);
+    toast(mensagemErroGravacao(e), 'vermelho');
   } finally {
     _salvandoOrcamento = false;
     if (btnSalvarOrc) btnSalvarOrc.disabled = false;
@@ -4239,17 +4288,17 @@ async function _salvarOrcamento() {
   if (window._planoAtual?.id) {
     // Atualizar plano existente
     const descProcsUpd = itens.map(i => i.trat).join(' + ');
-    await db.from('planos_tratamento').update({ validade, condicoes_pagamento: condicoes, obs: descProcsUpd || obs, atualizado_em: new Date().toISOString() }).eq('id', window._planoAtual.id);
+    await dbE.from('planos_tratamento').update({ validade, condicoes_pagamento: condicoes, obs: descProcsUpd || obs, atualizado_em: new Date().toISOString() }).eq('id', window._planoAtual.id);
 
     // Buscar itens existentes do plano para evitar duplicação
-    const { data: itensExist } = await db.from('plano_itens').select('id,procedimento,valor,status').eq('plano_id', window._planoAtual.id);
+    const { data: itensExist } = await dbE.from('plano_itens').select('id,procedimento,valor,status').eq('plano_id', window._planoAtual.id);
     const usados = new Set(); // ids já vinculados nesta passagem
 
     for (const item of itens) {
       if (item.itemId) {
         usados.add(item.itemId);
         // Persiste categoria/dente também em itens já existentes (não eram salvos antes)
-        await db.from('plano_itens').update({ categoria: item.categoria, dente: item.dente }).eq('id', item.itemId);
+        await dbE.from('plano_itens').update({ categoria: item.categoria, dente: item.dente }).eq('id', item.itemId);
         continue;
       }
       // Antes de inserir, verificar se já existe item igual não vinculado (mesmo procedimento + valor)
@@ -4259,7 +4308,7 @@ async function _salvarOrcamento() {
         Math.abs(parseFloat(ie.valor||0) - parseFloat(item.val||0)) < 0.01
       );
       if (match) { usados.add(match.id); continue; } // já existe — não duplica
-      const { data: novoItem } = await db.from('plano_itens').insert({
+      const { data: novoItem } = await dbE.from('plano_itens').insert({
         plano_id: window._planoAtual.id,
         paciente_id: pacSelecionada.id,
         procedimento: item.trat,
@@ -4271,13 +4320,13 @@ async function _salvarOrcamento() {
       if (novoItem) usados.add(novoItem.id);
     }
     // Recarregar itens no estado
-    const { data: itensAtual } = await db.from('plano_itens').select('*').eq('plano_id', window._planoAtual.id);
+    const { data: itensAtual } = await dbE.from('plano_itens').select('*').eq('plano_id', window._planoAtual.id);
     window._planoAtual.itens = itensAtual || [];
     toast('Plano de tratamento atualizado ✓', 'verde');
   } else {
     // Criar novo plano + itens
     const descProcsOrc = itens.map(i => i.trat).join(' + ');
-    const { data: novoPlano } = await db.from('planos_tratamento').insert({
+    const { data: novoPlano } = await dbE.from('planos_tratamento').insert({
       paciente_id: pacSelecionada.id,
       status: 'ativo',
       validade,
@@ -4285,13 +4334,13 @@ async function _salvarOrcamento() {
       obs: descProcsOrc || obs
     }).select().single();
 
-    await db.from('plano_itens').insert(
+    await dbE.from('plano_itens').insert(
       itens.map(i => ({ plano_id: novoPlano.id, paciente_id: pacSelecionada.id, procedimento: i.trat, valor: i.val, categoria: i.categoria, dente: i.dente, status: 'orcado' }))
     );
 
     // CRÍTICO: registrar o plano criado no estado global
     // (sem isso, "Procedimento realizado" criava um SEGUNDO plano — duplicação!)
-    const { data: itensCriados } = await db.from('plano_itens').select('*').eq('plano_id', novoPlano.id);
+    const { data: itensCriados } = await dbE.from('plano_itens').select('*').eq('plano_id', novoPlano.id);
     window._planoAtual = { id: novoPlano.id, itens: itensCriados || [] };
     // Vincular itemIds nas linhas da tela
     document.querySelectorAll('#orc-itens .orc-linha').forEach(linha => {
@@ -4306,7 +4355,7 @@ async function _salvarOrcamento() {
   }
 
   // Também salvar na tabela documentos para histórico (com plano_id para exclusão em cascata)
-  await db.from('documentos').insert({
+  await dbE.from('documentos').insert({
     paciente_id: pacSelecionada.id,
     tipo: 'orcamento',
     dados: dadosFichaOrcamento(window._planoAtual?.id),
