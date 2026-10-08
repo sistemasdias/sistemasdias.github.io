@@ -368,6 +368,7 @@ textarea{resize:vertical}
   <!-- PAINEL: ORÇAMENTO -->
   <div id="panel-orcamento" class="panel">
     <div class="card">
+      <div id="orc-conexao" class="no-print" role="status" hidden style="position:sticky;top:0;z-index:20;margin-bottom:1rem;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600"></div>
       <div style="text-align:center;margin-bottom:1rem">
         <img class="doc-clinic-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo da clínica" style="height:70px;object-fit:contain;margin-bottom:4px"/>
         <div class="doc-clinic-subline" style="font-size:11px;color:var(--ct);margin-top:2px"></div>
@@ -4233,8 +4234,69 @@ const dbE = {
   }
 };
 
+// ── Monitor de conexão da Ficha de Orçamento ──
+// Enquanto a ficha está aberta, testa o servidor de verdade (o "online" do
+// navegador engana). Sem resposta: faixa vermelha e os botões de gravar
+// ficam bloqueados; ao voltar, faixa verde e libera. O que foi digitado fica.
+let _conexaoOk = true, _ultimoTeste = 0, _testando = false, _voltouEm = 0;
+
+async function testarConexaoServidor() {
+  if (navigator.onLine === false) return false;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 5000);
+  try {
+    await fetch(`${SB_URL}/auth/v1/health`, { headers: { apikey: SB_KEY }, cache: 'no-store', signal: ctl.signal });
+    return true; // qualquer resposta HTTP = o servidor está alcançável
+  } catch (e) {
+    return false;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function aplicarEstadoConexaoOrcamento() {
+  const faixa = document.getElementById('orc-conexao');
+  const btnSalvar = document.querySelector(`[onclick="salvarDoc('orcamento')"]`);
+  const btnConcluir = document.getElementById('btn-confirmar-realizado');
+  if (!faixa) return;
+  if (!_conexaoOk) {
+    faixa.hidden = false;
+    faixa.style.background = '#FCEBEB'; faixa.style.color = '#A32D2D'; faixa.style.border = '1.5px solid #E24B4A';
+    faixa.textContent = '⚠️ Sem conexão com o servidor — não dá pra salvar agora. Continue preenchendo e não feche esta tela: os botões liberam sozinhos quando a internet voltar.';
+    [btnSalvar, btnConcluir].forEach(b => { if (b) { b.disabled = true; b.title = 'Sem conexão com o servidor'; } });
+  } else if (Date.now() - _voltouEm < 6000) {
+    faixa.hidden = false;
+    faixa.style.background = '#E1F5EE'; faixa.style.color = '#0F6E56'; faixa.style.border = '1.5px solid #1D9E75';
+    faixa.textContent = '✅ Conexão voltou — já pode salvar.';
+  } else {
+    faixa.hidden = true;
+  }
+}
+
+async function ciclarMonitorConexao() {
+  const painel = document.getElementById('panel-orcamento');
+  if (!painel || !painel.classList.contains('active')) return;
+  const intervalo = _conexaoOk ? 10000 : 4000;
+  if (!_testando && Date.now() - _ultimoTeste >= intervalo) {
+    _testando = true;
+    const ok = await testarConexaoServidor();
+    _testando = false;
+    _ultimoTeste = Date.now();
+    if (ok && !_conexaoOk) {
+      _voltouEm = Date.now();
+      [document.querySelector(`[onclick="salvarDoc('orcamento')"]`), document.getElementById('btn-confirmar-realizado')]
+        .forEach(b => { if (b) { b.disabled = false; b.title = ''; } });
+    }
+    _conexaoOk = ok;
+  }
+  aplicarEstadoConexaoOrcamento();
+}
+setInterval(ciclarMonitorConexao, 2000);
+window.addEventListener('offline', () => { _conexaoOk = false; aplicarEstadoConexaoOrcamento(); });
+window.addEventListener('online', () => { _ultimoTeste = 0; });
+
 function semConexao() {
-  if (navigator.onLine === false) {
+  if (navigator.onLine === false || _conexaoOk === false) {
     toast('Sem internet — nada foi salvo. Mantenha esta tela aberta e tente de novo quando a conexão voltar.', 'vermelho');
     return true;
   }
