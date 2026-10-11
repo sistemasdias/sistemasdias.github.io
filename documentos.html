@@ -93,6 +93,9 @@ textarea{resize:vertical}
 .termo-texto li{margin-bottom:.35rem}
 /* PRINT */
 @media print{
+  /* textos de exemplo ("Ex: Z41.1") não podem sair no papel */
+  input::placeholder,textarea::placeholder{color:transparent!important}
+  #recs-area:empty:before{content:none!important}
   .hdr,.no-print,.btn{display:none!important}
   body{background:white}
   .card{border:none;box-shadow:none;padding:0}
@@ -1198,7 +1201,14 @@ async function gerarPdfDoPainel(tipo){
     // Replica exatamente o que a impressão esconde (campos de edição, botões)
     ignoreElements: (node) => node.classList && (node.classList.contains('no-print') || node.classList.contains('btn')),
     // …e mostra o que só a impressão mostra (rodapé com assinatura, nome e registro)
-    onclone: (doc) => doc.querySelectorAll('.orc-print-footer').forEach(el => { el.style.display = 'block'; })
+    onclone: (doc) => {
+      doc.querySelectorAll('.orc-print-footer').forEach(el => { el.style.display = 'block'; });
+      // textos de exemplo (placeholder) de campos vazios não vão pro PDF
+      doc.querySelectorAll('input, textarea').forEach(el => { if (!el.value) el.placeholder = ''; });
+      const s = doc.createElement('style');
+      s.textContent = '#recs-area:empty:before{content:none!important}';
+      doc.head.appendChild(s);
+    }
   });
   const imgData = canvas.toDataURL('image/jpeg', 0.92);
   const { jsPDF } = window.jspdf;
