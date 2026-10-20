@@ -605,6 +605,18 @@ textarea{resize:vertical;min-height:70px}
       </div>
       <div id="rel-retornos-vencidos"></div>
     </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--txt)">😴 Pacientes sem voltar (reativação)</div>
+        <select id="inat-filtro" onchange="renderInativas()" style="font-size:12px;padding:5px 10px;border:1.5px solid var(--borda);border-radius:8px">
+          <option value="6">+ 6 meses</option>
+          <option value="12" selected>+ 12 meses</option>
+          <option value="18">+ 18 meses</option>
+        </select>
+      </div>
+      <div style="font-size:12px;color:var(--ct);margin-bottom:10px">Quem não tem atendimento nem consulta marcada há esse tempo. Você escolhe a quem enviar — nada é enviado sozinho.</div>
+      <div id="rel-inativas"></div>
+    </div>
   </div>
 
   <!-- CADASTRO -->
@@ -1577,7 +1589,7 @@ async function carregar(){
   if(error){toast('Erro ao carregar','vermelho');return;}
   pacs=data||[];
   try{sessionStorage.setItem('pacs_cache',JSON.stringify(pacs));}catch(e){}
-  stats();renderHoje();renderAlertas();renderPac();renderRel();initSelectAnivMes();renderAniversariantesMes();renderRetornosVencidos();
+  stats();renderHoje();renderAlertas();renderPac();renderRel();initSelectAnivMes();renderAniversariantesMes();renderRetornosVencidos();renderInativas();
 }
 
 async function carregarAgenda(){
@@ -1588,7 +1600,7 @@ async function carregarAgenda(){
     renderCal();renderConsDia(agDia);renderConsMes();renderHoje();renderAgendaStats();renderLembretesAmanha();
     return;
   }
-  consultas=data||[];renderCal();renderConsDia(agDia);renderConsMes();renderHoje();renderAgendaStats();renderLembretesAmanha();
+  consultas=data||[];renderCal();renderConsDia(agDia);renderConsMes();renderHoje();renderAgendaStats();renderLembretesAmanha();renderInativas();
 }
 
 function stats(){
@@ -5757,6 +5769,59 @@ Vamos agendar um horário para você?`);
         </div>`;}).join('')}
       </div>`;
     }).join('');
+}
+
+// ── Reativação: pacientes sem voltar há X meses ──
+function _ultimaVisita(p){
+  const datas=[p.data_atendimento];
+  (p.tratamentos_adicionais||[]).forEach(t=>datas.push(t.dataAtendimento));
+  consultas.forEach(c=>{ if(c.paciente_id===p.id&&c.status!=='cancelado'&&c.status!=='aguardando') datas.push(c.data); });
+  const v=datas.filter(d=>d&&/^\d{4}-\d{2}-\d{2}/.test(d)).map(d=>d.slice(0,10)).sort();
+  return v.length?v[v.length-1]:(p.criado_em||'').slice(0,10)||null;
+}
+function listaInativas(meses){
+  const lim=new Date(HOJE_STR+'T12:00:00'); lim.setMonth(lim.getMonth()-meses);
+  const limStr=lim.toISOString().slice(0,10);
+  const rec=new Date(HOJE_STR+'T12:00:00'); rec.setDate(rec.getDate()-60);
+  const recStr=rec.toISOString().slice(0,10);
+  return pacs.map(p=>({p,ult:_ultimaVisita(p)}))
+    .filter(({p,ult})=>ult&&ult<limStr
+      &&(p.telefone||'').replace(/\D/g,'').length>=10
+      &&!p.cadastro_pendente
+      &&!consultas.some(c=>c.paciente_id===p.id&&c.data>=HOJE_STR&&c.status!=='cancelado')
+      &&!(((p.retornos_status||{}).__reativacao||'')>recStr))
+    .sort((a,b)=>b.ult.localeCompare(a.ult));
+}
+function msgReativacao(p){
+  return `Olá ${chamada(p)}, tudo bem? 😊\n\nAqui é da clínica da ${CLINICA_CONFIG.nome}. Estamos com saudade de você por aqui!\n\nQue tal agendar uma avaliação para cuidarmos de você? 🌿✨\n\nSe quiser, é só me responder por aqui que encontramos um horário bom para você 💚`;
+}
+function renderInativas(){
+  const el=document.getElementById('rel-inativas'); if(!el) return;
+  const meses=parseInt(document.getElementById('inat-filtro')?.value||12);
+  const lista=listaInativas(meses), MAX=50;
+  if(!lista.length){ el.innerHTML='<div style="color:var(--verde);font-size:13px;padding:.5rem 0">✅ Ninguém nessa situação (ou já contatadas nos últimos 60 dias).</div>'; return; }
+  el.innerHTML=`<div style="font-size:12px;color:var(--ct);margin-bottom:10px">${lista.length} paciente${lista.length!==1?'s':''}${lista.length>MAX?` (mostrando ${MAX})`:''}</div>`+
+    lista.slice(0,MAX).map(({p,ult})=>{
+      const tel=numeroWhatsApp(p.telefone);
+      const m=Math.max(1,Math.floor((new Date(HOJE_STR+'T12:00:00')-new Date(ult+'T12:00:00'))/(1000*60*60*24*30.4)));
+      return `<div style="background:var(--card);border-radius:10px;border:1px solid var(--borda);padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div><div style="font-weight:700;font-size:13px">${escapeHtml(p.nome)}</div>
+        <div style="font-size:11px;color:var(--ct);margin-top:2px">Última visita: ${fDt(ult)} · há ${m} meses${p.tratamento?' · '+escapeHtml(p.tratamento):''}</div></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <a href="https://wa.me/${tel}?text=${encodeURIComponent(msgReativacao(p))}" target="_blank" onclick="marcarReativacao('${p.id}')" style="padding:5px 10px;background:#25D366;color:white;border-radius:7px;font-size:11px;font-weight:600;text-decoration:none">📲 Chamar</a>
+          <button onclick="marcarReativacao('${p.id}',true)" style="padding:5px 10px;background:var(--bg);color:var(--ct);border:1px solid var(--borda);border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit" title="Esconde por 60 dias, sem enviar mensagem">Agora não</button>
+          <a href="paciente.html?id=${p.id}" style="padding:5px 10px;background:var(--verde-c);color:var(--verde-e);border-radius:7px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid var(--verde)">👤 Ficha</a>
+        </div></div>`;
+    }).join('');
+}
+async function marcarReativacao(id,rerender){
+  const p=pacs.find(x=>x.id===id); if(!p) return;
+  const rs={...(p.retornos_status||{}),__reativacao:HOJE_STR};
+  const{error}=await db.from('pacientes').update({retornos_status:rs}).eq('id',id);
+  if(error){ toast('Erro ao registrar contato','vermelho'); return; }
+  p.retornos_status=rs;
+  try{ await logAuditoria('Reativação de paciente',`${p.nome} · ${rerender?'adiada 60 dias':'contato iniciado por WhatsApp'}`,id); }catch(e){}
+  if(rerender) renderInativas(); else setTimeout(renderInativas,300);
 }
 
 function exportarPacientesCSV(){
