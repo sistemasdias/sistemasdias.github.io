@@ -334,6 +334,7 @@ textarea{resize:vertical;min-height:70px}
     <div id="sec-anamneses-online" style="display:none;margin-bottom:.75rem"></div>
     <div id="sec-pedidos-online" style="display:none;margin-bottom:.75rem"></div>
     <div id="sec-atend-pendentes" style="display:none;margin-bottom:.75rem"></div>
+    <div id="sec-agenda-aberta" style="display:none;margin-bottom:.75rem"></div>
     <div class="sl2">📅 Consultas de hoje</div><div id="l-cons-hoje"></div>
     <div class="sl2">⏰ Consultas amanhã — confirmar presença</div><div id="l-cons-amanha"></div>
     <div class="sl2">🔬 Verificações pós-procedimento</div><div id="l-verificacoes"></div>
@@ -1600,7 +1601,49 @@ function stats(){
 }
 
 // RENDER HOJE
+// ── Fechamento guiado: consultas passadas sem desfecho ──
+function consultasSemDesfecho(){
+  return consultas.filter(c=>c.data&&c.data<HOJE_STR&&['agendado','pendente','confirmado'].includes(c.status))
+    .sort((a,b)=>(b.data+(b.hora||'')).localeCompare(a.data+(a.hora||'')));
+}
+function renderAgendaAberta(){
+  const el=document.getElementById('sec-agenda-aberta'); if(!el) return;
+  const lista=consultasSemDesfecho();
+  if(!lista.length){ el.style.display='none'; el.innerHTML=''; fecharModalAgendaAberta(true); return; }
+  el.style.display='block';
+  el.innerHTML=`<div style="background:var(--amarelo-c);border:1px solid var(--amarelo);border-radius:12px;padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <div style="font-size:13px;color:#7a5800"><b>⏳ ${lista.length} consulta${lista.length!==1?'s':''} passada${lista.length!==1?'s':''} sem resultado</b><br><span style="font-size:12px">Marque se a paciente compareceu, faltou ou se foi cancelada — mantém seus números certos.</span></div>
+    <button class="btn pri" style="padding:7px 14px;font-size:13px" onclick="abrirAgendaAberta()">Resolver agora</button></div>`;
+  if(document.getElementById('modal-ag-aberta')?.style.display==='flex') renderListaAgendaAberta();
+}
+function abrirAgendaAberta(){ document.getElementById('modal-ag-aberta').style.display='flex'; renderListaAgendaAberta(); }
+function fecharModalAgendaAberta(){ const m=document.getElementById('modal-ag-aberta'); if(m) m.style.display='none'; }
+function renderListaAgendaAberta(){
+  const lista=consultasSemDesfecho(), box=document.getElementById('ag-aberta-lista');
+  const MAX=40;
+  document.getElementById('ag-aberta-sub').textContent=lista.length?`${lista.length} pendente${lista.length!==1?'s':''} — das mais recentes para as mais antigas${lista.length>MAX?` (mostrando ${MAX})`:''}`:'Tudo em dia! 🎉';
+  box.innerHTML=lista.slice(0,MAX).map(c=>{
+    const [y,m,d]=c.data.split('-');
+    return `<div style="border:1px solid var(--borda);border-radius:10px;padding:.6rem .75rem;margin-bottom:8px">
+      <div style="font-size:13px;font-weight:600">${escapeHtml(c.nome||'(sem nome)')}</div>
+      <div style="font-size:12px;color:var(--ct);margin-bottom:6px">${d}/${m}/${y} ${(c.hora||'').slice(0,5)}${c.procedimento?' · '+escapeHtml(c.procedimento):''}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn" style="padding:5px 10px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="resolverAgendaAberta('${c.id}','realizado')">✅ Compareceu</button>
+        <button class="btn" style="padding:5px 10px;font-size:12px" onclick="resolverAgendaAberta('${c.id}','faltou')">❌ Faltou</button>
+        <button class="btn" style="padding:5px 10px;font-size:12px" onclick="resolverAgendaAberta('${c.id}','cancelado')">🚫 Cancelada</button>
+      </div></div>`;
+  }).join('');
+}
+async function resolverAgendaAberta(id,status){
+  const res=await db.from('agenda').update({status}).eq('id',id).select();
+  if(res.error||!res.data||!res.data.length){ toast('Não consegui atualizar — tente de novo','vermelho'); return; }
+  const c=consultas.find(x=>x.id===id); if(c) c.status=status;
+  await logAuditoria('Consulta passada fechada',`${c?.nome||id} → ${status} · ${c?.data||''} ${(c?.hora||'').slice(0,5)}`,c?.paciente_id||null);
+  renderAgendaAberta(); renderHoje(); try{renderCal();renderConsDia(agDia);renderConsMes();renderAgendaStats();}catch(e){}
+}
+
 function renderHoje(){
+  renderAgendaAberta();
   // Consultas hoje
   const ch=consultas.filter(c=>c.data===HOJE_STR&&c.status!=='cancelado').sort((a,b)=>a.hora.localeCompare(b.hora));
   const real=ch.filter(c=>c.status==='realizado').length;
@@ -6168,6 +6211,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
 </div>
 
 <!-- MODAL COBRANÇA: combinou outra data -->
+<div id="modal-ag-aberta" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3500;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border-radius:16px;padding:1.25rem;width:100%;max-width:440px;max-height:85vh;display:flex;flex-direction:column">
+    <div style="font-size:15px;font-weight:700">⏳ Consultas passadas sem resultado</div>
+    <div id="ag-aberta-sub" style="font-size:12.5px;color:var(--ct);margin:2px 0 .75rem"></div>
+    <div id="ag-aberta-lista" style="overflow-y:auto;flex:1"></div>
+    <button class="btn" style="margin-top:.5rem" onclick="fecharModalAgendaAberta()">Fechar</button>
+  </div>
+</div>
 <div id="modal-cobr-data" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3500;align-items:center;justify-content:center;padding:1rem">
   <div style="background:var(--card);border-radius:16px;padding:1.5rem;width:100%;max-width:340px">
     <div style="font-size:15px;font-weight:700;margin-bottom:4px">📅 Combinou outra data</div>
