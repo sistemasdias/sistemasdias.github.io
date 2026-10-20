@@ -273,6 +273,7 @@ textarea{resize:vertical;min-height:70px}
       <button class="tb" id="tb-financeiro" onclick="aba('financeiro',this)" style="display:none">💰 Financeiro</button>
       <button class="tb" id="tb-auditoria" onclick="aba('auditoria',this)" style="display:none">🔍 Auditoria</button>
       <button class="tb" onclick="aba('agenda',this)" id="tb-agenda">📅 Agenda<span id="badge-online" style="display:none;background:var(--vermelho);color:white;border-radius:50%;font-size:9px;font-weight:700;padding:1px 5px;margin-left:5px;vertical-align:top;line-height:16px"></span></button>
+      <button class="tb" id="tb-cobrancas" onclick="aba('cobrancas',this)" style="display:none">💳 Cobranças<span id="badge-cobr" style="display:none;background:var(--vermelho);color:white;border-radius:50%;font-size:9px;font-weight:700;padding:1px 5px;margin-left:5px;vertical-align:top;line-height:16px"></span></button>
       <button class="tb" onclick="aba('alertas',this)">🔔 Alertas</button>
       <button class="tb" onclick="aba('pacientes',this)">👥 Pacientes</button>
       <button class="tb" id="tb-cadastro" onclick="aba('cadastro',this)">➕ Cadastrar</button>
@@ -655,6 +656,15 @@ textarea{resize:vertical;min-height:70px}
         <button class="btn pri" id="btn-salvar" onclick="salvar()">✓ Salvar paciente</button>
       </div>
     </div>
+  </div>
+
+  <!-- COBRANÇAS -->
+  <div id="p-cobrancas" class="panel">
+    <div id="cobr-resumo" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:1rem"></div>
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      <input type="text" id="cobr-busca" placeholder="🔍 Buscar paciente..." oninput="renderCobrancasLista()" style="flex:1;min-width:180px;border-radius:8px;font-size:13px"/>
+    </div>
+    <div id="cobr-lista"><div class="loading">Carregando...</div></div>
   </div>
 
   <!-- PAINEL AUDITORIA -->
@@ -2876,6 +2886,7 @@ async function confirmarMarcarRecebido(){
   if(error){ toast('Erro ao atualizar: '+error.message,'vermelho'); return; }
   toast('✅ Recebido!','verde');
   fecharMarcarRecebido();
+  if(document.getElementById('p-cobrancas')?.classList.contains('active')) renderCobrancas();
   await carregarFinanceiro();
   carregarAlertasFin();
   // Atualizar carteira se estiver aberta
@@ -4319,11 +4330,11 @@ document.addEventListener('click',e=>{
 });
 
 // TABS
-const _SECOES_RESTRITAS_ABA = ['financeiro','relatorio','auditoria'];
+const _SECOES_RESTRITAS_ABA = ['financeiro','relatorio','auditoria','cobrancas'];
 async function aba(id,btn){
   if(_SECOES_RESTRITAS_ABA.includes(id)){
     const _u = await usuarioAtual();
-    if(!temPermissao(_u,id)){
+    if(!temPermissao(_u,id==='cobrancas'?'financeiro':id)){
       toast('Sem permissão para acessar esta seção','vermelho');
       return;
     }
@@ -4334,6 +4345,7 @@ async function aba(id,btn){
   if(id==='hoje')renderHoje();
   if(id==='financeiro'){initFinFiltros();carregarFinanceiro();carregarAlertasFin();}
   if(id==='agenda')carregarAgenda();
+  if(id==='cobrancas')renderCobrancas();
   if(id==='alertas')renderAlertas();
   if(id==='pacientes')renderPac();
   if(id==='relatorio')renderRel();
@@ -4344,6 +4356,194 @@ async function aba(id,btn){
     rascunhoAtivar('novo_paciente',_CAMPOS_NOVO_PACIENTE);
   }
 }
+
+// ══════════════════════════════════════════════════════════════
+// COBRANÇAS — lista de valores em aberto, por estágio. Nada é enviado
+// sozinho: a pessoa decide caso a caso (quem já combinou outra data,
+// quem não deve ser cobrado, etc).
+// ══════════════════════════════════════════════════════════════
+let _cobrDados = [];
+let _cobrAtual = null;
+
+function _cobrDias(dataStr){ return Math.round((new Date(dataStr+'T12:00:00') - new Date(HOJE_STR+'T12:00:00'))/864e5); }
+function _cobrDesc(l){ return (l.descricao||'').split(' — ')[0].trim() || 'tratamento'; }
+function _cobrNome(l){ return l.pacientes?.nome || (l.descricao?.split(' — ')[1]||'Paciente').replace(/\s*\(restante\)\s*$/,'').trim(); }
+function _cobrPrimeiroNome(l){ return l.pacientes?.apelido || _cobrNome(l).split(' ')[0]; }
+
+function classificarCobranca(l, envios){
+  const dias = _cobrDias(l.data);
+  let grupo;
+  if(l.nao_cobrar) grupo = 'silenciado';
+  else if(l.nao_cobrar_ate && l.nao_cobrar_ate >= HOJE_STR) grupo = 'combinado';
+  else if(dias < 0) grupo = 'atrasado';
+  else if(dias === 0) grupo = 'hoje';
+  else if(dias <= 7) grupo = 'breve';
+  else grupo = 'futuro';
+  const jaAtraso = (envios||[]).some(e=>e.estagio==='atraso'||e.estagio==='atraso2');
+  const estagio = grupo==='breve' ? 'lembrete' : grupo==='hoje' ? 'aviso' : (jaAtraso ? 'atraso2' : 'atraso');
+  return { dias, grupo, estagio };
+}
+
+const _COBR_ROTULO = { lembrete:'Lembrete', aviso:'Aviso de vencimento', atraso:'Aviso de atraso', atraso2:'Segundo aviso' };
+
+function mensagemCobranca(l, estagio, dias){
+  const nome = _cobrPrimeiroNome(l), valor = fmtBRL(l.valor), desc = _cobrDesc(l), data = fDt(l.data), clin = CLINICA_CONFIG.nome||'';
+  const ass = clin ? `\n\n${clin}` : '';
+  if(estagio==='lembrete') return `Olá, ${nome}! Tudo bem? 😊\n\nPassando só pra lembrar que o valor de ${valor} (${desc}) vence em ${data}.\n\nQualquer dúvida, é só me chamar. 💚${ass}`;
+  if(estagio==='aviso') return `Olá, ${nome}! Tudo bem? 😊\n\nHoje vence o valor de ${valor} (${desc}).\n\nSe já realizou o pagamento, pode desconsiderar. Qualquer dúvida, estou à disposição! 💚${ass}`;
+  if(estagio==='atraso') return `Olá, ${nome}! Tudo bem?\n\nNotei que o valor de ${valor} (${desc}), que venceu em ${data}, ainda consta em aberto. Se já pagou, me avise por aqui que eu atualizo! Se precisar combinar uma nova data, é só falar. 💚${ass}`;
+  return `Olá, ${nome}! Passando novamente sobre o valor de ${valor} (${desc}), vencido em ${data} (${Math.abs(dias)} dias).\n\nPodemos resolver essa semana? Se preferir, combinamos uma nova data ou outra forma de pagamento. Fico no aguardo. 🙏${ass}`;
+}
+
+async function carregarCobrancas(){
+  const{data,error} = await db.from('financeiro')
+    .select('id,valor,data,descricao,paciente_id,nao_cobrar,nao_cobrar_ate,pacientes(nome,apelido,telefone)')
+    .eq('tipo','receita').eq('status','pendente').order('data',{ascending:true});
+  if(error){ toast('Erro ao carregar cobranças: '+error.message,'vermelho'); return false; }
+  const ids = (data||[]).map(l=>l.id);
+  let envios = [];
+  if(ids.length){
+    const r = await db.from('cobranca_envios').select('financeiro_id,estagio,canal,criado_em').in('financeiro_id',ids).order('criado_em',{ascending:false});
+    if(!r.error) envios = r.data||[];
+  }
+  _cobrDados = (data||[]).map(l=>{
+    const es = envios.filter(e=>e.financeiro_id===l.id);
+    return { l, envios: es, ...classificarCobranca(l, es) };
+  });
+  atualizarBadgeCobrancas();
+  return true;
+}
+
+function atualizarBadgeCobrancas(){
+  const n = _cobrDados.filter(x=>x.grupo==='atrasado').length;
+  const b = document.getElementById('badge-cobr');
+  if(!b) return;
+  b.textContent = n; b.style.display = n ? 'inline' : 'none';
+}
+
+async function renderCobrancas(){
+  document.getElementById('cobr-lista').innerHTML = '<div class="loading">Carregando...</div>';
+  if(await carregarCobrancas()) renderCobrancasLista();
+}
+
+function renderCobrancasLista(){
+  const q = (document.getElementById('cobr-busca')?.value||'').toLowerCase().trim();
+  const itens = _cobrDados.filter(x=>x.grupo!=='futuro' && (!q || _cobrNome(x.l).toLowerCase().includes(q)));
+  const soma = g => _cobrDados.filter(x=>g.includes(x.grupo)).reduce((s,x)=>s+(parseFloat(x.l.valor)||0),0);
+  const qtd = g => _cobrDados.filter(x=>g.includes(x.grupo)).length;
+  const card = (t,v,s,cor)=>`<div class="sc" style="flex-direction:column;align-items:flex-start;gap:2px"><div class="sl" style="margin:0">${t}</div><div class="sn" style="font-size:20px;color:${cor||'var(--txt)'}">${fmtBRL(v)||'R$ 0,00'}</div><div class="sl" style="margin:0">${s}</div></div>`;
+  const todosAbertos = ['atrasado','hoje','breve','combinado','silenciado','futuro'];
+  document.getElementById('cobr-resumo').innerHTML =
+    card('Atrasado', soma(['atrasado']), qtd(['atrasado'])+' cobrança(s)', 'var(--vermelho)') +
+    card('Vence hoje / em 7 dias', soma(['hoje','breve']), qtd(['hoje','breve'])+' cobrança(s)') +
+    card('Combinado p/ depois', soma(['combinado']), qtd(['combinado'])+' cobrança(s)') +
+    card('Total em aberto', soma(todosAbertos), qtd(todosAbertos)+' no total');
+
+  const faixas = [
+    ['atrasado','⚠️ Atrasados','var(--vermelho)'],
+    ['hoje','📅 Vencem hoje','#8a6000'],
+    ['breve','⏳ Vencem nos próximos 7 dias','var(--ct)'],
+    ['combinado','🤝 Combinado para depois','var(--verde-e)'],
+    ['silenciado','🔕 Não cobrar','var(--ct)']
+  ];
+  const linha = x=>{
+    const l = x.l, ult = x.envios[0];
+    const rot = x.grupo==='atrasado' ? `<span style="color:var(--vermelho);font-weight:600">${Math.abs(x.dias)}d em atraso</span>` : x.grupo==='hoje' ? '<span style="color:#8a6000;font-weight:600">vence hoje</span>' : x.grupo==='breve' ? `vence em ${x.dias}d` : x.grupo==='combinado' ? `não cobrar até ${fDt(l.nao_cobrar_ate)}` : '';
+    const ultTxt = ult ? `📤 ${_COBR_ROTULO[ult.estagio]||ult.estagio} em ${new Date(ult.criado_em).toLocaleDateString('pt-BR')}${x.envios.length>1?` (+${x.envios.length-1} antes)`:''}` : '';
+    const tel = numeroWhatsApp(l.pacientes?.telefone||'');
+    const btnEnviar = (x.grupo==='silenciado'||x.grupo==='combinado') ? '' :
+      `<button class="btn" style="padding:6px 10px;font-size:12px;background:#25D366;color:white;border-color:#25D366" ${tel?'':'disabled title="Paciente sem telefone"'} onclick="abrirEnvioCobranca('${l.id}')">📲 ${_COBR_ROTULO[x.estagio]}</button>`;
+    const btnNaoCobrar = x.grupo==='silenciado'
+      ? `<button class="btn" style="padding:6px 10px;font-size:12px" onclick="definirNaoCobrar('${l.id}',false)">↩ Voltar a cobrar</button>`
+      : `<button class="btn" style="padding:6px 10px;font-size:12px" title="Não cobrar" onclick="definirNaoCobrar('${l.id}',true)">🔕</button>`;
+    return `<div class="ci" style="flex-wrap:wrap;gap:8px"><div style="flex:1;min-width:190px"><div class="cn">${escapeHtml(_cobrNome(l))} · <b>${fmtBRL(l.valor)}</b></div><div class="cd">${escapeHtml(_cobrDesc(l))} · venc. ${fDt(l.data)} · ${rot}</div>${ultTxt?`<div class="cd" style="color:var(--azul)">${ultTxt}</div>`:''}</div><div class="ca" style="flex-wrap:wrap">${btnEnviar}<button class="btn" style="padding:6px 10px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="abrirMarcarRecebido('${l.id}',${parseFloat(l.valor)||0})">✅ Já pagou</button><button class="btn" style="padding:6px 10px;font-size:12px" onclick="abrirCombinado('${l.id}')">📅 Combinou outra data</button>${btnNaoCobrar}</div></div>`;
+  };
+  let html = '';
+  faixas.forEach(([g,tit,cor])=>{
+    const gi = itens.filter(x=>x.grupo===g);
+    if(!gi.length) return;
+    html += `<div class="sl2" style="color:${cor}">${tit} (${gi.length})</div>` + gi.map(linha).join('');
+  });
+  const futuros = _cobrDados.filter(x=>x.grupo==='futuro').length;
+  if(!html) html = `<div class="empty" style="padding:1.5rem"><div class="empty-icon">🎉</div><p>${q?'Nenhum resultado.':'Nada a cobrar agora.'}</p></div>`;
+  if(futuros) html += `<div style="font-size:12px;color:var(--ct);text-align:center;margin-top:1rem">+ ${futuros} a vencer daqui a mais de 7 dias (aparecem aqui quando chegarem perto).</div>`;
+  document.getElementById('cobr-lista').innerHTML = html;
+}
+
+function _cobrBuscar(id){ return _cobrDados.find(x=>x.l.id===id); }
+
+function abrirEnvioCobranca(id){
+  const x = _cobrBuscar(id); if(!x) return;
+  _cobrAtual = x;
+  document.getElementById('cobr-env-titulo').textContent = `${_COBR_ROTULO[x.estagio]} — ${_cobrNome(x.l)}`;
+  document.getElementById('cobr-env-sub').textContent = `${fmtBRL(x.l.valor)} · venc. ${fDt(x.l.data)}` + (x.envios[0] ? ` · último envio: ${_COBR_ROTULO[x.envios[0].estagio]||''} em ${new Date(x.envios[0].criado_em).toLocaleDateString('pt-BR')}` : '');
+  document.getElementById('cobr-env-texto').value = mensagemCobranca(x.l, x.estagio, x.dias);
+  document.getElementById('modal-cobr-envio').style.display = 'flex';
+}
+function fecharEnvioCobranca(){ document.getElementById('modal-cobr-envio').style.display='none'; _cobrAtual=null; }
+
+async function enviarCobranca(canal){
+  const x = _cobrAtual; if(!x) return;
+  const texto = document.getElementById('cobr-env-texto').value.trim();
+  if(!texto){ toast('Escreva a mensagem','vermelho'); return; }
+  const tel = numeroWhatsApp(x.l.pacientes?.telefone||'');
+  if(!tel){ toast('Paciente sem telefone cadastrado','vermelho'); return; }
+  if(canal==='wa'){
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`,'_blank');
+  } else {
+    const auth = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+    if(!auth.access_token){ toast('Sessão expirada, faça login novamente','vermelho'); return; }
+    const btn = document.getElementById('cobr-env-sistema'); btn.disabled = true; btn.textContent = 'Enviando...';
+    try{
+      const res = await fetch(`${SB_URL}/functions/v1/whatsapp-enviar`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${auth.access_token}`,'apikey':SB_KEY},body:JSON.stringify({paciente_id:x.l.paciente_id||null,numero:tel,texto})});
+      const d = await res.json().catch(()=>({}));
+      if(!res.ok){ toast('Erro ao enviar: '+(d.error||'falha desconhecida')+' — tente "Abrir no WhatsApp"','vermelho'); btn.disabled=false; btn.textContent='📲 Enviar pelo sistema'; return; }
+    }catch(e){ toast('Erro de conexão ao enviar','vermelho'); btn.disabled=false; btn.textContent='📲 Enviar pelo sistema'; return; }
+    btn.disabled=false; btn.textContent='📲 Enviar pelo sistema';
+  }
+  const{error} = await db.from('cobranca_envios').insert({ financeiro_id:x.l.id, estagio:x.estagio, mensagem:texto, canal: canal==='wa'?'whatsapp_manual':'sistema' });
+  if(error) toast('Mensagem enviada, mas não consegui registrar o envio: '+error.message,'vermelho');
+  else toast(canal==='wa'?'Aberto no WhatsApp — registrado ✓':'Mensagem enviada e registrada ✅','verde');
+  fecharEnvioCobranca();
+  renderCobrancas();
+}
+
+function abrirCombinado(id){
+  const x = _cobrBuscar(id); if(!x) return;
+  _cobrAtual = x;
+  document.getElementById('cobr-data-sub').textContent = `${_cobrNome(x.l)} · ${fmtBRL(x.l.valor)}`;
+  const d = new Date(); d.setDate(d.getDate()+7);
+  document.getElementById('cobr-data-input').value = x.l.nao_cobrar_ate || d.toISOString().split('T')[0];
+  document.getElementById('modal-cobr-data').style.display = 'flex';
+}
+async function salvarCombinado(){
+  const x = _cobrAtual; if(!x) return;
+  const dt = document.getElementById('cobr-data-input').value;
+  if(!dt || dt <= HOJE_STR){ toast('Escolha uma data futura','vermelho'); return; }
+  const{error} = await db.from('financeiro').update({ nao_cobrar_ate: dt }).eq('id', x.l.id);
+  if(error){ toast('Erro ao salvar: '+error.message,'vermelho'); return; }
+  document.getElementById('modal-cobr-data').style.display = 'none';
+  toast(`Combinado: sem cobrar até ${fDt(dt)} ✓`,'verde');
+  _cobrAtual = null;
+  renderCobrancas();
+}
+async function definirNaoCobrar(id, valor){
+  if(valor && !confirm('Marcar como "Não cobrar"? Sai das listas de cobrança (você pode voltar a cobrar depois).')) return;
+  const{error} = await db.from('financeiro').update({ nao_cobrar: valor, nao_cobrar_ate: null }).eq('id', id);
+  if(error){ toast('Erro ao salvar: '+error.message,'vermelho'); return; }
+  toast(valor ? '🔕 Marcado como não cobrar' : 'Voltou para a lista de cobrança','verde');
+  renderCobrancas();
+}
+
+// Mostra a aba só pra quem tem permissão de Financeiro; badge de atrasados.
+(async function iniciarCobrancas(){
+  try{
+    const u = await usuarioAtual();
+    if(!u || !temPermissao(u,'financeiro')) return;
+    const tb = document.getElementById('tb-cobrancas'); if(tb) tb.style.display = '';
+    await carregarCobrancas();
+  }catch(e){ console.warn('[cobranças]',e); }
+})();
 
 // ── CARTEIRA A RECEBER ──
 function abrirCarteiraReceber(){
@@ -5887,6 +6087,32 @@ document.addEventListener('DOMContentLoaded', ()=>{
 });
 </script>
 <!-- MODAL CONFIRMAR RECEBIMENTO (Regime de Caixa) -->
+<!-- MODAL COBRANÇA: enviar mensagem -->
+<div id="modal-cobr-envio" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3500;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border-radius:16px;padding:1.5rem;width:100%;max-width:460px;max-height:90vh;overflow-y:auto">
+    <div id="cobr-env-titulo" style="font-size:15px;font-weight:700;margin-bottom:2px"></div>
+    <div id="cobr-env-sub" style="font-size:12.5px;color:var(--ct);margin-bottom:.75rem"></div>
+    <textarea id="cobr-env-texto" rows="9" style="width:100%;padding:10px;font-size:13px;border-radius:8px;border:1.5px solid var(--borda);resize:vertical;line-height:1.5;font-family:inherit"></textarea>
+    <div style="font-size:11px;color:var(--ct);margin:4px 0 12px">Pode editar o texto antes de enviar. Nada é enviado sem você clicar.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn pri" id="cobr-env-sistema" onclick="enviarCobranca('sistema')" style="flex:1;background:#25D366;border-color:#25D366">📲 Enviar pelo sistema</button>
+      <button class="btn" onclick="enviarCobranca('wa')" style="flex:1">Abrir no WhatsApp</button>
+      <button class="btn" onclick="fecharEnvioCobranca()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COBRANÇA: combinou outra data -->
+<div id="modal-cobr-data" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3500;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border-radius:16px;padding:1.5rem;width:100%;max-width:340px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">📅 Combinou outra data</div>
+    <div id="cobr-data-sub" style="font-size:12.5px;color:var(--ct);margin-bottom:.75rem"></div>
+    <label style="font-size:11px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px">NÃO COBRAR ATÉ</label>
+    <input type="date" id="cobr-data-input" style="width:100%;margin-bottom:1rem"/>
+    <div style="display:flex;gap:8px"><button class="btn pri" style="flex:1" onclick="salvarCombinado()">Salvar</button><button class="btn" onclick="document.getElementById('modal-cobr-data').style.display='none'">Cancelar</button></div>
+  </div>
+</div>
+
 <div id="modal-mrec" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3500;align-items:center;justify-content:center;padding:1rem">
   <div style="background:var(--card);border-radius:16px;width:100%;max-width:380px;padding:1.5rem;box-shadow:var(--sm)">
     <div style="font-size:16px;font-weight:700;margin-bottom:4px">✅ Confirmar recebimento</div>
