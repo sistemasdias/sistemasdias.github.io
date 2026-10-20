@@ -153,3 +153,32 @@ WhatsApp self-hosted). Optou-se pelo Caddy — esse acoplamento é o
 trade-off aceito: se o VPS da Evolution cair, os subdomínios de clínica
 caem junto (o acesso via `sistemasdias.github.io/login.html?c=slug`
 continua no ar normalmente, pois não depende do VPS).
+
+## Pendências e ideias (atualizado em 20/10/2026)
+
+### Conciliação da taxa do cartão (pendente)
+
+Hoje pagamento no cartão (inclusive parcelado) entra no financeiro como
+**recebido à vista, pelo valor cheio**. Na prática a clínica recebe da
+operadora **líquido** (taxa descontada) e, se antecipar, em outra data. Isso
+faz o valor lançado diferir do que cai na conta.
+
+A definir com a Dra.: (a) lançar só o bruto e ter um campo "taxa" / "valor
+líquido" por lançamento; (b) taxa % configurável por forma de pagamento
+(débito, crédito 1x, crédito parcelado) em Configurações, calculando o líquido
+sozinho; (c) tela de conciliação com o extrato da operadora. Sugestão para
+começar: (b), pois não muda o fluxo de quem lança.
+
+### Ideias levantadas na análise de 20/10/2026 (não iniciadas)
+
+- **Fechamento guiado da agenda:** consultas passadas ainda como "agendado"
+  deixam o relatório de faltas e a ocupação pouco confiáveis; a Tela Hoje
+  poderia perguntar "Compareceu?" por consulta, com um toque.
+- **Ligar consultas às pacientes automaticamente:** cerca de metade das
+  consultas está sem `paciente_id` (agendadas só com o nome), o que faz o
+  histórico, os retornos e o comando `paciente:` do WhatsApp perderem a conta.
+  Ligar por telefone ao agendar / ao aceitar pedido online.
+- **Campanha de reativação:** segmentar pacientes sem consulta há 12 meses e
+  retornos vencidos e enviar em lote com intervalo, medindo quem voltou.
+- **Painel de saúde por clínica** (uso, faltas, cobrança) e onboarding com
+  dados de exemplo, para vender o sistema.
