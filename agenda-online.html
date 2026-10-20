@@ -265,7 +265,10 @@ async function init(){
   const hoje=new Date().toISOString().split('T')[0];
   const fim=new Date();fim.setDate(fim.getDate()+CONF.max_dias);
   const fimStr=fim.toISOString().split('T')[0];
-  const{data}=await db.from('agenda').select('data,hora,status').eq('clinica_id',CLINICA_ID).gte('data',hoje).lte('data',fimStr).neq('status','cancelado');
+  // Função que devolve só data/hora/status dos horários ocupados — a página pública
+  // não lê mais a tabela agenda (nome, telefone e observação dos pacientes).
+  const{data,error:erroDisp}=await db.rpc('agenda_disponibilidade',{p_clinica_id:CLINICA_ID,p_ini:hoje,p_fim:fimStr});
+  if(erroDisp){ console.error('[disponibilidade]',erroDisp); setState('st-inativo'); return; }
   consultasExist=data||[];
   setState('st-form');
   renderCal();
