@@ -108,3 +108,9 @@ roteiro do vídeo fica em `admin-roteiro.html`, protegido pela mesma sessão
 do painel (sem sessão, redireciona pro `admin-assinaturas.html`). Quando o
 sistema mudar, atualizar os dois junto com o guia — é a mesma lista de
 funcionalidades em três formatos (guia, roteiro, e o artefato externo).
+
+**Saúde por clínica** (em cada cliente do painel): bolinha 🟢/🟡/🔴 pelo último acesso
+(até 7 dias / até 21 / mais que isso) mais totais dos últimos 30 dias (consultas, faltas,
+lançamentos, WhatsApp). Vem da função `admin_saude_clinicas()`, que só responde ao seu
+e-mail e devolve apenas totais — nunca dados de pacientes (LGPD). Vermelho = vale uma
+mensagem perguntando se a clínica precisa de ajuda.

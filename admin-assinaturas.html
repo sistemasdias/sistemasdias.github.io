@@ -686,6 +686,13 @@ async function carregarDados() {
     infoClinicaPorSlug[c.slug] = { plano: c.plano, criado_em: c.criado_em, tem_subdominio: c.tem_subdominio };
   });
 
+  // Saúde de uso por clínica (só totais — a função do banco só responde ao e-mail do dono)
+  saudeCache = {};
+  try {
+    const { data: saude } = await supa.rpc("admin_saude_clinicas");
+    (saude || []).forEach(s => { saudeCache[s.slug] = s; });
+  } catch (e) { console.warn("[saude]", e); }
+
   const pagamentosPorAssinatura = {};
   const historicoPorAssinatura = {};
   (pagamentos || []).forEach(p => {
@@ -702,6 +709,34 @@ async function carregarDados() {
 }
 
 const TRIAL_DIAS = 14;
+
+let saudeCache = {};
+
+function diasDesde(iso) {
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+// Verde: acessou na última semana. Amarelo: 8–21 dias. Vermelho: mais que isso (ou nunca).
+function saudeClinicaHtml(slug) {
+  const s = saudeCache[slug];
+  if (!s) return "";
+  const d = diasDesde(s.ultimo_login);
+  let cor = "🟢", rotulo = "Em uso";
+  if (d === null || d > 21) { cor = "🔴"; rotulo = "Parada"; }
+  else if (d > 7) { cor = "🟡"; rotulo = "Esfriando"; }
+  const acesso = d === null ? "nunca acessou" : d === 0 ? "acessou hoje" : `último acesso há ${d}d`;
+  const faltaPct = (s.realizadas_30d + s.faltas_30d) > 0
+    ? Math.round(100 * s.faltas_30d / (s.realizadas_30d + s.faltas_30d)) : null;
+  const partes = [
+    `${s.pacientes_total} paciente${s.pacientes_total === 1 ? "" : "s"}`,
+    `${s.consultas_30d} consulta${s.consultas_30d === 1 ? "" : "s"} (30d)` + (faltaPct !== null ? ` · ${faltaPct}% faltas` : ""),
+    `${s.lancamentos_30d} lançamento${s.lancamentos_30d === 1 ? "" : "s"} no financeiro`,
+    `${s.whatsapp_30d} WhatsApp enviado${s.whatsapp_30d === 1 ? "" : "s"}`,
+  ];
+  const dica = cor === "🔴" ? " — vale uma mensagem perguntando se precisa de ajuda" : "";
+  return `<div class="detalhe" title="Resumo dos últimos 30 dias">${cor} <b>${rotulo}</b> · ${acesso}${dica}<br>${partes.join(" · ")}</div>`;
+}
 
 function infoTrial(info) {
   if (!info || info.plano !== "trial") return null;
@@ -829,6 +864,7 @@ function renderLista(assinaturas, pagamentosPorAssinatura, statusClinicaPorSlug,
           <div class="nome">${escapeHtml(a.nome_cliente)} ${bloqueada ? '<span class="status-pill bloqueada">Bloqueada</span>' : ''} ${badgeTrial}</div>
           <div class="detalhe">${escapeHtml(a.tenant_id)} · R$ ${Number(a.valor_mensal).toFixed(2)} · vence dia ${a.dia_vencimento}${a.telefone_contato ? ' · ' + escapeHtml(a.telefone_contato) : ''}</div>
           <div class="detalhe"><a href="${linkAcesso}" target="_blank" style="color:var(--accent)">🔗 ${linkAcessoLabel}</a></div>
+          ${a.status === "cancelado" ? "" : saudeClinicaHtml(a.tenant_id)}
         </div>
         <div class="right">
           <span class="status-pill ${status}">${label}</span>

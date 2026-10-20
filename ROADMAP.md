@@ -189,8 +189,9 @@ começar: (b), pois não muda o fluxo de quem lança.
 - Reativação: bloco "Pacientes sem voltar" em Relatórios (6/12/18 meses), envio manual
   por WhatsApp; a data do contato fica em `pacientes.retornos_status.__reativacao`.
 
+**Feita também:** painel de saúde por clínica no admin-assinaturas (20/10/2026).
+
 **Ainda não iniciadas:**
-- **Painel de saúde por clínica** (uso, faltas, cobrança) para o dono do produto.
 - **Onboarding com dados de exemplo**, para a demonstração e o teste de 14 dias.
 - **Faturamento líquido nos relatórios**, usando `financeiro.valor_liquido`, quando as
   clínicas já tiverem as taxas preenchidas.
