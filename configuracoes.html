@@ -324,6 +324,21 @@
     </div>
   </div>
 
+  <!-- Taxas da maquininha -->
+  <div class="secao">
+    <div class="sec-hdr">
+      <span class="sec-icon">💳</span>
+      <span class="sec-title">Taxas da maquininha</span>
+      <span class="sec-sub">Opcional</span>
+    </div>
+    <div class="sec-body">
+      <div style="font-size:12px;color:var(--ct);line-height:1.6;margin-bottom:.75rem">
+        Informe a taxa (%) que a sua operadora cobra em cada forma. Quando alguém lançar um recebimento no cartão, o sistema guarda também o <strong>valor líquido</strong> (o que cai na conta). Deixe em branco o que não usar — nada muda no jeito de lançar. Vale só para lançamentos novos.
+      </div>
+      <div class="fg" id="taxas-cartao-campos"></div>
+    </div>
+  </div>
+
   <!-- PIN de acesso -->
   <div class="secao">
     <div class="sec-hdr">
@@ -1060,6 +1075,33 @@ async function assRemover(){
   msg.style.color = 'var(--ct)'; msg.textContent = 'Assinatura removida';
 }
 
+// ── Taxas da maquininha ──
+const FORMAS_CARTAO = [['debito','Débito'],['credito-1x','Crédito 1x'],['credito-2x','Crédito 2x'],['credito-3x','Crédito 3x'],['credito-4x','Crédito 4x'],['credito-5x','Crédito 5x'],['credito-6x','Crédito 6x'],['credito-10x','Crédito 10x'],['credito-12x','Crédito 12x']];
+function taxasCartaoMontar(){
+  const box = document.getElementById('taxas-cartao-campos');
+  if(!box || box.children.length) return;
+  box.innerHTML = FORMAS_CARTAO.map(([k,l]) =>
+    `<div class="fi"><label>${l} (%)</label><input type="text" inputmode="decimal" id="taxa-${k}" placeholder="Ex: 3,5"/></div>`).join('');
+}
+function taxasCartaoPreencher(t){
+  taxasCartaoMontar();
+  FORMAS_CARTAO.forEach(([k]) => {
+    const v = t && t[k] !== undefined && t[k] !== null ? String(t[k]).replace('.', ',') : '';
+    document.getElementById('taxa-'+k).value = v;
+  });
+}
+function taxasCartaoLer(){
+  const out = {};
+  for(const [k,l] of FORMAS_CARTAO){
+    const raw = document.getElementById('taxa-'+k).value.trim().replace('%','').replace(',', '.');
+    if(!raw) continue;
+    const n = Number(raw);
+    if(!isFinite(n) || n < 0 || n > 30) return { erro: `Taxa inválida em "${l}" — use um número entre 0 e 30 (ex: 3,5).` };
+    out[k] = n;
+  }
+  return { valor: Object.keys(out).length ? out : null };
+}
+
 // ── Init ──
 async function init(){
   const usuario = await usuarioAtual();
@@ -1068,10 +1110,12 @@ async function init(){
   // Sem permissão de Configurações: a pessoa ainda pode configurar a PRÓPRIA
   // assinatura — o resto da página fica escondido.
   if(!temPermissao(usuario,'configuracoes')){ modoSoAssinatura(); return; }
+  taxasCartaoMontar();
   const {data} = await sb.from('config_clinica').select('*').limit(1);
   if(data && data.length){
     const c = data[0];
     configId = c.id;
+    taxasCartaoPreencher(c.taxas_cartao);
     document.getElementById('cfg-logo').value  = c.logo_url || '';
     document.getElementById('cfg-nome').value  = c.nome || '';
     document.getElementById('cfg-esp').value   = c.especialidade || '';
@@ -1420,6 +1464,9 @@ async function salvar(){
   };
 
   if(!dados.nome){ toast('O nome da clínica é obrigatório.','err'); btn.disabled=false; btn.textContent='💾 Salvar todas as configurações'; return; }
+  const tx = taxasCartaoLer();
+  if(tx.erro){ toast(tx.erro,'err'); btn.disabled=false; btn.textContent='💾 Salvar todas as configurações'; return; }
+  dados.taxas_cartao = tx.valor;
 
   let error;
   if(configId){

@@ -3298,6 +3298,7 @@ function renderFinLista(tipo, elId){
             </div>
             <div style="text-align:right;flex-shrink:0">
               <div style="font-size:15px;font-weight:700;color:${tipo==='receita'?'var(--verde-e)':'var(--vermelho,#e24b4a)'}">${fmtBRL(l.valor)}</div>
+              ${l.valor_liquido!=null?`<div style="font-size:11px;color:var(--ct);margin-top:1px" title="Taxa da maquininha: ${l.taxa_cartao_pct}%">líquido ${fmtBRL(l.valor_liquido)}</div>`:''}
               <div style="font-size:11px;margin-top:2px">
                 <span style="background:${l.status==='recebido'?'var(--verde-c)':'var(--amarelo-c,#fffbea)'};color:${l.status==='recebido'?'var(--verde-e)':'#8a6000'};padding:2px 7px;border-radius:99px;font-weight:600">${l.status==='recebido'?'✅ Recebido':'⏳ A receber'}</span>
               </div>
@@ -3504,6 +3505,32 @@ function atualizarInfoParcelas(){
   const pgto = document.getElementById('fin-pgto')?.value||'';
   const info = document.getElementById('fin-parcelas-info');
   if(info) info.style.display = pgto.startsWith('credito-') && pgto!=='credito-1x' ? '' : 'none';
+  atualizarInfoLiquido();
+}
+
+// Taxas da maquininha da clínica (Configurações) — só para mostrar a prévia do líquido;
+// o valor oficial é calculado pelo banco ao gravar.
+let _taxasCartao=undefined;
+async function taxasCartaoClinica(){
+  if(_taxasCartao!==undefined) return _taxasCartao;
+  try{
+    const{data}=await db.from('config_clinica').select('taxas_cartao').limit(1);
+    _taxasCartao=(data&&data[0]&&data[0].taxas_cartao)||null;
+  }catch(e){ _taxasCartao=null; }
+  return _taxasCartao;
+}
+async function atualizarInfoLiquido(){
+  const el=document.getElementById('fin-liquido-info'); if(!el) return;
+  const tipo=document.getElementById('fin-tipo')?.value;
+  const pgto=document.getElementById('fin-pgto')?.value||'';
+  const valor=parseFloat(document.getElementById('fin-valor')?.value)||0;
+  const ehCartao=tipo==='receita'&&(pgto==='debito'||pgto.startsWith('credito-'));
+  if(!ehCartao||!valor){ el.style.display='none'; return; }
+  const t=await taxasCartaoClinica();
+  const pct=t&&t[pgto];
+  if(pct===undefined||pct===null){ el.style.display='none'; return; }
+  el.textContent=`💳 Taxa da maquininha ${String(pct).replace('.',',')}% — líquido estimado: ${fmtBRL(Math.round(valor*(1-pct/100)*100)/100)}`;
+  el.style.display='';
 }
 
 async function salvarLancamento(){
@@ -6072,7 +6099,7 @@ document.getElementById('modal-inf').addEventListener('click',function(e){if(e.t
       </div>
       <div>
         <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Valor R$ *</label>
-        <input type="number" id="fin-valor" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px"/>
+        <input type="number" id="fin-valor" oninput="atualizarInfoLiquido()" min="0" step="0.01" placeholder="0,00"style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px"/>
       </div>
       <div>
         <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Forma de Pagamento</label>
@@ -6096,6 +6123,7 @@ document.getElementById('modal-inf').addEventListener('click',function(e){if(e.t
       <div id="fin-parcelas-info" style="display:none;background:var(--amarelo-c);border-radius:8px;padding:10px;font-size:13px;color:#8a6000">
         📅 Parcelado: as parcelas serão lançadas automaticamente nos meses seguintes.
       </div>
+      <div id="fin-liquido-info" style="display:none;background:var(--verde-c);border-radius:8px;padding:10px;font-size:13px;color:var(--verde-e);margin-top:8px"></div>
       <div>
         <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Status</label>
         <select id="fin-status" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
