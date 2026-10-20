@@ -4437,14 +4437,14 @@ async function renderCobrancas(){
 
 function renderCobrancasLista(){
   const q = (document.getElementById('cobr-busca')?.value||'').toLowerCase().trim();
-  const itens = _cobrDados.filter(x=>x.grupo!=='futuro' && (!q || _cobrNome(x.l).toLowerCase().includes(q)));
+  const itens = _cobrDados.filter(x=>!q || _cobrNome(x.l).toLowerCase().includes(q));
   const soma = g => _cobrDados.filter(x=>g.includes(x.grupo)).reduce((s,x)=>s+(parseFloat(x.l.valor)||0),0);
   const qtd = g => _cobrDados.filter(x=>g.includes(x.grupo)).length;
   const card = (t,v,s,cor)=>`<div class="sc" style="flex-direction:column;align-items:flex-start;gap:2px"><div class="sl" style="margin:0">${t}</div><div class="sn" style="font-size:20px;color:${cor||'var(--txt)'}">${fmtBRL(v)||'R$ 0,00'}</div><div class="sl" style="margin:0">${s}</div></div>`;
   const todosAbertos = ['atrasado','hoje','breve','combinado','silenciado','futuro'];
   document.getElementById('cobr-resumo').innerHTML =
     card('Atrasado', soma(['atrasado']), qtd(['atrasado'])+' cobrança(s)', 'var(--vermelho)') +
-    card('Vence hoje / em 7 dias', soma(['hoje','breve']), qtd(['hoje','breve'])+' cobrança(s)') +
+    card('A vencer', soma(['hoje','breve','futuro']), qtd(['hoje','breve','futuro'])+' cobrança(s)') +
     card('Combinado p/ depois', soma(['combinado']), qtd(['combinado'])+' cobrança(s)') +
     card('Total em aberto', soma(todosAbertos), qtd(todosAbertos)+' no total');
 
@@ -4452,15 +4452,16 @@ function renderCobrancasLista(){
     ['atrasado','⚠️ Atrasados','var(--vermelho)'],
     ['hoje','📅 Vencem hoje','#8a6000'],
     ['breve','⏳ Vencem nos próximos 7 dias','var(--ct)'],
+    ['futuro','🗓️ A vencer (depois de 7 dias)','var(--ct)'],
     ['combinado','🤝 Combinado para depois','var(--verde-e)'],
     ['silenciado','🔕 Não cobrar','var(--ct)']
   ];
   const linha = x=>{
     const l = x.l, ult = x.envios[0];
-    const rot = x.grupo==='atrasado' ? `<span style="color:var(--vermelho);font-weight:600">${Math.abs(x.dias)}d em atraso</span>` : x.grupo==='hoje' ? '<span style="color:#8a6000;font-weight:600">vence hoje</span>' : x.grupo==='breve' ? `vence em ${x.dias}d` : x.grupo==='combinado' ? `não cobrar até ${fDt(l.nao_cobrar_ate)}` : '';
+    const rot = x.grupo==='atrasado' ? `<span style="color:var(--vermelho);font-weight:600">${Math.abs(x.dias)}d em atraso</span>` : x.grupo==='hoje' ? '<span style="color:#8a6000;font-weight:600">vence hoje</span>' : (x.grupo==='breve'||x.grupo==='futuro') ? `vence em ${x.dias}d` : x.grupo==='combinado' ? `não cobrar até ${fDt(l.nao_cobrar_ate)}` : '';
     const ultTxt = ult ? `📤 ${_COBR_ROTULO[ult.estagio]||ult.estagio} em ${new Date(ult.criado_em).toLocaleDateString('pt-BR')}${x.envios.length>1?` (+${x.envios.length-1} antes)`:''}` : '';
     const tel = numeroWhatsApp(l.pacientes?.telefone||'');
-    const btnEnviar = (x.grupo==='silenciado'||x.grupo==='combinado') ? '' :
+    const btnEnviar = x.grupo==='futuro' ? '<span style="font-size:11px;color:var(--ct)">lembrete libera 7 dias antes</span>' : (x.grupo==='silenciado'||x.grupo==='combinado') ? '' :
       `<button class="btn" style="padding:6px 10px;font-size:12px;background:#25D366;color:white;border-color:#25D366" ${tel?'':'disabled title="Paciente sem telefone"'} onclick="abrirEnvioCobranca('${l.id}')">📲 ${_COBR_ROTULO[x.estagio]}</button>`;
     const btnNaoCobrar = x.grupo==='silenciado'
       ? `<button class="btn" style="padding:6px 10px;font-size:12px" onclick="definirNaoCobrar('${l.id}',false)">↩ Voltar a cobrar</button>`
@@ -4473,9 +4474,7 @@ function renderCobrancasLista(){
     if(!gi.length) return;
     html += `<div class="sl2" style="color:${cor}">${tit} (${gi.length})</div>` + gi.map(linha).join('');
   });
-  const futuros = _cobrDados.filter(x=>x.grupo==='futuro').length;
   if(!html) html = `<div class="empty" style="padding:1.5rem"><div class="empty-icon">🎉</div><p>${q?'Nenhum resultado.':'Nada a cobrar agora.'}</p></div>`;
-  if(futuros) html += `<div style="font-size:12px;color:var(--ct);text-align:center;margin-top:1rem">+ ${futuros} a vencer daqui a mais de 7 dias (aparecem aqui quando chegarem perto).</div>`;
   document.getElementById('cobr-lista').innerHTML = html;
 }
 
