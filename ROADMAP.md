@@ -193,8 +193,10 @@ começar: (b), pois não muda o fluxo de quem lança.
 (faixa na Tela Hoje de clínica vazia; `criar_dados_exemplo` / `remover_dados_exemplo`, coluna `exemplo`
 em pacientes, agenda e financeiro).
 
+**Medição da reativação (20/10/2026):** o bloco "Pacientes sem voltar" mostra chamadas dos últimos 120 dias e
+quantas voltaram a agendar (`retornos_status.__reativacao_chamada`; "Agora não" não conta como chamada).
+
 **Ainda não iniciadas:**
 - **Faturamento líquido nos relatórios**, usando `financeiro.valor_liquido`, quando as
   clínicas já tiverem as taxas preenchidas.
-- **Medir a reativação:** quantas pacientes chamadas voltaram a agendar.
 - **Testes automáticos** para as telas maiores (hoje a verificação é manual).

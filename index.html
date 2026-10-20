@@ -617,6 +617,7 @@ textarea{resize:vertical;min-height:70px}
         </select>
       </div>
       <div style="font-size:12px;color:var(--ct);margin-bottom:10px">Quem não tem atendimento nem consulta marcada há esse tempo. Você escolhe a quem enviar — nada é enviado sozinho.</div>
+      <div id="rel-inativas-resultado"></div>
       <div id="rel-inativas"></div>
     </div>
   </div>
@@ -5926,8 +5927,31 @@ function listaInativas(meses){
 function msgReativacao(p){
   return `Olá ${chamada(p)}, tudo bem? 😊\n\nAqui é da clínica da ${CLINICA_CONFIG.nome}. Estamos com saudade de você por aqui!\n\nQue tal agendar uma avaliação para cuidarmos de você? 🌿✨\n\nSe quiser, é só me responder por aqui que encontramos um horário bom para você 💚`;
 }
+// Quem foi chamada (últimos 120 dias) e já voltou: marcou consulta depois do contato (criada
+// depois da chamada, sem cancelar) ou teve atendimento registrado desde então.
+function resultadoReativacao(){
+  const lim=new Date(HOJE_STR+'T12:00:00'); lim.setDate(lim.getDate()-120);
+  const limStr=lim.toISOString().slice(0,10);
+  const chamadas=pacs.filter(p=>{const d=(p.retornos_status||{}).__reativacao_chamada; return d&&d>=limStr;});
+  const voltaram=chamadas.filter(p=>{
+    const d=p.retornos_status.__reativacao_chamada;
+    return consultas.some(c=>c.paciente_id===p.id&&c.status!=='cancelado'&&c.status!=='aguardando'&&(c.criado_em||'').slice(0,10)>=d)
+      || (p.data_atendimento&&p.data_atendimento.slice(0,10)>d);
+  });
+  return {chamadas,voltaram};
+}
 function renderInativas(){
   const el=document.getElementById('rel-inativas'); if(!el) return;
+  const res=resultadoReativacao();
+  const elRes=document.getElementById('rel-inativas-resultado');
+  if(elRes){
+    if(!res.chamadas.length) elRes.innerHTML='';
+    else{
+      const pct=Math.round(100*res.voltaram.length/res.chamadas.length);
+      elRes.innerHTML=`<div style="background:var(--verde-c);border-radius:10px;padding:.6rem .85rem;font-size:12.5px;color:var(--verde-e);margin-bottom:10px">
+        📊 <b>Resultado (últimos 120 dias):</b> ${res.chamadas.length} chamada${res.chamadas.length!==1?'s':''} · <b>${res.voltaram.length} voltaram a agendar (${pct}%)</b>${res.voltaram.length?`<br><span style="font-size:12px">${res.voltaram.slice(0,8).map(p=>escapeHtml(p.nome)).join(', ')}${res.voltaram.length>8?'…':''}</span>`:''}</div>`;
+    }
+  }
   const meses=parseInt(document.getElementById('inat-filtro')?.value||12);
   const lista=listaInativas(meses), MAX=50;
   if(!lista.length){ el.innerHTML='<div style="color:var(--verde);font-size:13px;padding:.5rem 0">✅ Ninguém nessa situação (ou já contatadas nos últimos 60 dias).</div>'; return; }
@@ -5947,7 +5971,10 @@ function renderInativas(){
 }
 async function marcarReativacao(id,rerender){
   const p=pacs.find(x=>x.id===id); if(!p) return;
+  // __reativacao esconde a paciente por 60 dias (vale para "Chamar" e "Agora não");
+  // __reativacao_chamada só é gravada quando houve contato — base da medição de retorno.
   const rs={...(p.retornos_status||{}),__reativacao:HOJE_STR};
+  if(!rerender) rs.__reativacao_chamada=HOJE_STR;
   const{error}=await db.from('pacientes').update({retornos_status:rs}).eq('id',id);
   if(error){ toast('Erro ao registrar contato','vermelho'); return; }
   p.retornos_status=rs;
