@@ -114,3 +114,21 @@ funcionalidades em três formatos (guia, roteiro, e o artefato externo).
 lançamentos, WhatsApp). Vem da função `admin_saude_clinicas()`, que só responde ao seu
 e-mail e devolve apenas totais — nunca dados de pacientes (LGPD). Vermelho = vale uma
 mensagem perguntando se a clínica precisa de ajuda.
+
+## Testes automáticos
+
+`npm test` (só precisa do Node, sem instalar nada) roda os testes da pasta `tests/`:
+
+- **sintaxe**: nenhuma tela nem `config.js` pode ter erro de sintaxe (um erro derruba a página);
+- **estrutura**: todo botão (`onclick`, `onchange`...) chama uma função que existe, e todo
+  `getElementById('x')` aponta para um elemento que existe (casos antigos já conferidos ficam
+  numa lista comentada em `tests/estrutura.test.js`);
+- **funções**: regras delicadas extraídas do próprio código das telas — número do WhatsApp,
+  ligação consulta↔paciente, cobranças, fechamento da agenda, reativação, taxas e saúde por clínica.
+
+Rode **antes de cada push** (`npm test`). O GitHub também roda sozinho a cada push
+(`.github/workflows/testes.yml`): um X vermelho no commit avisa que algo quebrou, mas não
+impede o site de ser publicado. Mudou uma regra de propósito? Atualize o teste junto. Função nova
+com regra de dinheiro, agenda ou paciente? Acrescente um teste em `tests/funcoes.test.js`.
+Os testes não cobrem o banco (RLS, funções SQL) nem o visual — isso continua sendo conferido à mão.
+

@@ -1456,7 +1456,8 @@ document.addEventListener('change',e=>{
     atualizarVerLabel(data);
     // Valor do atendimento
     const at=pac?.atendimentos?.find(a=>a.data===data);
-    document.getElementById('a-valor').value=at?.valor||'';
+    const aValor=document.getElementById('a-valor'); // campo removido do formulário; só preenche se existir
+    if(aValor) aValor.value=at?.valor||'';
   }
   if(e.target.id==='a-ver-dias'){atualizarVerLabel(document.getElementById('a-data').value);}
 });
@@ -2527,7 +2528,7 @@ async function excluirAtendData(data){
   if(error){toast('Erro','vermelho');return;}
   toast('Atendimento excluído ✓','verde');await carregar();
   const pac=pacs.find(p=>p.id===id);if(pac)renderHistorico(pac);
-  document.getElementById('a-trats').innerHTML='';addTratComData('a-trats');document.getElementById('a-data').value=HOJE_STR;document.getElementById('a-valor').value='';
+  document.getElementById('a-trats').innerHTML='';addTratComData('a-trats');document.getElementById('a-data').value=HOJE_STR;const aValor=document.getElementById('a-valor');if(aValor)aValor.value='';
 }
 
 function abrAtend(p){

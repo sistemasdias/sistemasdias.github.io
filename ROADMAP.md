@@ -196,7 +196,10 @@ em pacientes, agenda e financeiro).
 **Medição da reativação (20/10/2026):** o bloco "Pacientes sem voltar" mostra chamadas dos últimos 120 dias e
 quantas voltaram a agendar (`retornos_status.__reativacao_chamada`; "Agora não" não conta como chamada).
 
+**Testes automáticos (20/10/2026):** 93 testes em `tests/` (`npm test`), rodando também no GitHub.
+
 **Ainda não iniciadas:**
 - **Faturamento líquido nos relatórios**, usando `financeiro.valor_liquido`, quando as
   clínicas já tiverem as taxas preenchidas.
-- **Testes automáticos** para as telas maiores (hoje a verificação é manual).
+- **Testes do banco e do visual** (RLS, funções SQL, telas no navegador): os testes de hoje cobrem só
+  sintaxe, estrutura e regras em JavaScript (ver REGRAS.md → Testes automáticos).

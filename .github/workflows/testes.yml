@@ -1,0 +1,17 @@
+name: Testes
+
+# Roda os testes automáticos a cada push e pull request. Não bloqueia a publicação do site
+# (o GitHub Pages publica sozinho), mas um X vermelho no commit avisa que algo quebrou.
+on:
+  push:
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test

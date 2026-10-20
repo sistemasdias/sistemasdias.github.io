@@ -1,0 +1,8 @@
+{
+  "name": "sistemasdias",
+  "private": true,
+  "description": "Sistema de gestão para clínicas. O site é HTML/JS estático; este arquivo existe só para rodar os testes (npm test).",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\""
+  }
+}
