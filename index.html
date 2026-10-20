@@ -288,6 +288,7 @@ textarea{resize:vertical;min-height:70px}
   <div id="p-financeiro" class="panel">
     <!-- Alertas financeiros -->
     <div id="fin-alertas" style="margin-bottom:8px"></div>
+    <div id="fin-conferir" style="display:none;margin-bottom:.75rem"></div>
     <!-- Dashboard -->
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1rem" id="fin-cards"></div>
 
@@ -3054,6 +3055,69 @@ async function carregarFinanceiro(){
   _finLimit={}; // resetar paginação ao trocar de mês/ano
   renderFinDashboard();
   renderFinAtual();
+  carregarConferenciaCartao();
+}
+
+// ── Cartão a conferir ──
+// Recebimentos no cartão ficam "pendentes de conferência" até alguém comparar com o extrato
+// da operadora: "Bateu" confirma; "Não bateu" informa quanto caiu e o banco lança a diferença.
+let _confCartao=[], _confAberto=false, _confId=null;
+async function carregarConferenciaCartao(){
+  const el=document.getElementById('fin-conferir'); if(!el) return;
+  const{data,error}=await db.from('financeiro').select('id,data,descricao,forma_pagamento,valor,valor_liquido,taxa_cartao_pct')
+    .eq('tipo','receita').eq('status','recebido').eq('conferencia','pendente').order('data',{ascending:true}).limit(200);
+  if(error){ el.style.display='none'; return; }
+  _confCartao=data||[]; renderConferenciaCartao();
+}
+function renderConferenciaCartao(){
+  const el=document.getElementById('fin-conferir'); if(!el) return;
+  if(!_confCartao.length){ el.style.display='none'; el.innerHTML=''; return; }
+  const esperado=c=>c.valor_liquido!=null?c.valor_liquido:c.valor;
+  const total=_confCartao.reduce((s,c)=>s+esperado(c),0);
+  el.style.display='block';
+  el.innerHTML=`<div style="background:var(--amarelo-c);border:1px solid var(--amarelo);border-radius:12px;padding:.75rem 1rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;cursor:pointer" onclick="_confAberto=!_confAberto;renderConferenciaCartao()">
+      <div style="font-size:13px;color:#7a5800"><b>💳 ${_confCartao.length} recebimento${_confCartao.length!==1?'s':''} no cartão a conferir</b><br><span style="font-size:12px">Esperado na conta: ${fmtBRL(total)} — compare com o extrato da operadora.</span></div>
+      <span style="font-size:12px;font-weight:600;color:#7a5800">${_confAberto?'Fechar ▲':'Conferir ▼'}</span>
+    </div>
+    ${_confAberto?`<div style="margin-top:.75rem">`+_confCartao.slice(0,60).map(c=>`
+      <div style="background:var(--card);border:1px solid var(--borda);border-radius:10px;padding:.6rem .75rem;margin-bottom:6px">
+        <div style="font-size:13px;font-weight:600">${escapeHtml(c.descricao||'')}</div>
+        <div style="font-size:12px;color:var(--ct);margin-bottom:6px">${fDt(c.data)} · ${escapeHtml((c.forma_pagamento||'').replace('credito-','Crédito ').replace('debito','Débito'))} · lançado ${fmtBRL(c.valor)}${c.valor_liquido!=null?` · <b>esperado ${fmtBRL(c.valor_liquido)}</b> (taxa ${String(c.taxa_cartao_pct).replace('.',',')}%)`:' · sem taxa configurada'}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn" style="padding:5px 10px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="conferirCartao('${c.id}')">✅ Bateu</button>
+          <button class="btn" style="padding:5px 10px;font-size:12px" onclick="abrirNaoBateu('${c.id}')">✏️ Não bateu</button>
+        </div></div>`).join('')+(_confCartao.length>60?`<div style="font-size:12px;color:var(--ct)">Mostrando 60 de ${_confCartao.length} — confira estes e os demais aparecem.</div>`:'')+`</div>`:''}
+  </div>`;
+}
+async function conferirCartao(id,recebido){
+  const{data,error}=await db.rpc('conferir_cartao',{p_id:id,p_recebido:recebido===undefined?null:recebido});
+  if(error||!data||!data.ok){
+    const m={sem_permissao:'Sem permissão para conferir.',ja_conferido:'Este lançamento já foi conferido.',nao_encontrado:'Lançamento não encontrado.',valor_invalido:'Valor inválido.'};
+    toast((data&&m[data.motivo])||'Erro ao conferir — tente de novo','vermelho');
+    if(data&&data.motivo==='ja_conferido') carregarFinanceiro();
+    return false;
+  }
+  const dif=Number(data.diferenca)||0;
+  toast(dif===0?'✅ Conferido — bateu!':`Conferido — diferença de ${fmtBRL(Math.abs(dif))} lançada como ${dif>0?'despesa':'receita'} (ajuste de cartão)`,'verde');
+  try{ await logAuditoria('Cartão conferido',`${(_confCartao.find(c=>c.id===id)||{}).descricao||id} · esperado ${fmtBRL(data.esperado)} · caiu ${fmtBRL(data.recebido)}`,null); }catch(e){}
+  await carregarFinanceiro();
+  return true;
+}
+function abrirNaoBateu(id){
+  const c=_confCartao.find(x=>x.id===id); if(!c) return;
+  _confId=id;
+  const esp=c.valor_liquido!=null?c.valor_liquido:c.valor;
+  document.getElementById('nb-sub').textContent=`${c.descricao||''} — esperado ${fmtBRL(esp)}`;
+  document.getElementById('nb-valor').value='';
+  document.getElementById('modal-nao-bateu').style.display='flex';
+  setTimeout(()=>document.getElementById('nb-valor').focus(),50);
+}
+async function salvarNaoBateu(){
+  const v=parseFloat(String(document.getElementById('nb-valor').value).replace(',','.'));
+  if(!isFinite(v)||v<0){ toast('Informe quanto caiu de verdade na conta','vermelho'); return; }
+  document.getElementById('modal-nao-bateu').style.display='none';
+  await conferirCartao(_confId,v);
 }
 
 // ── Dashboard cards ──
@@ -6304,6 +6368,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
 </div>
 
 <!-- MODAL COBRANÇA: combinou outra data -->
+<div id="modal-nao-bateu" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3500;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border-radius:16px;padding:1.5rem;width:100%;max-width:340px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">✏️ O valor não bateu</div>
+    <div id="nb-sub" style="font-size:12.5px;color:var(--ct);margin-bottom:.75rem"></div>
+    <label style="font-size:11px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px">QUANTO CAIU DE VERDADE (R$)</label>
+    <input type="number" id="nb-valor" min="0" step="0.01" placeholder="0,00" style="width:100%;margin-bottom:.5rem"/>
+    <div style="font-size:11.5px;color:var(--ct);margin-bottom:1rem">A diferença é lançada sozinha como ajuste de cartão (despesa se caiu menos, receita se caiu mais).</div>
+    <div style="display:flex;gap:8px"><button class="btn pri" style="flex:1" onclick="salvarNaoBateu()">Confirmar</button><button class="btn" onclick="document.getElementById('modal-nao-bateu').style.display='none'">Cancelar</button></div>
+  </div>
+</div>
 <div id="modal-ag-aberta" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3500;align-items:center;justify-content:center;padding:1rem">
   <div style="background:var(--card);border-radius:16px;padding:1.25rem;width:100%;max-width:440px;max-height:85vh;display:flex;flex-direction:column">
     <div style="font-size:15px;font-weight:700">⏳ Consultas passadas sem resultado</div>

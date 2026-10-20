@@ -156,13 +156,13 @@ continua no ar normalmente, pois não depende do VPS).
 
 ## Pendências e ideias (atualizado em 20/10/2026)
 
-### Conciliação da taxa do cartão (parte 1 feita em 20/10/2026)
+### Conciliação da taxa do cartão (partes 1 e 2 feitas em 20/10/2026)
 
 **Feito:** cada clínica informa as próprias taxas em Configurações → "Taxas da maquininha"
 (`config_clinica.taxas_cartao`); um trigger em `financeiro` grava `taxa_cartao_pct` e
 `valor_liquido` nos lançamentos novos de cartão (migração em `supabase/migrations/`).
-A lista do Financeiro mostra o líquido. **Falta (parte 2):** lista "cartão a conferir"
-no Financeiro — a pessoa confirma "bateu" ou informa o que caiu de verdade, e a
+A lista do Financeiro mostra o líquido. **Parte 2 feita:** faixa "cartão a conferir"
+no Financeiro (função `conferir_cartao`) — a pessoa confirma "bateu" ou informa o que caiu de verdade, e a
 diferença vira lançamento de ajuste. Texto original do problema abaixo.
 
 
