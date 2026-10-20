@@ -4121,6 +4121,32 @@ async function cancSerie(){
   await logAuditoria('Série de consultas cancelada',`${agEditando.nome} · ${qtd} consultas · série ${agEditando.serie_id}`,agEditando.paciente_id||null);
   fchAg();carregarAgenda();
 }
+// Acha a paciente certa pra uma consulta digitada só com nome/telefone, SEM chutar:
+// só devolve alguém quando há exatamente uma correspondência (telefone, ou nome
+// exato). Telefone repartido entre várias pacientes (mãe/filha) ou nome comum
+// → null (fica sem ligação em vez de ligar na pessoa errada).
+function _ult9(t){ const d=String(t||'').replace(/\D/g,''); return d.length>=9 ? d.slice(-9) : ''; }
+function resolverPacienteDaConsulta(nome, tel){
+  const lista = (typeof pacs!=='undefined' && Array.isArray(pacs)) ? pacs : [];
+  const nomeN = String(nome||'').toLowerCase().trim();
+  const t9 = _ult9(tel);
+  if(t9){
+    const porTel = lista.filter(p=>_ult9(p.telefone)===t9);
+    if(porTel.length===1) return { id: porTel[0].id, motivo:'telefone' };
+    if(porTel.length>1){
+      const porTelENome = porTel.filter(p=>(p.nome||'').toLowerCase().trim()===nomeN || (p.apelido||'').toLowerCase().trim()===nomeN);
+      if(porTelENome.length===1) return { id: porTelENome[0].id, motivo:'telefone+nome' };
+      return { id:null, ambiguo:true };
+    }
+  }
+  if(nomeN){
+    const porNome = lista.filter(p=>(p.nome||'').toLowerCase().trim()===nomeN || (p.apelido||'').toLowerCase().trim()===nomeN);
+    if(porNome.length===1) return { id: porNome[0].id, motivo:'nome' };
+    if(porNome.length>1) return { id:null, ambiguo:true };
+  }
+  return { id:null };
+}
+
 async function salvarConsulta(){
   const nome=document.getElementById('ag-nome').value.trim();const data=document.getElementById('ag-data').value;const hora = document.getElementById('ag-hora').value || '09:00';const tel=document.getElementById('ag-tel').value.trim();
   if(!nome||!data||!hora){toast('Preencha nome, data e horário!','vermelho');return;}
@@ -4140,7 +4166,25 @@ async function salvarConsulta(){
   const serieId=ehRecorrente?(crypto.randomUUID?crypto.randomUUID():'serie-'+Date.now()+'-'+Math.random().toString(36).slice(2)):null;
   // BUG FIX: ao editar (aid existe), não sobrescrever status nem serie_id
   // Manter status e serie_id originais para não resetar consultas confirmadas/em série
-  const payloadBase={nome,telefone:tel||null,procedimento:document.getElementById('ag-proc').value||null,data,hora,observacao:document.getElementById('ag-obs').value.trim()||null,paciente_id:agPacId||null,profissional_id:document.getElementById('ag-prof').value||null};
+  // Liga a consulta a uma paciente: a escolhida na tela, senão a que corresponder
+  // com certeza (telefone/nome únicos); se for gente nova com telefone, cria o
+  // cadastro pendente e já liga. Sem telefone e sem correspondência = compromisso
+  // pessoal, fica sem ligação de propósito.
+  let pacIdFinal=agPacId||null;
+  if(!pacIdFinal){
+    const r=resolverPacienteDaConsulta(nome,tel);
+    if(r.id) pacIdFinal=r.id;
+    else if(!r.ambiguo && tel && !aid){
+      const telL=tel.replace(/\D/g,'');
+      const jaExiste=pacs.find(p=>String(p.telefone||'').replace(/\D/g,'')===telL||String(p.nome||'').toLowerCase().trim()===nome.toLowerCase().trim());
+      if(!jaExiste){
+        const{data:novaPac}=await db.from('pacientes').insert({nome,telefone:tel,tratamento:document.getElementById('ag-proc').value||null,cadastro_pendente:true}).select('id').single();
+        if(novaPac?.id){ pacIdFinal=novaPac.id; await carregar(); }
+      }
+    }
+  }
+
+  const payloadBase={nome,telefone:tel||null,procedimento:document.getElementById('ag-proc').value||null,data,hora,observacao:document.getElementById('ag-obs').value.trim()||null,paciente_id:pacIdFinal||null,profissional_id:document.getElementById('ag-prof').value||null};
   const payload=aid
     ? payloadBase  // edição: não altera status nem serie_id
     : {...payloadBase,status:'agendado',serie_id:serieId};  // novo: define status e serie_id
@@ -4164,7 +4208,6 @@ async function salvarConsulta(){
   btn.disabled=false;btn.innerHTML='✓ Salvar';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   rascunhoLimpar(aid?'agenda_edit_'+aid:'agenda_novo');
-  if(!aid&&!agPacId&&tel){const telL=tel.replace(/\D/g,'');const jaExiste=pacs.find(p=>p.telefone.replace(/\D/g,'')===telL||p.nome.toLowerCase().trim()===nome.toLowerCase().trim());if(!jaExiste){await db.from('pacientes').insert({nome,telefone:tel,tratamento:document.getElementById('ag-proc').value||null,cadastro_pendente:true});await carregar();}}
   // Recorrência: criar consultas repetidas
   if(ehRecorrente){
     const DIAS_EX=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
@@ -5297,7 +5340,21 @@ async function dispensarAnamnese(id){
 }
 
 async function aprovarPedido(id){
-  const{error:eAprova}=await db.from('agenda').update({status:'agendado'}).eq('id',id);
+  // Ao aprovar, liga o pedido a uma paciente: a que corresponder com certeza
+  // (telefone/nome únicos) ou, se for gente nova, cria o cadastro pendente.
+  const upd={status:'agendado'};
+  try{
+    const{data:ped}=await db.from('agenda').select('nome,telefone,procedimento,paciente_id').eq('id',id).single();
+    if(ped && !ped.paciente_id){
+      const r=resolverPacienteDaConsulta(ped.nome,ped.telefone);
+      if(r.id) upd.paciente_id=r.id;
+      else if(!r.ambiguo && ped.telefone){
+        const{data:nova}=await db.from('pacientes').insert({nome:ped.nome,telefone:ped.telefone,tratamento:ped.procedimento||null,cadastro_pendente:true}).select('id').single();
+        if(nova?.id){ upd.paciente_id=nova.id; await carregar(); }
+      }
+    }
+  }catch(e){ console.warn('[aprovarPedido] não consegui ligar à paciente',e); }
+  const{error:eAprova}=await db.from('agenda').update(upd).eq('id',id);
   if(eAprova){toast('Erro ao aprovar pedido','vermelho');return;}
   toast('✅ Pedido aprovado! Paciente pode ser notificada.','verde');
   await carregarAgenda();
