@@ -1857,6 +1857,7 @@ async function abrirOrcamento(){
   }
   calcTotal();
   resetFechamentoAtendimento();
+  restaurarRascunhoOrcamento();
 }
 
 function addItemOrc(){
@@ -4246,6 +4247,7 @@ window.confirmarRealizado = async function() {
       calcTotal();
     }
 
+    limparRascunhoOrcamento();
     toast('Atendimento e lançamento financeiro registrados! ✓', 'verde');
     resetFechamentoAtendimento();
 
@@ -4361,6 +4363,134 @@ function semConexao() {
   }
   return false;
 }
+// ── Rascunho automático da Ficha de Orçamento ──
+// Guarda no aparelho (por paciente) o que está sendo digitado, pra não perder se
+// a página fechar, a internet cair ou o computador travar. Ao reabrir a ficha do
+// mesmo paciente, RESTAURA sem sobrescrever nada: só acrescenta linhas que ainda
+// não estão na tela e só preenche campos que estão vazios. Apaga ao salvar.
+const RASCUNHO_ORC_VALIDADE_MS = 3 * 24 * 60 * 60 * 1000;
+let _rascunhoOrcTimer = null;
+
+function _chaveRascunhoOrc() { return pacSelecionada ? 'orc_' + pacSelecionada.id : null; }
+
+function coletarRascunhoOrcamento() {
+  const itens = [];
+  document.querySelectorAll('#orc-itens .orc-linha').forEach(linha => {
+    const trat = (linha.querySelector('.orc-trat')?.value || '').trim();
+    const val = linha.querySelector('.orc-val')?.value || '';
+    if (!trat && !val) return;
+    itens.push({
+      trat, val,
+      dente: linha.querySelector('.orc-dente')?.value || '',
+      categoria: linha.querySelector('.orc-linha-cat')?.value || CATEGORIA_PADRAO()
+    });
+  });
+  const campos = {
+    pagamento: document.getElementById('orc-pagamento')?.value || '',
+    obs: document.getElementById('orc-obs')?.value || '',
+    validade: document.getElementById('orc-validade')?.value || '',
+    validadeDias: document.getElementById('orc-validade-dias')?.value || ''
+  };
+  const obsFin = document.getElementById('modal-obs-fin')?.value || '';
+  const entrada = document.getElementById('modal-entrada')?.value || '';
+  // sem nada digitado de verdade (os campos do fechamento têm valores padrão): não guarda
+  if (!itens.length && !campos.pagamento.trim() && !campos.obs.trim() && !obsFin.trim() && !entrada) return null;
+  return {
+    itens, campos,
+    categoriaPadrao: document.querySelector('input[name="orc-categoria"]:checked')?.value || CATEGORIA_PADRAO(),
+    fechamento: {
+      dia: HOJE,
+      data: document.getElementById('modal-data')?.value || '',
+      pgto: document.getElementById('modal-pgto')?.value || '',
+      status: document.querySelector('input[name="modal-status"]:checked')?.value || '',
+      parcial: !!document.getElementById('modal-parcial-check')?.checked,
+      entrada, obsFin
+    }
+  };
+}
+
+function salvarRascunhoOrcamentoAgora() {
+  const chave = _chaveRascunhoOrc();
+  const painel = document.getElementById('panel-orcamento');
+  if (!chave || !painel || !painel.classList.contains('active')) return;
+  clearTimeout(_rascunhoOrcTimer);
+  rascunhoDinamicoSalvar(chave, coletarRascunhoOrcamento);
+}
+function agendarRascunhoOrcamento() {
+  clearTimeout(_rascunhoOrcTimer);
+  _rascunhoOrcTimer = setTimeout(salvarRascunhoOrcamentoAgora, 800);
+}
+function limparRascunhoOrcamento() {
+  clearTimeout(_rascunhoOrcTimer);
+  const chave = _chaveRascunhoOrc();
+  if (chave) rascunhoLimpar(chave);
+}
+
+function restaurarRascunhoOrcamento() {
+  const chave = _chaveRascunhoOrc();
+  if (!chave) return;
+  const salvo = rascunhoDinamicoChecar(chave);
+  if (!salvo || !salvo.dados) return;
+  if (Date.now() - salvo.quando > RASCUNHO_ORC_VALIDADE_MS) { rascunhoLimpar(chave); return; }
+  const d = salvo.dados;
+  let restaurou = false;
+
+  // linhas: só as que ainda não estão na tela (mesmo tratamento e valor)
+  const chaveLinha = (t, v) => (t || '').trim().toLowerCase() + '|' + (parseFloat(v) || 0);
+  const naTela = new Set([...document.querySelectorAll('#orc-itens .orc-linha')]
+    .map(l => chaveLinha(l.querySelector('.orc-trat')?.value, l.querySelector('.orc-val')?.value)));
+  (d.itens || []).forEach(it => {
+    if (naTela.has(chaveLinha(it.trat, it.val))) return;
+    let linha = [...document.querySelectorAll('#orc-itens .orc-linha')]
+      .find(l => !(l.querySelector('.orc-trat')?.value || '').trim() && !l.querySelector('.orc-val')?.value);
+    if (!linha) {
+      addItemOrc();
+      const ls = document.querySelectorAll('#orc-itens .orc-linha');
+      linha = ls[ls.length - 1];
+    }
+    const sel = linha.querySelector('.orc-linha-cat');
+    if (sel && it.categoria) { sel.value = it.categoria; aplicarCategoriaLinha(sel); }
+    if (linha.querySelector('.orc-trat')) linha.querySelector('.orc-trat').value = it.trat;
+    if (linha.querySelector('.orc-val')) linha.querySelector('.orc-val').value = it.val;
+    if (linha.querySelector('.orc-dente')) linha.querySelector('.orc-dente').value = it.dente || '';
+    restaurou = true;
+  });
+
+  // campos de texto: só se estiverem vazios na tela
+  const preencher = (id, v) => { const el = document.getElementById(id); if (el && v && !el.value) { el.value = v; restaurou = true; } };
+  preencher('orc-pagamento', d.campos?.pagamento);
+  preencher('orc-obs', d.campos?.obs);
+  preencher('orc-validade', d.campos?.validade);
+  preencher('orc-validade-dias', d.campos?.validadeDias);
+
+  // fechamento do atendimento: só se o rascunho for de hoje (a data/forma de ontem não vale hoje)
+  const f = d.fechamento;
+  if (f && f.dia === HOJE) {
+    if (f.data) document.getElementById('modal-data').value = f.data;
+    if (f.pgto) document.getElementById('modal-pgto').value = f.pgto;
+    if (f.status) { const r = document.querySelector(`input[name="modal-status"][value="${f.status}"]`); if (r) r.checked = true; }
+    const pc = document.getElementById('modal-parcial-check');
+    if (pc && f.parcial) { pc.checked = true; if (typeof toggleParcial === 'function') toggleParcial(); }
+    if (f.entrada) { const e = document.getElementById('modal-entrada'); if (e) e.value = f.entrada; }
+    if (f.obsFin) { const o = document.getElementById('modal-obs-fin'); if (o) o.value = f.obsFin; }
+  }
+
+  if (restaurou) {
+    calcTotal();
+    toast('📝 Recuperamos o que você tinha digitado às ' + rascunhoFormatarHora(salvo.quando));
+  }
+}
+
+(function ligarRascunhoOrcamento() {
+  const painel = document.getElementById('panel-orcamento');
+  if (!painel) return;
+  ['input', 'change'].forEach(ev => painel.addEventListener(ev, agendarRascunhoOrcamento));
+  const imediato = () => salvarRascunhoOrcamentoAgora();
+  window.addEventListener('beforeunload', imediato);
+  window.addEventListener('pagehide', imediato);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') imediato(); });
+})();
+
 function mensagemErroGravacao(e) {
   const m = String((e && e.message) || e || '');
   if (/fetch|network|failed|timeout/i.test(m)) return 'Falha de conexão — nada foi salvo (ou ficou pela metade). Confira a internet e tente de novo; não feche esta tela.';
@@ -4483,6 +4613,7 @@ async function _salvarOrcamento() {
     data_assinatura: HOJE
   });
 
+  limparRascunhoOrcamento();
   carregarDocsSalvos();
   toast('Orçamento salvo ✓', 'verde');
 };
