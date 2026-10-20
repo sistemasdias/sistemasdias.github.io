@@ -177,16 +177,22 @@ líquido" por lançamento; (b) taxa % configurável por forma de pagamento
 sozinho; (c) tela de conciliação com o extrato da operadora. Sugestão para
 começar: (b), pois não muda o fluxo de quem lança.
 
-### Ideias levantadas na análise de 20/10/2026 (não iniciadas)
+### Ideias da análise de 20/10/2026
 
-- **Fechamento guiado da agenda:** consultas passadas ainda como "agendado"
-  deixam o relatório de faltas e a ocupação pouco confiáveis; a Tela Hoje
-  poderia perguntar "Compareceu?" por consulta, com um toque.
-- **Ligar consultas às pacientes automaticamente:** cerca de metade das
-  consultas está sem `paciente_id` (agendadas só com o nome), o que faz o
-  histórico, os retornos e o comando `paciente:` do WhatsApp perderem a conta.
-  Ligar por telefone ao agendar / ao aceitar pedido online.
-- **Campanha de reativação:** segmentar pacientes sem consulta há 12 meses e
-  retornos vencidos e enviar em lote com intervalo, medindo quem voltou.
-- **Painel de saúde por clínica** (uso, faltas, cobrança) e onboarding com
-  dados de exemplo, para vender o sistema.
+**Feitas em 20/10/2026:**
+- Fechamento guiado da agenda: faixa na Tela Hoje com "Compareceu / Faltou / Cancelada"
+  para consultas passadas sem resultado.
+- Consultas ligadas às pacientes: ao agendar e ao aprovar pedido online (telefone único
+  ou nome exato). As consultas antigas seguras foram ligadas (80); sobraram 120 sem
+  paciente (ambíguas e compromissos pessoais). Backup dos ids: tabela
+  `bkp_agenda_vinculo_20261020` no Supabase.
+- Reativação: bloco "Pacientes sem voltar" em Relatórios (6/12/18 meses), envio manual
+  por WhatsApp; a data do contato fica em `pacientes.retornos_status.__reativacao`.
+
+**Ainda não iniciadas:**
+- **Painel de saúde por clínica** (uso, faltas, cobrança) para o dono do produto.
+- **Onboarding com dados de exemplo**, para a demonstração e o teste de 14 dias.
+- **Faturamento líquido nos relatórios**, usando `financeiro.valor_liquido`, quando as
+  clínicas já tiverem as taxas preenchidas.
+- **Medir a reativação:** quantas pacientes chamadas voltaram a agendar.
+- **Testes automáticos** para as telas maiores (hoje a verificação é manual).
