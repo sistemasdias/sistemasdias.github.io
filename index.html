@@ -4396,10 +4396,19 @@ function mensagemCobranca(l, estagio, dias){
 }
 
 async function carregarCobrancas(){
+  // financeiro não tem chave estrangeira pra pacientes — busca as pacientes à parte
   const{data,error} = await db.from('financeiro')
-    .select('id,valor,data,descricao,paciente_id,nao_cobrar,nao_cobrar_ate,pacientes(nome,apelido,telefone)')
+    .select('id,valor,data,descricao,paciente_id,nao_cobrar,nao_cobrar_ate')
     .eq('tipo','receita').eq('status','pendente').order('data',{ascending:true});
   if(error){ toast('Erro ao carregar cobranças: '+error.message,'vermelho'); return false; }
+  const pacIds = [...new Set((data||[]).map(l=>l.paciente_id).filter(Boolean))];
+  const pacPorId = {};
+  for(let i=0;i<pacIds.length;i+=80){
+    const rp = await db.from('pacientes').select('id,nome,apelido,telefone').in('id',pacIds.slice(i,i+80));
+    if(rp.error){ toast('Erro ao carregar pacientes: '+rp.error.message,'vermelho'); return false; }
+    (rp.data||[]).forEach(p=>{ pacPorId[p.id]=p; });
+  }
+  (data||[]).forEach(l=>{ l.pacientes = pacPorId[l.paciente_id] || null; });
   const ids = (data||[]).map(l=>l.id);
   let envios = [];
   if(ids.length){
