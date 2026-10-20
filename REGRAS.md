@@ -93,14 +93,13 @@ Auth com **PIN aleatório gerado no servidor** (nunca escolhido/digitado por
 ninguém), `usuarios` (admin da clínica), `config_clinica` básica, e dispara
 um backup imediato. O PIN aparece uma única vez na tela pra você repassar.
 
-**Existe outra função parecida, `criar-clinica`** (mais antiga, com mais
-campos de branding e protegida por uma senha fixa `ADMIN_SECRET` em vez da
-sessão logada) — não dá pra chamar ela com segurança direto do HTML público
-deste painel, porque o segredo ficaria exposto no código-fonte da página.
-As duas convivem hoje com propósitos diferentes: `criar-clinica` pra
-chamada direta/manual (Postman, script), `criar-cliente-completo` pro botão
-do painel. Se um dia quiser consolidar as duas, avaliar com calma — não é
-urgente.
+**`criar-clinica` está desativada (20/10/2026).** Era uma função mais antiga,
+protegida só por uma senha fixa (`ADMIN_SECRET`) e alcançável por qualquer
+pessoa — risco de força bruta contra uma função que cria clínicas e admins com
+`service_role`. Hoje responde 410 e não faz nada; a página
+`admin-criar-clinica.html` foi removida. Todo onboarding passa pelo botão
+"+ Novo cliente" (`criar-cliente-completo`: JWT + e-mail do dono). Não reative a
+antiga nem chame função protegida por senha fixa a partir do HTML público.
 
 **Materiais de onboarding** (seção "📚 Materiais" no painel): o guia abre o
 `ajuda.html` do próprio sistema — o bloqueio dele aceita a sessão Supabase do
