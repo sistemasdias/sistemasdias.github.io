@@ -164,6 +164,22 @@ textarea{resize:vertical}
   #recs-area { border: none !important; background: none !important; padding: 0 !important; }
   #panel-receituario-simples .fgr input { border: none !important; background: none !important; padding: 2px 0 !important; }
   #recs-area:empty:before { content: none !important; }
+  /* Receituário simples: tem que caber em UMA folha A4. Sem estas regras o formulário vazio já
+     gastava ~225 mm (área "main" vazia + espaço de escrita + rodapé largo) e, com assinatura,
+     dados da paciente e texto, passava da folha. Aqui compactamos só a impressão deste painel. */
+  html:has(#panel-receituario-simples.active), body:has(#panel-receituario-simples.active) { min-height: 0 !important; height: auto !important; }
+  body:has(#panel-receituario-simples.active) .main { display: none !important; }   /* busca/lista de documentos: nada a imprimir */
+  #panel-receituario-simples .card { padding: 0 !important; margin: 0 !important; }
+  #panel-receituario-simples .doc-clinic-logo { height: 50px !important; margin-bottom: 0 !important; }
+  #panel-receituario-simples .card > div:first-child { margin-bottom: .5rem !important; }
+  #panel-receituario-simples .card > div:first-child > div:last-child { margin-top: 6px !important; padding: 3px !important; }
+  #panel-receituario-simples .fgr { margin-bottom: .5rem !important; }
+  #recs-area { min-height: 90mm !important; margin-bottom: .5rem !important; line-height: 24px !important; }  /* espaço de escrita, sem esticar a folha */
+  #panel-receituario-simples .orc-print-footer { margin-top: 6mm !important; break-inside: avoid; page-break-inside: avoid; }
+  #panel-receituario-simples .orc-print-footer > div { margin-top: 0 !important; padding-top: 0 !important; border-top: none !important; gap: 1.5rem !important; }
+  #panel-receituario-simples .orc-print-footer > div > div > div:not(.doc-assinatura-img) { margin-top: 1.2rem !important; }
+  /* com assinatura desenhada/escaneada, a linha do nome fica logo abaixo da imagem */
+  #panel-receituario-simples .orc-print-footer > div > div > .doc-assinatura-img + div { margin-top: 2px !important; }
   /* Campos opcionais deixados em branco (CID, observações, procedimento, retorno,
      condições de pagamento etc.) não devem imprimir o texto de exemplo (placeholder) —
      o campo inteiro some, igual acontece no Atestado quando algo não foi preenchido */
@@ -1191,6 +1207,18 @@ document.addEventListener('click',e=>{if(!e.target.closest('#busca-pac')&&!e.tar
 
 // DOCUMENTOS SALVOS
 // ── COMPARTILHAR DOCUMENTO POR WHATSAPP (gera PDF real do que seria impresso) ──
+const CSS_PDF_RECEITUARIO_SIMPLES = `
+#panel-receituario-simples .card{width:794px!important;max-width:794px!important;box-sizing:border-box!important;padding:20px!important;margin:0!important}
+#panel-receituario-simples .doc-clinic-logo{height:50px!important;margin-bottom:0!important}
+#panel-receituario-simples .card>div:first-child{margin-bottom:8px!important}
+#panel-receituario-simples .card>div:first-child>div:last-child{margin-top:6px!important;padding:3px!important}
+#panel-receituario-simples .fgr{margin-bottom:8px!important}
+#recs-area{min-height:340px!important;line-height:24px!important;margin-bottom:8px!important}
+#panel-receituario-simples .orc-print-footer{margin-top:16px!important}
+#panel-receituario-simples .orc-print-footer>div{margin-top:0!important;padding-top:0!important;border-top:none!important;gap:24px!important}
+#panel-receituario-simples .orc-print-footer>div>div>div:not(.doc-assinatura-img){margin-top:20px!important}
+#panel-receituario-simples .orc-print-footer>div>div>.doc-assinatura-img+div{margin-top:2px!important}`;
+
 async function gerarPdfDoPainel(tipo){
   const el = document.querySelector('#panel-'+tipo+' .card');
   if(!el || typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') return null;
@@ -1207,6 +1235,10 @@ async function gerarPdfDoPainel(tipo){
       doc.querySelectorAll('input, textarea').forEach(el => { if (!el.value) el.placeholder = ''; });
       const s = doc.createElement('style');
       s.textContent = '#recs-area:empty:before{content:none!important}';
+      // Receituário simples: largura fixa de A4 (794px) + espaçamento compacto, para o PDF sair
+      // sempre em UMA folha, não importa o tamanho da janela de quem gerou (antes, em janela
+      // estreita a proporção altura/largura passava da A4 e virava 2 folhas).
+      if (tipo === 'receituario-simples') s.textContent += CSS_PDF_RECEITUARIO_SIMPLES;
       doc.head.appendChild(s);
     }
   });
