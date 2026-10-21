@@ -205,8 +205,10 @@ as mensagens da aba Cobranças incluem a chave quando configurada. Não gera QR 
 odontológica em 2; rubrica e "Pág. x/y" nos de várias folhas; cidade/data por extenso nas assinaturas; carimbo nome+registro
 nos receituários; logo do mesmo tamanho em todos). Também corrigida a data "de hoje" em UTC (virava amanhã após as 21h).
 
+**Feitas em 21/10/2026:** faturamento líquido no Relatório (cartão após taxas); confirmação da consulta pela
+própria paciente no WhatsApp (`whatsapp-webhook` v11, `config_clinica.whatsapp_confirmacao`, nasce desligada);
+pacotes de sessões (`pacotes_sessoes`, trigger em `agenda`).
+
 **Ainda não iniciadas:**
-- **Faturamento líquido nos relatórios**, usando `financeiro.valor_liquido`, quando as
-  clínicas já tiverem as taxas preenchidas.
 - **Testes do banco e do visual** (RLS, funções SQL, telas no navegador): os testes de hoje cobrem só
   sintaxe, estrutura e regras em JavaScript (ver REGRAS.md → Testes automáticos).

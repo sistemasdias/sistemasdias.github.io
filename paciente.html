@@ -276,6 +276,29 @@ textarea{resize:vertical;min-height:70px}
         <div id="res-retornos"></div>
       </div>
 
+      <!-- Pacotes de sessões -->
+      <div class="card" id="res-pacotes-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+          <div class="sec-title" style="margin:0;border:none;padding:0">📦 Pacotes de sessões</div>
+          <button class="btn sm" onclick="abrirNovoPacote()">➕ Novo pacote</button>
+        </div>
+        <div id="pacote-form" style="display:none;background:var(--bg);border:1px solid var(--borda);border-radius:10px;padding:12px;margin-bottom:12px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+            <div><label style="font-size:11px;font-weight:600;color:var(--ct)">PROCEDIMENTO *</label><input type="text" id="pk-proc" list="pk-proc-lista" maxlength="80" placeholder="Ex: Laser, Peeling..." style="width:100%"/><datalist id="pk-proc-lista"></datalist></div>
+            <div><label style="font-size:11px;font-weight:600;color:var(--ct)">Nº DE SESSÕES *</label><input type="number" id="pk-total" min="1" max="100" value="6" style="width:100%"/></div>
+            <div><label style="font-size:11px;font-weight:600;color:var(--ct)">VALOR TOTAL (R$)</label><input type="number" id="pk-valor" min="0" step="0.01" placeholder="0,00" style="width:100%"/></div>
+            <div><label style="font-size:11px;font-weight:600;color:var(--ct)">VALIDADE</label><input type="date" id="pk-validade" style="width:100%"/></div>
+          </div>
+          <div style="margin-top:10px"><label style="font-size:11px;font-weight:600;color:var(--ct)">OBSERVAÇÃO</label><input type="text" id="pk-obs" maxlength="200" style="width:100%"/></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px">
+            <input type="checkbox" id="pk-financeiro" style="width:auto;margin:0;flex:none"/>
+            <span style="cursor:pointer;text-transform:none;letter-spacing:0" onclick="document.getElementById('pk-financeiro').click()">Lançar o valor como <b>a receber</b> no Financeiro</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px"><button class="btn pri" onclick="salvarPacote()">Salvar pacote</button><button class="btn" onclick="document.getElementById('pacote-form').style.display='none'">Cancelar</button></div>
+        </div>
+        <div id="res-pacotes"><div style="font-size:13px;color:var(--ct)">Carregando...</div></div>
+      </div>
+
       <!-- Dados pessoais -->
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -722,7 +745,8 @@ let todasFotos=[];
 let fotoFiltroAtivo='todas';
 let comparacaoSlot=null; // 'antes' ou 'depois'
 let lembrEditandoId=null;
-let HOJE=new Date().toISOString().split('T')[0];
+// Data LOCAL (não UTC): toISOString() dá o dia seguinte a partir das 21h no Brasil
+let HOJE=(()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().split('T')[0];})();
 
 // ─── UTILS ───
 function toast(m,t=''){const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+t;setTimeout(()=>el.className='toast',3000);}
@@ -825,6 +849,7 @@ async function iniciar(){
   carregarStatusAnamnese();
   carregarHistoricoPaciente();
   carregarAlertaAlergia();
+  carregarPacotes();
 
   document.getElementById('loading-main').style.display='none';
   document.getElementById('conteudo').style.display='block';
@@ -936,6 +961,72 @@ function renderHero(){
   actions.push(`<button class="btn-hero" style="background:#6b7280" onclick="exportarDadosPaciente()" aria-label="Exportar dados do paciente (LGPD)">📤 Exportar dados</button>`);
   actions.push(`<a href="documentos.html?pac=${p.id}" class="btn-hero" aria-label="Documentos">📄 Documentos</a>`);
   document.getElementById('hero-actions').innerHTML=actions.join('');
+}
+
+// ─── PACOTES DE SESSÕES ───
+// A sessão sai do pacote sozinha: quando a consulta ligada ao pacote vira "realizado" (trigger no banco).
+let pacotes=[];
+async function carregarPacotes(){
+  const{data,error}=await db.from('pacotes_sessoes').select('*').eq('paciente_id',pac.id).order('criado_em',{ascending:false});
+  pacotes=error?[]:(data||[]);
+  renderPacotes();
+}
+function renderPacotes(){
+  const el=document.getElementById('res-pacotes'); if(!el) return;
+  const ativos=pacotes.filter(p=>p.status==='ativo'), outros=pacotes.filter(p=>p.status!=='ativo');
+  const linha=p=>{
+    const feitas=p.sessoes_realizadas, total=p.total_sessoes, pct=Math.min(100,Math.round(100*feitas/total));
+    const restam=Math.max(0,total-feitas);
+    const vencido=p.validade&&p.validade<HOJE&&p.status==='ativo';
+    const cor=p.status==='concluido'?'var(--verde)':p.status==='cancelado'?'#9ca3af':vencido?'var(--vermelho)':'var(--verde)';
+    return `<div style="border:1px solid var(--borda);border-radius:10px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:flex-start">
+        <div><div style="font-weight:600;font-size:14px">${escapeHtml(p.procedimento)}</div>
+          <div style="font-size:12px;color:var(--ct)">${p.valor_total?fmtBRL(p.valor_total)+' · ':''}${p.validade?'válido até '+fDt(p.validade)+' · ':''}criado em ${fDt((p.criado_em||'').slice(0,10))}${p.obs?' · '+escapeHtml(p.obs):''}</div></div>
+        <div style="font-size:13px;font-weight:700;color:${cor}">${feitas} de ${total} sessões${feitas>total?' (excedeu)':''}</div>
+      </div>
+      <div style="height:8px;background:var(--bg);border-radius:99px;margin:8px 0 4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${cor}"></div></div>
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:12px;color:var(--ct)">${p.status==='concluido'?'✅ Concluído':p.status==='cancelado'?'🚫 Cancelado':vencido?'⚠️ Validade vencida — restam '+restam:'Restam '+restam+(restam===1?' sessão':' sessões')}</span>
+        ${p.status==='ativo'?`<span style="display:flex;gap:6px"><button class="btn sm" onclick="mudarStatusPacote('${p.id}','concluido')">✔ Concluir</button><button class="btn sm" onclick="mudarStatusPacote('${p.id}','cancelado')">🚫 Cancelar</button></span>`
+          :`<button class="btn sm" onclick="mudarStatusPacote('${p.id}','ativo')">↩ Reativar</button>`}
+      </div></div>`;
+  };
+  el.innerHTML=!pacotes.length?'<div style="font-size:13px;color:var(--ct)">Nenhum pacote. Use "Novo pacote" quando a paciente comprar várias sessões de um procedimento — o sistema conta as sessões sozinho quando você marcar as consultas como realizadas.</div>'
+    :(ativos.map(linha).join('')||'<div style="font-size:13px;color:var(--ct);margin-bottom:8px">Nenhum pacote ativo.</div>')
+     +(outros.length?`<details style="margin-top:6px"><summary style="font-size:12px;color:var(--ct);cursor:pointer">Histórico (${outros.length})</summary><div style="margin-top:8px">${outros.map(linha).join('')}</div></details>`:'');
+}
+function abrirNovoPacote(){
+  const nomes=[...new Set([...(pac.tratamentos_adicionais||[]).map(t=>t.nome),pac.tratamento].filter(Boolean))];
+  document.getElementById('pk-proc-lista').innerHTML=nomes.map(n=>`<option value="${escapeHtml(n)}">`).join('');
+  ['pk-proc','pk-valor','pk-validade','pk-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pk-total').value='6';
+  document.getElementById('pk-financeiro').checked=false;
+  document.getElementById('pacote-form').style.display='block';
+  document.getElementById('pk-proc').focus();
+}
+async function salvarPacote(){
+  const proc=document.getElementById('pk-proc').value.trim();
+  const total=parseInt(document.getElementById('pk-total').value,10);
+  const valor=parseFloat(document.getElementById('pk-valor').value)||null;
+  const validade=document.getElementById('pk-validade').value||null;
+  if(!proc){toast('Informe o procedimento do pacote','vermelho');return;}
+  if(!total||total<1||total>100){toast('Número de sessões deve ser de 1 a 100','vermelho');return;}
+  const{error}=await db.from('pacotes_sessoes').insert({paciente_id:pac.id,procedimento:proc,total_sessoes:total,valor_total:valor,validade,obs:document.getElementById('pk-obs').value.trim()||null});
+  if(error) return; // o wrapper db já mostrou o erro
+  if(document.getElementById('pk-financeiro').checked&&valor>0){
+    const{error:eFin}=await db.from('financeiro').insert({tipo:'receita',data:HOJE,descricao:`Pacote ${proc} (${total} sessões) — ${pac.nome}`,categoria:(typeof CATEGORIA_PADRAO==='function'?CATEGORIA_PADRAO():'Odontologia'),valor,status:'pendente',paciente_id:pac.id});
+    if(!eFin) toast('Pacote criado e valor lançado como a receber ✓','verde'); else toast('Pacote criado, mas o lançamento no financeiro falhou — lance manualmente','amarelo');
+  } else toast('Pacote criado ✓','verde');
+  document.getElementById('pacote-form').style.display='none';
+  carregarPacotes();
+}
+async function mudarStatusPacote(id,status){
+  const txt={concluido:'Marcar este pacote como concluído?',cancelado:'Cancelar este pacote? As sessões já feitas continuam registradas.',ativo:'Reativar este pacote?'}[status];
+  if(!confirm(txt)) return;
+  const{error}=await db.from('pacotes_sessoes').update({status}).eq('id',id);
+  if(error) return;
+  carregarPacotes();
 }
 
 // ─── RESUMO ───

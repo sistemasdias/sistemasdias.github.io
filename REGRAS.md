@@ -139,3 +139,19 @@ documentos em 21/10/2026 (uma simulação por medidas de altura não bastou: o P
 com a assinatura caindo sozinha na 2ª folha). Pegadinha: `@page` com nome aplicado a um painel força uma
 folha em branco antes; o nome de página só pode ir no `body`.
 
+## Confirmação da consulta pela paciente (WhatsApp)
+
+A Edge Function `whatsapp-webhook` (v11) entende respostas das PACIENTES à mensagem de confirmação. **Nasce desligada**
+(`config_clinica.whatsapp_confirmacao = 'off'`); a clínica liga em Configurações como `registrar` (só marca a consulta)
+ou `responder` (marca e agradece). Regras de segurança: só mensagens curtas e inequívocas (`resposta.mjs`: "1", "sim",
+"não posso"...), só para consultas dos próximos 4 dias, número da clínica/autorizado nunca é tratado como paciente, e
+"remarcar" nunca cancela nada. Resposta repetida é ignorada (evita vai-e-vem). O código está em
+`supabase/functions/whatsapp-webhook/` e é publicado com o deploy do MCP/CLI — **mudou `index.ts` ou `resposta.mjs`,
+publique de novo** (o GitHub Pages não publica Edge Functions). `tests/webhook.test.js` roda o fluxo real com banco falso.
+
+## Pacotes de sessões
+
+`pacotes_sessoes` (RLS por clínica). O desconto de sessão é feito por trigger no banco (`trg_agenda_sessao_pacote`):
+consulta com `pacote_id` que vira "realizado" soma 1; sair de "realizado", trocar de pacote ou apagar a consulta devolve.
+Por isso vale para qualquer caminho (botão, "Fechar dia", fechamento guiado, WhatsApp) sem mexer em cada tela.
+

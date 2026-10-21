@@ -172,6 +172,43 @@ test('badgeRespostaPaciente e pedidosRemarcar: só mostra pedidos de remarcaçã
   assert.strictEqual(f.badgeRespostaPaciente(consultas[5]), '');
 });
 
+// ── Pacotes de sessões na agenda ─────────────────────────────────────────
+test('carregarPacotesAgenda: seletor só aparece com pacote ativo (ou o pacote já ligado à consulta)', async () => {
+  const mkDoc = () => { const els = { 'ag-pacote-wrap': { style: { display: 'none' } }, 'ag-pacote': { innerHTML: '' } }; return { els, getElementById: id => els[id] }; };
+  const pacotes = [
+    { id: 'a', procedimento: 'Laser', total_sessoes: 6, sessoes_realizadas: 2, status: 'ativo' },
+    { id: 'b', procedimento: 'Botox', total_sessoes: 2, sessoes_realizadas: 2, status: 'concluido' },
+    { id: 'c', procedimento: 'Peeling', total_sessoes: 4, sessoes_realizadas: 0, status: 'cancelado' },
+  ];
+  const monta = (lista, error = null) => {
+    const document = mkDoc();
+    const db = { from: () => ({ select: () => ({ eq: () => ({ order: async () => ({ data: lista, error }) }) }) }) };
+    const f = montarDeCodigo(codigoIndex, ['ocultarPacoteAgenda', 'carregarPacotesAgenda'], { document, db, escapeHtml: s => s });
+    return { document, f };
+  };
+  // paciente com pacote ativo: aparece só o ativo
+  let { document, f } = monta(pacotes);
+  await f.carregarPacotesAgenda('p1', null);
+  assert.strictEqual(document.els['ag-pacote-wrap'].style.display, '');
+  assert.match(document.els['ag-pacote'].innerHTML, /Laser — 2 de 6 sessões/);
+  assert.doesNotMatch(document.els['ag-pacote'].innerHTML, /Botox|Peeling/);
+  // consulta já ligada a pacote concluído: ele aparece, marcado
+  ({ document, f } = monta(pacotes));
+  await f.carregarPacotesAgenda('p1', 'b');
+  assert.match(document.els['ag-pacote'].innerHTML, /value="b" selected>Botox — 2 de 2 sessões \(concluido\)/);
+  // só pacotes encerrados, sem seleção: nada aparece
+  ({ document, f } = monta([pacotes[1], pacotes[2]]));
+  await f.carregarPacotesAgenda('p1', null);
+  assert.strictEqual(document.els['ag-pacote-wrap'].style.display, 'none');
+  // sem paciente vinculada ou erro de rede: fica oculto
+  ({ document, f } = monta(pacotes));
+  await f.carregarPacotesAgenda(null, null);
+  assert.strictEqual(document.els['ag-pacote-wrap'].style.display, 'none');
+  ({ document, f } = monta(null, { message: 'x' }));
+  await f.carregarPacotesAgenda('p1', null);
+  assert.strictEqual(document.els['ag-pacote-wrap'].style.display, 'none');
+});
+
 // ── Faturamento líquido (taxas da maquininha) ────────────────────────────
 test('resumoLiquido: desconta a taxa só dos lançamentos de cartão já recebidos', () => {
   const { resumoLiquido } = montarDeCodigo(codigoIndex, ['resumoLiquido']);

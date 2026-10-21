@@ -908,6 +908,10 @@ textarea{resize:vertical;min-height:70px}
           <option>Profilaxia (limpeza dental)</option><option>Consulta / avaliação</option><option>Outro</option>
         </select>
       </div>
+      <div class="fgr full" id="ag-pacote-wrap" style="display:none"><label>📦 Descontar de pacote</label>
+        <select id="ag-pacote"><option value="">Não — consulta avulsa</option></select>
+        <div style="font-size:11px;color:var(--ct);margin-top:3px">Quando a consulta for marcada como realizada, uma sessão sai do pacote automaticamente.</div>
+      </div>
       <div class="fgr"><label>Profissional</label>
         <select id="ag-prof">
           <option value="">— Não especificado —</option>
@@ -4323,7 +4327,7 @@ function abrAg(data){
   // Trava de segurança: garante que o modal de config. online não fica preso por trás
   const mOnline=document.getElementById('m-ag-online');
   if(mOnline){mOnline.classList.remove('open');mOnline.style.display='';}
-  agEditando=null;agPacId=null;
+  agEditando=null;agPacId=null;ocultarPacoteAgenda();
   desvincularPacAg();
   document.getElementById('ag-titulo').textContent='📅 Nova consulta';document.getElementById('ag-id').value='';document.getElementById('ag-nome').value='';document.getElementById('ag-tel').value='';document.getElementById('ag-proc').value='';document.getElementById('ag-data').value=data||agDia;document.getElementById('ag-hora').value='09:00';document.getElementById('ag-obs').value='';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display='none';document.getElementById('ag-prof').value='';
   document.getElementById('ag-canc-serie-btn').style.display='none';
@@ -4433,6 +4437,8 @@ async function salvarConsulta(){
   }
 
   const payloadBase={nome,telefone:tel||null,procedimento:document.getElementById('ag-proc').value||null,data,hora,observacao:document.getElementById('ag-obs').value.trim()||null,paciente_id:pacIdFinal||null,profissional_id:document.getElementById('ag-prof').value||null};
+  // Pacote: só mexe no vínculo quando o seletor está visível (paciente com pacote); senão preserva o que já existe
+  if(document.getElementById('ag-pacote-wrap').style.display!=='none') payloadBase.pacote_id=document.getElementById('ag-pacote').value||null;
   // Remarcou (mudou dia ou hora)? A resposta da paciente era sobre o horário antigo: limpa o pedido de
   // remarcação / a confirmação dela e, se ela tinha confirmado pelo WhatsApp, volta a "agendado".
   const remarcou=!!(aid&&agEditando&&(agEditando.data!==data||String(agEditando.hora||'').slice(0,5)!==String(hora).slice(0,5)));
@@ -4546,9 +4552,32 @@ function mostrarVinculado(p){
     else { elConv.textContent=''; elConv.style.display='none'; }
   }
   banner.style.display='flex';
+  carregarPacotesAgenda(p.id, agEditando&&agEditando.pacote_id);
+}
+
+// ── Pacotes de sessões na agenda ──
+// Mostra "Descontar de pacote" só quando a paciente vinculada tem pacote ativo (ou já está nele).
+function ocultarPacoteAgenda(){
+  const w=document.getElementById('ag-pacote-wrap'); if(w) w.style.display='none';
+  const s=document.getElementById('ag-pacote'); if(s) s.innerHTML='<option value="">Não — consulta avulsa</option>';
+}
+async function carregarPacotesAgenda(pacId,selecionadoId){
+  const w=document.getElementById('ag-pacote-wrap'), s=document.getElementById('ag-pacote');
+  if(!w||!s) return;
+  ocultarPacoteAgenda();
+  if(!pacId) return;
+  const{data,error}=await db.from('pacotes_sessoes').select('id,procedimento,total_sessoes,sessoes_realizadas,status').eq('paciente_id',pacId).order('criado_em',{ascending:false});
+  if(error||!data) return;
+  // só os ativos — mais o pacote desta consulta, se ela já estiver ligada a um (mesmo concluído)
+  const lista=data.filter(p=>p.status==='ativo'||p.id===selecionadoId);
+  if(!lista.length) return;
+  s.innerHTML='<option value="">Não — consulta avulsa</option>'+lista.map(p=>
+    `<option value="${p.id}" ${p.id===selecionadoId?'selected':''}>${escapeHtml(p.procedimento)} — ${p.sessoes_realizadas} de ${p.total_sessoes} sessões${p.status!=='ativo'?' ('+p.status+')':''}</option>`).join('');
+  w.style.display='';
 }
 
 function desvincularPacAg(){
+  ocultarPacoteAgenda();
   agPacId=null;
   document.getElementById('ag-pac-vinculado').style.display='none';
   document.getElementById('ag-pac-vinculado-nome').textContent='';
