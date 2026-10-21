@@ -180,6 +180,32 @@ textarea{resize:vertical}
   #panel-receituario-simples .orc-print-footer > div > div > div:not(.doc-assinatura-img) { margin-top: 1.2rem !important; }
   /* com assinatura desenhada/escaneada, a linha do nome fica logo abaixo da imagem */
   #panel-receituario-simples .orc-print-footer > div > div > .doc-assinatura-img + div { margin-top: 2px !important; }
+
+  /* ── Todos os documentos: ajustes de paginação da A4 (medidos em 20/10/2026) ──
+     Problemas que existiam: (1) o texto dos termos usava entrelinha 1,8 e a Autorização de Uso de
+     Imagem passava 17 mm para uma 2ª folha, com a assinatura cortada ao meio; (2) as duas colunas de
+     assinatura passavam ~3 mm da margem direita (canvas de 340 px mais largo que a coluna); (3) a
+     Anamnese Odontológica ocupava 3 folhas, a última com só 20 mm; (4) linha de tabela do Odontograma
+     cortada entre folhas; (5) título de seção podia ficar sozinho no fim da folha. */
+  .termo-texto { font-size: 12px !important; line-height: 1.4 !important; padding: .5rem .8rem !important; margin-bottom: .4rem !important; }
+  /* Termos de consentimento e autorização de imagem: UMA folha, com folga (~20 mm) para nomes e
+     endereços longos não empurrarem a assinatura para uma 2ª folha sozinha */
+  [id^="panel-termo-"] .doc-clinic-logo, #panel-autorizacao-imagem .doc-clinic-logo { height: 50px !important; }
+  [id^="panel-termo-"] .sec-title, #panel-autorizacao-imagem .sec-title { margin-top: 8px !important; }
+  [id^="panel-termo-"] .sig-row, #panel-autorizacao-imagem .sig-row { margin-top: 8px !important; }
+  [id^="panel-termo-"] .sig-area canvas, #panel-autorizacao-imagem .sig-area canvas { max-height: 24mm; width: auto !important; }
+  .pac-info { padding: 6px 12px !important; margin-bottom: .5rem !important; }
+  .termo-texto p { margin-bottom: .45rem !important; }
+  .termo-texto ul { margin: .35rem 0 .45rem 1.25rem !important; }
+  .termo-texto li { margin-bottom: .2rem !important; }
+  .sig-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; break-inside: avoid; page-break-inside: avoid; }
+  .sig-row > div { min-width: 0; }
+  .sig-area canvas { max-width: 100% !important; height: auto !important; }
+  .sig-label { display: none !important; }  /* "Assine aqui" é dica de tela; no papel ficava por cima da assinatura já feita */
+  .resp-row { padding: 4px 10px !important; margin-bottom: 2px !important; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  .sec-title { break-after: avoid; page-break-after: avoid; }
+  .orc-print-footer { break-inside: avoid; page-break-inside: avoid; }
   /* Campos opcionais deixados em branco (CID, observações, procedimento, retorno,
      condições de pagamento etc.) não devem imprimir o texto de exemplo (placeholder) —
      o campo inteiro some, igual acontece no Atestado quando algo não foi preenchido */
