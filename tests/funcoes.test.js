@@ -155,6 +155,22 @@ test('resultadoReativacao: conta só quem foi chamada e voltou a agendar depois'
   assert.deepStrictEqual(r.voltaram.map(p => p.id), ['a', 'g']);
 });
 
+// ── Faturamento líquido (taxas da maquininha) ────────────────────────────
+test('resumoLiquido: desconta a taxa só dos lançamentos de cartão já recebidos', () => {
+  const { resumoLiquido } = montarDeCodigo(codigoIndex, ['resumoLiquido']);
+  const r = resumoLiquido([
+    { status: 'recebido', valor: 1000, valor_liquido: 950 },   // cartão com taxa
+    { status: 'recebido', valor: 500, valor_liquido: null },   // pix: valor cheio
+    { status: 'recebido', valor: 200 },                        // sem a coluna: valor cheio
+    { status: 'pendente', valor: 999, valor_liquido: 900 },    // ainda não recebido: fora
+  ]);
+  assert.deepStrictEqual(r, { bruto: 1700, liquido: 1650, taxas: 50, qtdCartao: 1 });
+  assert.deepStrictEqual(resumoLiquido([]), { bruto: 0, liquido: 0, taxas: 0, qtdCartao: 0 });
+  assert.deepStrictEqual(resumoLiquido(null), { bruto: 0, liquido: 0, taxas: 0, qtdCartao: 0 });
+  // arredondamento de centavos (0,1 + 0,2 não pode virar 0,30000000000000004)
+  assert.strictEqual(resumoLiquido([{ status: 'recebido', valor: 0.1, valor_liquido: 0.1 }, { status: 'recebido', valor: 0.2, valor_liquido: 0.2 }]).liquido, 0.3);
+});
+
 // ── Data local (não UTC) e "Cidade, data por extenso" nos documentos ─────
 test('_dataLocalISO: depois das 21h no Brasil continua sendo o dia de hoje (UTC já virou o dia)', () => {
   const { _dataLocalISO } = montarDeCodigo(codigoIndex, [], {}, ['_dataLocalISO']);

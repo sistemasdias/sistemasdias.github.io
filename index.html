@@ -1700,6 +1700,21 @@ async function resolverAgendaAberta(id,status){
   renderAgendaAberta(); renderHoje(); try{renderCal();renderConsDia(agDia);renderConsMes();renderAgendaStats();}catch(e){}
 }
 
+// Faturamento bruto x líquido (descontando a taxa da maquininha, quando configurada).
+// Só conta recebimentos já recebidos; lançamentos sem valor_liquido entram pelo valor cheio.
+function resumoLiquido(lancs){
+  let bruto=0, liquido=0, qtdCartao=0;
+  (lancs||[]).forEach(l=>{
+    if(l.status!=='recebido') return;
+    const v=Number(l.valor)||0;
+    bruto+=v;
+    if(l.valor_liquido!=null){ liquido+=Number(l.valor_liquido)||0; qtdCartao++; }
+    else liquido+=v;
+  });
+  const arred=n=>Math.round(n*100)/100;
+  return { bruto:arred(bruto), liquido:arred(liquido), taxas:arred(bruto-liquido), qtdCartao };
+}
+
 function renderHoje(){
   renderAgendaAberta(); renderExemplo();
   // Consultas hoje
@@ -2058,11 +2073,14 @@ async function renderRel(){
   const totalAtend=todosAtends.length;
   const totalFat=todosAtends.reduce((s,a)=>s+(a.trats||[]).reduce((ts,t)=>ts+(parseFloat(t.valor)||0),0),0);
   // Buscar faturamento real do financeiro para o período
-  let totalFatReal=0;
+  let totalFatReal=0, resLiq={bruto:0,liquido:0,taxas:0,qtdCartao:0};
   try{
     const ini=cutoff?cutoff.toISOString().split('T')[0]:'2000-01-01';
-    const{data:finData}=await db.from('financeiro').select('valor,status').eq('tipo','receita').gte('data',ini);
-    if(finData) totalFatReal=finData.filter(l=>l.status==='recebido').reduce((s,l)=>s+(l.valor||0),0);
+    const{data:finData}=await db.from('financeiro').select('valor,status,valor_liquido').eq('tipo','receita').gte('data',ini);
+    if(finData){
+      resLiq=resumoLiquido(finData);
+      totalFatReal=resLiq.bruto;
+    }
   }catch(e){}
   const pacAtivos=new Set(todosAtends.map(a=>a.pac.id)).size;
 
@@ -2070,7 +2088,9 @@ async function renderRel(){
     <div class="rel-card"><div class="rel-num">${totalAtend}</div><div class="rel-label">Atendimentos</div></div>
     <div class="rel-card"><div class="rel-num">${pacAtivos}</div><div class="rel-label">Pacientes atendidos</div></div>
     <div class="rel-card"><div class="rel-num" style="font-size:20px">${totalAtend>0?fmtBRL(totalFatReal/totalAtend):"—"}</div><div class="rel-label">Ticket médio</div></div>
-    <div class="rel-card"><div class="rel-num" style="font-size:20px">${totalFatReal>0?fmtBRL(totalFatReal):totalFat>0?fmtBRL(totalFat):'—'}</div><div class="rel-label">Faturamento ${totalFatReal>0?'real (financeiro)':totalFat>0?'estimado':'—'}</div></div>`;
+    <div class="rel-card"><div class="rel-num" style="font-size:20px">${totalFatReal>0?fmtBRL(totalFatReal):totalFat>0?fmtBRL(totalFat):'—'}</div><div class="rel-label">Faturamento ${totalFatReal>0?'real (financeiro)':totalFat>0?'estimado':'—'}</div></div>`
+    // Só aparece quando há taxa de cartão configurada e lançamentos de cartão no período
+    +(resLiq.taxas>0?`<div class="rel-card"><div class="rel-num" style="font-size:20px">${fmtBRL(resLiq.liquido)}</div><div class="rel-label">Líquido após taxas do cartão<br><span style="font-size:11px">taxas: ${fmtBRL(resLiq.taxas)} em ${resLiq.qtdCartao} recebimento${resLiq.qtdCartao!==1?'s':''}</span></div></div>`:'');
 
   // Procedimentos
   const procs={};
