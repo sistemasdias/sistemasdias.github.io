@@ -155,6 +155,23 @@ test('resultadoReativacao: conta só quem foi chamada e voltou a agendar depois'
   assert.deepStrictEqual(r.voltaram.map(p => p.id), ['a', 'g']);
 });
 
+// ── Resposta da paciente à confirmação (WhatsApp) ────────────────────────
+test('badgeRespostaPaciente e pedidosRemarcar: só mostra pedidos de remarcação futuros e não cancelados', () => {
+  const consultas = [
+    { id: 1, nome: 'Ana', data: '2026-10-22', hora: '10:00', status: 'agendado', paciente_resposta: 'remarcar' },
+    { id: 2, nome: 'Bia', data: '2026-10-21', hora: '09:00', status: 'confirmado', paciente_resposta: 'confirmou' },
+    { id: 3, nome: 'Cris', data: '2026-10-20', hora: '09:00', status: 'agendado', paciente_resposta: 'remarcar' },   // passou
+    { id: 4, nome: 'Dani', data: '2026-10-22', hora: '08:00', status: 'cancelado', paciente_resposta: 'remarcar' },  // já cancelada
+    { id: 5, nome: 'Eva', data: '2026-10-21', hora: '08:00', status: 'agendado', paciente_resposta: 'remarcar' },
+    { id: 6, nome: 'Fabi', data: '2026-10-23', hora: '08:00', status: 'agendado' },
+  ];
+  const f = montarDeCodigo(codigoIndex, ['badgeRespostaPaciente', 'pedidosRemarcar'], { consultas, HOJE_STR: '2026-10-21' });
+  assert.deepStrictEqual(f.pedidosRemarcar().map(c => c.id), [5, 1]);          // mais cedo primeiro
+  assert.match(f.badgeRespostaPaciente(consultas[0]), /REMARCAR/);
+  assert.match(f.badgeRespostaPaciente(consultas[1]), /CONFIROU|CONFIRMOU/);
+  assert.strictEqual(f.badgeRespostaPaciente(consultas[5]), '');
+});
+
 // ── Faturamento líquido (taxas da maquininha) ────────────────────────────
 test('resumoLiquido: desconta a taxa só dos lançamentos de cartão já recebidos', () => {
   const { resumoLiquido } = montarDeCodigo(codigoIndex, ['resumoLiquido']);

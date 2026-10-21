@@ -698,6 +698,21 @@
           <br/>
           <code>aniversario</code> — lista quem faz aniversário hoje
         </div>
+        <div style="font-size:12px;font-weight:700;color:var(--txt);margin:.25rem 0 .5rem">Confirmação de consulta pela paciente</div>
+        <div style="font-size:12px;color:var(--ct);margin-bottom:.75rem;line-height:1.6">
+          Quando a clínica manda a confirmação ("Confirma sua presença?"), a paciente pode responder <strong>1</strong> (confirmo) ou <strong>2</strong> (preciso remarcar), ou escrever "sim", "não posso"... O sistema só entende respostas <strong>curtas e claras</strong> e só olha consultas dos <strong>próximos 4 dias</strong>; o resto fica para a recepção. "Remarcar" <strong>não cancela nada</strong> — só avisa na tela Hoje.
+        </div>
+        <div class="fg full" style="margin-bottom:.75rem">
+          <div class="fi">
+            <label>Como funciona</label>
+            <select id="cfg-whatsapp-confirmacao" onchange="salvarConfirmacaoWhatsapp()">
+              <option value="off">Desligado (padrão) — ignora as respostas das pacientes</option>
+              <option value="registrar">Só registrar — marca a consulta, sem mandar mensagem</option>
+              <option value="responder">Registrar e responder — marca e agradece à paciente</option>
+            </select>
+            <span class="hint" id="cfg-whatsapp-confirmacao-msg"></span>
+          </div>
+        </div>
         <div class="fg full" style="margin-bottom:.75rem">
           <div class="fi">
             <label>Números autorizados</label>
@@ -911,6 +926,25 @@ async function salvarNumerosAutorizados(){
     return;
   }
   msg.textContent = '✅ Salvo';
+  msg.style.color = 'var(--verde-e)';
+}
+
+// Liga/desliga a confirmação de consulta pela paciente. Salva na hora (é uma chave, não um texto).
+async function salvarConfirmacaoWhatsapp(){
+  const sel = document.getElementById('cfg-whatsapp-confirmacao');
+  const msg = document.getElementById('cfg-whatsapp-confirmacao-msg');
+  if(!configId){
+    msg.textContent = '❌ Configuração da clínica ainda não carregou, aguarde e tente de novo';
+    msg.style.color = 'var(--vermelho)';
+    return;
+  }
+  const {error} = await sb.from('config_clinica').update({whatsapp_confirmacao: sel.value}).eq('id', configId);
+  if(error){
+    msg.textContent = '❌ '+error.message;
+    msg.style.color = 'var(--vermelho)';
+    return;
+  }
+  msg.textContent = sel.value === 'off' ? '✅ Desligado' : '✅ Ligado — vale para as próximas confirmações enviadas';
   msg.style.color = 'var(--verde-e)';
 }
 
@@ -1140,6 +1174,7 @@ async function init(){
     const c = data[0];
     configId = c.id;
     taxasCartaoPreencher(c.taxas_cartao);
+    document.getElementById('cfg-whatsapp-confirmacao').value = c.whatsapp_confirmacao || 'off';
     document.getElementById('cfg-pix-chave').value   = c.pix_chave || '';
     document.getElementById('cfg-pix-titular').value = c.pix_titular || '';
     document.getElementById('cfg-logo').value  = c.logo_url || '';

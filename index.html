@@ -336,6 +336,7 @@ textarea{resize:vertical;min-height:70px}
     <div id="sec-pedidos-online" style="display:none;margin-bottom:.75rem"></div>
     <div id="sec-atend-pendentes" style="display:none;margin-bottom:.75rem"></div>
     <div id="sec-exemplo" style="display:none;margin-bottom:.75rem"></div>
+    <div id="sec-remarcar" style="display:none;margin-bottom:.75rem"></div>
     <div id="sec-agenda-aberta" style="display:none;margin-bottom:.75rem"></div>
     <div class="sl2">📅 Consultas de hoje</div><div id="l-cons-hoje"></div>
     <div class="sl2">⏰ Consultas amanhã — confirmar presença</div><div id="l-cons-amanha"></div>
@@ -1539,7 +1540,7 @@ function linkAgendaAdd(c){
   url+='&end='+encodeURIComponent(CLINICA_CONFIG.endereco||'');
   return url;
 }
-function msgConsulta(c){const hora=c.hora.slice(0,5);const nome=c.nome.split(' ')[0];const DIAS_EX=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];const diaSemana=DIAS_EX[new Date(c.data+'T12:00:00').getDay()];const quando=c.data===HOJE_STR?`hoje às ${hora}h`:c.data===AMANHA_STR?`amanhã às ${hora}h`:`${diaSemana}, dia ${fDt(c.data)} às ${hora}h`;return`Olá, ${nome}! 😊\n\nLembrando que você tem consulta *${quando}* na clínica da ${CLINICA_CONFIG.nome}.\n\n${c.procedimento?`Procedimento: *${escapeHtml(c.procedimento)}*\n\n`:''}Confirma sua presença? ✅\n\n📆 Salvar na sua agenda:\n${linkAgendaAdd(c)}\n\nTe esperamos! 💚`;}
+function msgConsulta(c){const hora=c.hora.slice(0,5);const nome=c.nome.split(' ')[0];const DIAS_EX=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];const diaSemana=DIAS_EX[new Date(c.data+'T12:00:00').getDay()];const quando=c.data===HOJE_STR?`hoje às ${hora}h`:c.data===AMANHA_STR?`amanhã às ${hora}h`:`${diaSemana}, dia ${fDt(c.data)} às ${hora}h`;return`Olá, ${nome}! 😊\n\nLembrando que você tem consulta *${quando}* na clínica da ${CLINICA_CONFIG.nome}.\n\n${c.procedimento?`Procedimento: *${escapeHtml(c.procedimento)}*\n\n`:''}Confirma sua presença? ✅\n\n${(CLINICA_CONFIG.whatsappConfirmacao||'off')!=='off'?'Responda *1* para confirmar ou *2* para remarcar.\n\n':''}📆 Salvar na sua agenda:\n${linkAgendaAdd(c)}\n\nTe esperamos! 💚`;}
 function msgVerificacao(p,trat){return`Olá, ${chamada(p)}! 😊\n\nPassaram alguns dias desde o seu procedimento de *${trat}* aqui na clínica da ${CLINICA_CONFIG.nome}.\n\nGostaríamos de saber como você está se sentindo com o resultado! Está tudo bem? 🌿✨\n\nQualquer dúvida, pode chamar! 💚`;}
 function urlGcal(c){const ini2=c.data.replace(/-/g,'')+`T${c.hora.replace(':','')}00`;const[h,mi]=c.hora.split(':');const fim=c.data.replace(/-/g,'')+`T${String(parseInt(h)+1).padStart(2,'0')}${mi}00`;return`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(c.nome+' - '+(c.procedimento||'Consulta'))}&dates=${ini2}/${fim}&details=${encodeURIComponent(`Paciente: ${escapeHtml(c.nome)}\nTel: ${c.telefone||''}\n${c.procedimento||''}\n${c.observacao||''}`)}`;}
 
@@ -1659,6 +1660,42 @@ async function removerExemplo(){
   await carregar(); await carregarAgenda(); try{ carregarFinanceiro(); }catch(e){}
 }
 
+// ── Resposta da paciente à confirmação (WhatsApp) ──
+// O webhook (Edge Function) grava agenda.paciente_resposta = 'confirmou' | 'remarcar'.
+function badgeRespostaPaciente(c){
+  if(c.paciente_resposta==='confirmou') return ' <span style="font-size:10px;color:var(--verde-e);font-weight:700">💬 CONFIRMOU PELO WHATSAPP</span>';
+  if(c.paciente_resposta==='remarcar') return ' <span style="font-size:10px;color:#b45309;font-weight:700">🔁 PEDIU PARA REMARCAR</span>';
+  return '';
+}
+function pedidosRemarcar(){
+  return consultas.filter(c=>c.paciente_resposta==='remarcar'&&c.data>=HOJE_STR&&c.status!=='cancelado')
+    .sort((a,b)=>(a.data+(a.hora||'')).localeCompare(b.data+(b.hora||'')));
+}
+function renderRemarcar(){
+  const el=document.getElementById('sec-remarcar'); if(!el) return;
+  const lista=pedidosRemarcar();
+  if(!lista.length){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='block';
+  el.innerHTML=`<div style="background:var(--amarelo-c);border:1px solid var(--amarelo);border-radius:12px;padding:.75rem 1rem">
+    <div style="font-size:13px;color:#7a5800;margin-bottom:.5rem"><b>🔁 ${lista.length} paciente${lista.length!==1?'s pediram':' pediu'} para remarcar pelo WhatsApp</b><br><span style="font-size:12px">Nada foi cancelado. Combine o novo horário e edite a consulta — o aviso some sozinho quando você muda o dia ou a hora.</span></div>
+    ${lista.map(c=>{
+      const tel=c.telefone?numeroWhatsApp(c.telefone):'';
+      const msg=`Olá, ${(c.nome||'').split(' ')[0]}! Recebi seu aviso sobre a consulta de ${fDt(c.data)} às ${(c.hora||'').slice(0,5)}h. Vamos encontrar um novo horário? 😊`;
+      return `<div style="background:var(--card);border:1px solid var(--borda);border-radius:10px;padding:.55rem .75rem;margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div style="font-size:13px"><b>${escapeHtml(c.nome)}</b><br><span style="font-size:12px;color:var(--ct)">${fDt(c.data)} às ${(c.hora||'').slice(0,5)}${c.procedimento?' · '+escapeHtml(c.procedimento):''}</span></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msg)}" target="_blank" class="btn wpp" style="padding:5px 10px;font-size:12px">📲 Chamar</a>`:''}
+          <button class="btn" style="padding:5px 10px;font-size:12px" onclick="resolverRemarcar('${c.id}')">✔ Resolvido</button>
+        </div></div>`;}).join('')}
+  </div>`;
+}
+async function resolverRemarcar(id){
+  const res=await db.from('agenda').update({paciente_resposta:null,paciente_respondeu_em:null}).eq('id',id).select();
+  if(res.error||!res.data||!res.data.length){ toast('Não consegui atualizar — tente de novo','vermelho'); return; }
+  const c=consultas.find(x=>x.id===id); if(c){ c.paciente_resposta=null; c.paciente_respondeu_em=null; }
+  renderRemarcar(); renderHoje();
+}
+
 // ── Fechamento guiado: consultas passadas sem desfecho ──
 function consultasSemDesfecho(){
   return consultas.filter(c=>c.data&&c.data<HOJE_STR&&['agendado','pendente','confirmado'].includes(c.status))
@@ -1716,7 +1753,7 @@ function resumoLiquido(lancs){
 }
 
 function renderHoje(){
-  renderAgendaAberta(); renderExemplo();
+  renderAgendaAberta(); renderExemplo(); renderRemarcar();
   // Consultas hoje
   const ch=consultas.filter(c=>c.data===HOJE_STR&&c.status!=='cancelado').sort((a,b)=>a.hora.localeCompare(b.hora));
   const real=ch.filter(c=>c.status==='realizado').length;
@@ -1731,7 +1768,7 @@ function renderHoje(){
       return`<div class="ci ${cls}" data-cid="${c.id}">
         <div class="ch">${c.hora.slice(0,5)}</div>
         <div style="flex:1">
-          <div class="cn">${escapeHtml(c.nome)}${isReal?' <span style="font-size:10px;color:var(--verde-e);font-weight:700">✅ REALIZADO</span>':isFalt?' <span style="font-size:10px;color:var(--ct);font-weight:700">❌ FALTOU</span>':''}</div>
+          <div class="cn">${escapeHtml(c.nome)}${isReal?' <span style="font-size:10px;color:var(--verde-e);font-weight:700">✅ REALIZADO</span>':isFalt?' <span style="font-size:10px;color:var(--ct);font-weight:700">❌ FALTOU</span>':''}${badgeRespostaPaciente(c)}</div>
           <div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div>
         </div>
         <div class="ca">
@@ -1756,7 +1793,7 @@ function renderHoje(){
   const ca=consultas.filter(c=>c.data===AMANHA_STR&&c.status!=='cancelado').sort((a,b)=>a.hora.localeCompare(b.hora));
   document.getElementById('l-cons-amanha').innerHTML=ca.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">📋</div><p>Nenhuma consulta amanhã.</p></div>`
-    :ca.map(c=>{const tel=c.telefone?numeroWhatsApp(c.telefone):'';const conf=c.status==='confirmado';return`<div class="ci" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp">💬 Confirmar</a>`:''}<button class="btn" aria-label="${conf?'Confirmada — clique para desfazer':'Marcar como confirmada'}" style="padding:6px 9px;font-size:12px;background:${conf?'var(--verde)':'var(--bg)'};color:${conf?'white':'var(--ct)'};border-color:${conf?'var(--verde)':'var(--borda)'}" onclick="confirmarConsulta('${c.id}')" title="${conf?'Confirmada — clique para desfazer':'Marcar como confirmada'}">${conf?'✅':'⬜'}</button> ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
+    :ca.map(c=>{const tel=c.telefone?numeroWhatsApp(c.telefone):'';const conf=c.status==='confirmado';return`<div class="ci" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}${badgeRespostaPaciente(c)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp">💬 Confirmar</a>`:''}<button class="btn" aria-label="${conf?'Confirmada — clique para desfazer':'Marcar como confirmada'}" style="padding:6px 9px;font-size:12px;background:${conf?'var(--verde)':'var(--bg)'};color:${conf?'white':'var(--ct)'};border-color:${conf?'var(--verde)':'var(--borda)'}" onclick="confirmarConsulta('${c.id}')" title="${conf?'Confirmada — clique para desfazer':'Marcar como confirmada'}">${conf?'✅':'⬜'}</button> ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
 
   // Verificações
   const vers=[];
@@ -4258,7 +4295,7 @@ function renderConsMes(){
   const datasOrdenadas=Object.keys(grupos);
   const totalDias=datasOrdenadas.length;
   const datasPag=datasOrdenadas.slice(0,_agMesLimit);
-  el.innerHTML=datasPag.map(data=>{const cons=grupos[data];const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?numeroWhatsApp(c.telefone):'';return`<div class="ci" data-cid="${c.id}" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp" style="padding:6px 9px" title="Enviar WhatsApp">💬</a>`:''}<button class="btn" aria-label="Editar consulta" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.telefone?`<button class="btn" style="padding:6px 9px;font-size:12px;background:#EBF5FB;color:#1565C0;border-color:#90CAF9" title="Informativo pós-procedimento" onclick="posProcCard(this)" data-nome="${encodeURIComponent(c.nome)}" data-tel="${encodeURIComponent(c.telefone||'')}" data-proc="${encodeURIComponent(c.procedimento||'')}">📲</button>`:''}${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('')}</div>`;}).join('');
+  el.innerHTML=datasPag.map(data=>{const cons=grupos[data];const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?numeroWhatsApp(c.telefone):'';return`<div class="ci" data-cid="${c.id}" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}${badgeRespostaPaciente(c)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp" style="padding:6px 9px" title="Enviar WhatsApp">💬</a>`:''}<button class="btn" aria-label="Editar consulta" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.telefone?`<button class="btn" style="padding:6px 9px;font-size:12px;background:#EBF5FB;color:#1565C0;border-color:#90CAF9" title="Informativo pós-procedimento" onclick="posProcCard(this)" data-nome="${encodeURIComponent(c.nome)}" data-tel="${encodeURIComponent(c.telefone||'')}" data-proc="${encodeURIComponent(c.procedimento||'')}">📲</button>`:''}${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('')}</div>`;}).join('');
   if(totalDias>_agMesLimit){
     el.innerHTML+=`<div style="text-align:center;padding:12px"><button class="btn" onclick="_agMesLimit+=15;renderConsMes()" style="padding:8px 20px;font-size:12px">⬇️ Carregar mais dias (${totalDias-_agMesLimit} restantes)</button></div>`;
   }
@@ -4396,8 +4433,14 @@ async function salvarConsulta(){
   }
 
   const payloadBase={nome,telefone:tel||null,procedimento:document.getElementById('ag-proc').value||null,data,hora,observacao:document.getElementById('ag-obs').value.trim()||null,paciente_id:pacIdFinal||null,profissional_id:document.getElementById('ag-prof').value||null};
+  // Remarcou (mudou dia ou hora)? A resposta da paciente era sobre o horário antigo: limpa o pedido de
+  // remarcação / a confirmação dela e, se ela tinha confirmado pelo WhatsApp, volta a "agendado".
+  const remarcou=!!(aid&&agEditando&&(agEditando.data!==data||String(agEditando.hora||'').slice(0,5)!==String(hora).slice(0,5)));
+  const limpaResposta=remarcou&&agEditando.paciente_resposta
+    ? {paciente_resposta:null,paciente_respondeu_em:null,...(agEditando.paciente_resposta==='confirmou'&&agEditando.status==='confirmado'?{status:'agendado'}:{})}
+    : {};
   const payload=aid
-    ? payloadBase  // edição: não altera status nem serie_id
+    ? {...payloadBase,...limpaResposta}  // edição: não altera status nem serie_id (exceto ao limpar a resposta de quem remarcou)
     : {...payloadBase,status:'agendado',serie_id:serieId};  // novo: define status e serie_id
   const btn=document.getElementById('ag-salvar-btn');btn.disabled=true;btn.textContent='Salvando...';
   let error;
@@ -5206,7 +5249,7 @@ function renderLembretesAmanha(){
               <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(c.nome)}</div>
               <div style="font-size:11px;color:var(--ct)">${c.procedimento||''}</div>
             </div>
-            <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:${c.status==='confirmado'?'var(--verde-c)':'var(--amarelo-c)'};color:${c.status==='confirmado'?'var(--verde-e)':'#8a6000'};flex-shrink:0">${c.status==='confirmado'?'✅ Confirmada':'⏳ Pendente'}</span>
+            <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:${c.status==='confirmado'?'var(--verde-c)':'var(--amarelo-c)'};color:${c.status==='confirmado'?'var(--verde-e)':'#8a6000'};flex-shrink:0">${c.paciente_resposta==='confirmou'?'💬 Confirmou pelo WhatsApp':c.paciente_resposta==='remarcar'?'🔁 Pediu remarcar':(c.status==='confirmado'?'✅ Confirmada':'⏳ Pendente')}</span>
           </div>`).join('')}
       </div>
     </div>`;

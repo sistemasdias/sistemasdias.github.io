@@ -280,6 +280,8 @@ async function carregarConfigClinica() {
       // Só vem na configuração completa (login); a visão pública da clínica não traz o Pix.
       CLINICA_CONFIG.pixChave      = c.pix_chave || '';
       CLINICA_CONFIG.pixTitular    = c.pix_titular || '';
+      // 'off' (padrão) | 'registrar' | 'responder' — confirmação de consulta pela paciente no WhatsApp
+      CLINICA_CONFIG.whatsappConfirmacao = c.whatsapp_confirmacao || 'off';
       CLINICA_CONFIG.cidade        = c.cidade || '';
       CLINICA_CONFIG.uf            = c.uf || '';
       CLINICA_CONFIG._id           = c.id;

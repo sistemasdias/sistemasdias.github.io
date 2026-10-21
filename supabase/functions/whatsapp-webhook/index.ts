@@ -6,6 +6,7 @@
 // Só grava com a service_role key, que ignora RLS por natureza.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { classificarResposta, escolherConsulta, ultimos9 } from './resposta.mjs';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -155,14 +156,96 @@ async function estaAutorizado(
 function msgConfirmacaoConsulta(
   consulta: { nome: string; data: string; hora: string; procedimento: string | null },
   nomeClinica: string,
+  comResposta = false,
 ): string {
   const primeiroNome = consulta.nome.split(' ')[0];
   const procTexto = consulta.procedimento ? `Procedimento: ${consulta.procedimento}\n\n` : '';
+  // Só pede a resposta "1"/"2" quando a clínica ligou a confirmação pelo WhatsApp
+  const instrucao = comResposta ? 'Responda *1* para confirmar ou *2* para remarcar.\n\n' : '';
   return (
     `Olá, ${primeiroNome}! 😊\n\n` +
     `Lembrando que você tem consulta ${fmtDiaSemana(consulta.data)}, dia ${fmtDataBR(consulta.data)} às ${consulta.hora}h na clínica da ${nomeClinica}.\n\n` +
-    `${procTexto}Confirma sua presença? ✅\n\nTe esperamos! 💚`
+    `${procTexto}Confirma sua presença? ✅\n\n${instrucao}Te esperamos! 💚`
   );
+}
+
+type ModoConfirmacao = 'off' | 'registrar' | 'responder';
+
+async function modoConfirmacao(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+): Promise<ModoConfirmacao> {
+  const { data } = await adminClient
+    .from('config_clinica')
+    .select('whatsapp_confirmacao')
+    .eq('clinica_id', clinicaId)
+    .maybeSingle();
+  const m = data?.whatsapp_confirmacao;
+  return m === 'registrar' || m === 'responder' ? m : 'off';
+}
+
+// Resposta de uma PACIENTE ("1", "sim", "não posso"...) à mensagem de confirmação.
+// Só age se a clínica ligou o recurso, se a mensagem for curta e inequívoca, e se a paciente tiver
+// consulta em aberto nos próximos 4 dias. "Confirmou" marca a consulta como confirmada; "remarcar"
+// NÃO cancela nada: só avisa a recepção na tela Hoje. Em modo 'responder' agradece à paciente —
+// uma única vez por resposta (resposta repetida, igual à anterior, é ignorada: evita vai-e-vem).
+async function processarRespostaPaciente(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+  texto: string,
+  modo: ModoConfirmacao,
+) {
+  const resposta = classificarResposta(texto);
+  if (!resposta) return;
+
+  const n9 = ultimos9(numeroRemetente);
+  if (!n9) return;
+
+  const hoje = hojeStr();
+  const limite = new Date(`${hoje}T12:00:00Z`);
+  limite.setUTCDate(limite.getUTCDate() + 4);
+  const limiteStr = limite.toISOString().slice(0, 10);
+
+  const { data: candidatas } = await adminClient
+    .from('agenda')
+    .select('id, nome, data, hora, status, telefone, paciente_id, paciente_resposta, procedimento')
+    .eq('clinica_id', clinicaId)
+    .gte('data', hoje)
+    .lte('data', limiteStr)
+    .in('status', ['agendado', 'pendente', 'confirmado']);
+  if (!candidatas || !candidatas.length) return;
+
+  // Telefone da consulta ou, se não houver, o da ficha da paciente
+  const idsPac = [...new Set(candidatas.map((c: any) => c.paciente_id).filter(Boolean))];
+  const telPac: Record<string, string> = {};
+  if (idsPac.length) {
+    const { data: pacs } = await adminClient.from('pacientes').select('id, telefone').in('id', idsPac);
+    (pacs || []).forEach((p: any) => { telPac[p.id] = p.telefone || ''; });
+  }
+  const dela = candidatas.filter((c: any) =>
+    ultimos9(c.telefone) === n9 || (c.paciente_id && ultimos9(telPac[c.paciente_id]) === n9));
+
+  const alvo: any = escolherConsulta(dela, hoje);
+  if (!alvo) return;
+  if (alvo.paciente_resposta === resposta) return; // já registrado: não repete nem responde de novo
+
+  const mudancas: Record<string, unknown> = {
+    paciente_resposta: resposta,
+    paciente_respondeu_em: new Date().toISOString(),
+  };
+  if (resposta === 'confirmou' && alvo.status !== 'confirmado') mudancas.status = 'confirmado';
+  const { error } = await adminClient.from('agenda').update(mudancas).eq('id', alvo.id);
+  if (error) { console.error('[respostaPaciente]', error.message); return; }
+
+  if (modo !== 'responder') return;
+  const primeiroNome = String(alvo.nome || '').split(' ')[0];
+  const quando = `${fmtDiaSemana(alvo.data)}, ${fmtDataBR(alvo.data)} às ${String(alvo.hora).slice(0, 5)}h`;
+  const msg = resposta === 'confirmou'
+    ? `Obrigada, ${primeiroNome}! Sua consulta de ${quando} está confirmada. Te esperamos! 💚`
+    : `Tudo bem, ${primeiroNome}! Avisei a equipe e logo entramos em contato para encontrar um novo horário. 😊`;
+  await enviarTexto(instanciaNome, numeroRemetente, msg);
 }
 
 async function processarComandoListarAgenda(
@@ -252,10 +335,11 @@ async function processarComandoConfirmarAgenda(
 
   const { data: clinicaConfig } = await adminClient
     .from('config_clinica')
-    .select('nome')
+    .select('nome, whatsapp_confirmacao')
     .eq('clinica_id', clinicaId)
     .maybeSingle();
   const nomeClinica = clinicaConfig?.nome || 'clínica';
+  const comResposta = clinicaConfig?.whatsapp_confirmacao === 'registrar' || clinicaConfig?.whatsapp_confirmacao === 'responder';
 
   let enviadas = 0;
   let semTelefone = 0;
@@ -265,7 +349,7 @@ async function processarComandoConfirmarAgenda(
       semTelefone++;
       continue;
     }
-    await enviarTexto(instanciaNome, tel, msgConfirmacaoConsulta({ ...c, data: dataAlvo }, nomeClinica));
+    await enviarTexto(instanciaNome, tel, msgConfirmacaoConsulta({ ...c, data: dataAlvo }, nomeClinica, comResposta));
     enviadas++;
     await new Promise((r) => setTimeout(r, 1200));
   }
@@ -790,11 +874,14 @@ Deno.serve(async (req) => {
     const { data: gravadas, error: insertError } = await adminClient
       .from('whatsapp_mensagens_recebidas')
       .upsert(linhas, { onConflict: 'message_id', ignoreDuplicates: true })
-      .select('remote_jid, texto');
+      .select('remote_jid, texto, from_me');
 
     if (insertError) {
       return jsonResponse({ error: insertError.message }, 500);
     }
+
+    // Confirmação pela paciente: desligada por padrão (config_clinica.whatsapp_confirmacao = 'off').
+    const modoConf = (gravadas || []).length ? await modoConfirmacao(adminClient, instancia.clinica_id) : 'off';
 
     // Comandos por WhatsApp: mensagem de/para um número autorizado.
     // Não filtra por from_me porque o uso normal é a própria clínica
@@ -806,6 +893,13 @@ Deno.serve(async (req) => {
       const texto = (linha.texto || '').trim();
       const numeroRemetente = soDigitos((linha.remote_jid || '').split('@')[0]);
       if (!numeroRemetente) continue;
+
+      // Mensagem RECEBIDA de quem não é número autorizado (a paciente): só interessa como
+      // resposta de confirmação. Comandos (agenda:, cancelar:...) continuam só para autorizados.
+      if (modoConf !== 'off' && !linha.from_me && !(await estaAutorizado(adminClient, instancia.clinica_id, numeroRemetente))) {
+        await processarRespostaPaciente(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente, texto, modoConf);
+        continue;
+      }
 
       // Detecção por palavra (não exige ":" logo em seguida) — se a
       // pessoa esqueceu o formato exato (ex: "Agenda do dia 18/09" em vez
