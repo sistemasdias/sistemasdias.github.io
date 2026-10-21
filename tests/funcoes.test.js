@@ -49,9 +49,10 @@ test('resolverPacienteDaConsulta: nome exato único; duplicado ou ausente não l
 });
 
 // ── Cobranças ─────────────────────────────────────────────────────────────
+const CONFIG_COBR = { nome: 'Clínica Teste' };
 const cobr = montarDeCodigo(codigoIndex,
-  ['_cobrDias', '_cobrDesc', '_cobrNome', '_cobrPrimeiroNome', 'classificarCobranca', 'mensagemCobranca'],
-  { HOJE_STR: HOJE, fmtBRL, fDt, CLINICA_CONFIG: { nome: 'Clínica Teste' } });
+  ['_cobrDias', '_cobrDesc', '_cobrNome', '_cobrPrimeiroNome', 'classificarCobranca', '_cobrLinhaPix', 'mensagemCobranca'],
+  { HOJE_STR: HOJE, fmtBRL, fDt, CLINICA_CONFIG: CONFIG_COBR });
 const dia = n => { const d = new Date(HOJE + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 test('classificarCobranca: faixas e estágios', () => {
@@ -78,6 +79,23 @@ test('mensagemCobranca: usa nome, valor e data certos em cada estágio', () => {
   assert.match(m('atraso'), /Clareamento/);
   assert.match(m('atraso2'), /4 dias/);
   assert.match(m('aviso'), /Hoje vence/);
+});
+
+test('mensagemCobranca: inclui a chave Pix só quando a clínica configurou', () => {
+  const l = { valor: 600, data: dia(-4), descricao: 'Clareamento — João Silva', pacientes: { nome: 'João Silva' } };
+  const estagios = ['lembrete', 'aviso', 'atraso', 'atraso2'];
+  estagios.forEach(e => assert.doesNotMatch(cobr.mensagemCobranca(l, e, -4), /Pix/));   // sem configuração: igual a antes
+  CONFIG_COBR.pixChave = '  17999990000 ';
+  CONFIG_COBR.pixTitular = 'Ana Souza';
+  try {
+    estagios.forEach(e => {
+      const m = cobr.mensagemCobranca(l, e, -4);
+      assert.match(m, /Pix:\n17999990000\n\(Ana Souza\)/);       // chave sem espaços sobrando, com titular
+      assert.ok(m.trimEnd().endsWith('Clínica Teste'));           // assinatura da clínica continua no fim
+    });
+    CONFIG_COBR.pixTitular = '';
+    assert.doesNotMatch(cobr.mensagemCobranca(l, 'atraso', -4), /\(\)/);                   // sem titular: sem parênteses vazios
+  } finally { delete CONFIG_COBR.pixChave; delete CONFIG_COBR.pixTitular; }
 });
 
 // ── Fechamento da agenda ──────────────────────────────────────────────────

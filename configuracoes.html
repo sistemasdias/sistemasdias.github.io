@@ -324,6 +324,30 @@
     </div>
   </div>
 
+  <!-- Pix para cobranças -->
+  <div class="secao">
+    <div class="sec-hdr">
+      <span class="sec-icon">💠</span>
+      <span class="sec-title">Pix para cobranças</span>
+      <span class="sec-sub">Opcional</span>
+    </div>
+    <div class="sec-body">
+      <div style="font-size:12px;color:var(--ct);line-height:1.6;margin-bottom:.75rem">
+        Se preencher, as mensagens da aba <strong>Cobranças</strong> passam a incluir a sua chave Pix, para a paciente pagar na hora. Você ainda confere e edita o texto antes de enviar.
+      </div>
+      <div class="fg">
+        <div class="fi">
+          <label>Chave Pix</label>
+          <input type="text" id="cfg-pix-chave" maxlength="140" placeholder="CPF, CNPJ, e-mail, celular ou chave aleatória"/>
+        </div>
+        <div class="fi">
+          <label>Nome do titular (opcional)</label>
+          <input type="text" id="cfg-pix-titular" maxlength="80" placeholder="Como aparece para quem vai pagar"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Taxas da maquininha -->
   <div class="secao">
     <div class="sec-hdr">
@@ -1116,6 +1140,8 @@ async function init(){
     const c = data[0];
     configId = c.id;
     taxasCartaoPreencher(c.taxas_cartao);
+    document.getElementById('cfg-pix-chave').value   = c.pix_chave || '';
+    document.getElementById('cfg-pix-titular').value = c.pix_titular || '';
     document.getElementById('cfg-logo').value  = c.logo_url || '';
     document.getElementById('cfg-nome').value  = c.nome || '';
     document.getElementById('cfg-esp').value   = c.especialidade || '';
@@ -1467,6 +1493,8 @@ async function salvar(){
   const tx = taxasCartaoLer();
   if(tx.erro){ toast(tx.erro,'err'); btn.disabled=false; btn.textContent='💾 Salvar todas as configurações'; return; }
   dados.taxas_cartao = tx.valor;
+  dados.pix_chave   = document.getElementById('cfg-pix-chave').value.trim() || null;
+  dados.pix_titular = document.getElementById('cfg-pix-titular').value.trim() || null;
 
   let error;
   if(configId){

@@ -4617,9 +4617,16 @@ function classificarCobranca(l, envios){
 
 const _COBR_ROTULO = { lembrete:'Lembrete', aviso:'Aviso de vencimento', atraso:'Aviso de atraso', atraso2:'Segundo aviso' };
 
+function _cobrLinhaPix(){
+  const chave = (CLINICA_CONFIG.pixChave||'').trim();
+  if(!chave) return '';
+  const titular = (CLINICA_CONFIG.pixTitular||'').trim();
+  return `\n\nSe preferir, pode pagar por Pix:\n${chave}${titular ? `\n(${titular})` : ''}`;
+}
+
 function mensagemCobranca(l, estagio, dias){
   const nome = _cobrPrimeiroNome(l), valor = fmtBRL(l.valor), desc = _cobrDesc(l), data = fDt(l.data), clin = CLINICA_CONFIG.nome||'';
-  const ass = clin ? `\n\n${clin}` : '';
+  const ass = _cobrLinhaPix() + (clin ? `\n\n${clin}` : '');
   if(estagio==='lembrete') return `Olá, ${nome}! Tudo bem? 😊\n\nPassando só pra lembrar que o valor de ${valor} (${desc}) vence em ${data}.\n\nQualquer dúvida, é só me chamar. 💚${ass}`;
   if(estagio==='aviso') return `Olá, ${nome}! Tudo bem? 😊\n\nHoje vence o valor de ${valor} (${desc}).\n\nSe já realizou o pagamento, pode desconsiderar. Qualquer dúvida, estou à disposição! 💚${ass}`;
   if(estagio==='atraso') return `Olá, ${nome}! Tudo bem?\n\nNotei que o valor de ${valor} (${desc}), que venceu em ${data}, ainda consta em aberto. Se já pagou, me avise por aqui que eu atualizo! Se precisar combinar uma nova data, é só falar. 💚${ass}`;

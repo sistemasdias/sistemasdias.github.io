@@ -277,6 +277,9 @@ async function carregarConfigClinica() {
       CLINICA_CONFIG.instagram     = c.instagram     || '';
       CLINICA_CONFIG.registro      = c.registro_profissional || '';
       CLINICA_CONFIG.cnpjCpf       = c.cnpj_cpf || '';
+      // Só vem na configuração completa (login); a visão pública da clínica não traz o Pix.
+      CLINICA_CONFIG.pixChave      = c.pix_chave || '';
+      CLINICA_CONFIG.pixTitular    = c.pix_titular || '';
       CLINICA_CONFIG.cidade        = c.cidade || '';
       CLINICA_CONFIG.uf            = c.uf || '';
       CLINICA_CONFIG._id           = c.id;

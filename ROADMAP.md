@@ -198,6 +198,9 @@ quantas voltaram a agendar (`retornos_status.__reativacao_chamada`; "Agora não"
 
 **Testes automáticos (20/10/2026):** 93 testes em `tests/` (`npm test`), rodando também no GitHub.
 
+**Pix nas cobranças (21/10/2026):** Configurações → "Pix para cobranças" (`config_clinica.pix_chave` / `pix_titular`);
+as mensagens da aba Cobranças incluem a chave quando configurada. Não gera QR nem "copia e cola" com valor.
+
 **Ainda não iniciadas:**
 - **Faturamento líquido nos relatórios**, usando `financeiro.valor_liquido`, quando as
   clínicas já tiverem as taxas preenchidas.
