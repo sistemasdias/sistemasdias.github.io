@@ -201,6 +201,10 @@ quantas voltaram a agendar (`retornos_status.__reativacao_chamada`; "Agora não"
 **Pix nas cobranças (21/10/2026):** Configurações → "Pix para cobranças" (`config_clinica.pix_chave` / `pix_titular`);
 as mensagens da aba Cobranças incluem a chave quando configurada. Não gera QR nem "copia e cola" com valor.
 
+**Documentos (21/10/2026):** impressão em A4 revisada com PDF real (termos e autorização em 1 folha; anamnese
+odontológica em 2; rubrica e "Pág. x/y" nos de várias folhas; cidade/data por extenso nas assinaturas; carimbo nome+registro
+nos receituários; logo do mesmo tamanho em todos). Também corrigida a data "de hoje" em UTC (virava amanhã após as 21h).
+
 **Ainda não iniciadas:**
 - **Faturamento líquido nos relatórios**, usando `financeiro.valor_liquido`, quando as
   clínicas já tiverem as taxas preenchidas.

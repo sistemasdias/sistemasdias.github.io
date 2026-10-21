@@ -132,3 +132,10 @@ impede o site de ser publicado. Mudou uma regra de propósito? Atualize o teste 
 com regra de dinheiro, agenda ou paciente? Acrescente um teste em `tests/funcoes.test.js`.
 Os testes não cobrem o banco (RLS, funções SQL) nem o visual — isso continua sendo conferido à mão.
 
+**Como verificar impressão de verdade (A4):** dá para gerar o PDF com o motor de impressão do Edge/Chrome
+sem imprimir — `msedge --headless=new --no-pdf-header-footer --virtual-time-budget=12000
+--print-to-pdf=saida.pdf <url>` — e contar/ver as páginas. Foi assim que se ajustou o encaixe dos
+documentos em 21/10/2026 (uma simulação por medidas de altura não bastou: o PDF real mostrou um termo
+com a assinatura caindo sozinha na 2ª folha). Pegadinha: `@page` com nome aplicado a um painel força uma
+folha em branco antes; o nome de página só pode ir no `body`.
+

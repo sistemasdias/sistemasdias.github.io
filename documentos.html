@@ -50,6 +50,21 @@ textarea{resize:vertical}
 .fgr.full{grid-column:1/-1}
 .fgr.t3{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .sec-title{font-size:13px;font-weight:600;color:var(--verde-e);margin:1.25rem 0 .75rem;padding-bottom:6px;border-bottom:1.5px solid var(--verde-c)}
+/* Documentos que passam de uma folha (anamnese, ficha odontológica, odontograma, orçamento): campo de
+   rubrica + "Pág. x/y" no rodapé de CADA folha. Usa caixas de margem da página (@page) — funciona no
+   Chrome/Edge atuais; onde o navegador não suporta (Safari), simplesmente não aparece. Fica no centro
+   para não colidir com o cabeçalho/rodapé automático do navegador (cantos). */
+@page docmulti {
+  margin: 10mm 10mm 16mm 10mm;
+  @bottom-center { content: "Rubrica: ______________   ·   Pág. " counter(page) "/" counter(pages); font-size: 9px; color: #666; }
+}
+/* aplicado no body (e não no painel): nome de página no painel força uma folha em branco antes dele */
+body:has(#panel-anamnese.active), body:has(#panel-anamnese-odonto.active),
+body:has(#panel-odontograma.active), body:has(#panel-orcamento.active) { page: docmulti; }
+/* "Cidade/UF, 21 de outubro de 2026" junto das assinaturas (preenchido por garantirLocalData) */
+.doc-local-data{font-size:11px;font-weight:400;color:var(--ct);text-transform:none;letter-spacing:0}
+.sec-title .doc-local-data{float:right}
+div.doc-local-data{text-align:right;margin-top:10px}
 .check-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
 .check-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border-radius:8px;cursor:pointer}
 .check-item input[type=checkbox]{width:16px;height:16px;cursor:pointer;flex-shrink:0}
@@ -170,7 +185,6 @@ textarea{resize:vertical}
   html:has(#panel-receituario-simples.active), body:has(#panel-receituario-simples.active) { min-height: 0 !important; height: auto !important; }
   body:has(#panel-receituario-simples.active) .main { display: none !important; }   /* busca/lista de documentos: nada a imprimir */
   #panel-receituario-simples .card { padding: 0 !important; margin: 0 !important; }
-  #panel-receituario-simples .doc-clinic-logo { height: 50px !important; margin-bottom: 0 !important; }
   #panel-receituario-simples .card > div:first-child { margin-bottom: .5rem !important; }
   #panel-receituario-simples .card > div:first-child > div:last-child { margin-top: 6px !important; padding: 3px !important; }
   #panel-receituario-simples .fgr { margin-bottom: .5rem !important; }
@@ -187,13 +201,17 @@ textarea{resize:vertical}
      assinatura passavam ~3 mm da margem direita (canvas de 340 px mais largo que a coluna); (3) a
      Anamnese Odontológica ocupava 3 folhas, a última com só 20 mm; (4) linha de tabela do Odontograma
      cortada entre folhas; (5) título de seção podia ficar sozinho no fim da folha. */
+  /* Cabeçalho único: logo do mesmo tamanho em TODOS os documentos (antes: 70 px em uns, menor em outros) */
+  .doc-clinic-logo { height: 52px !important; margin-bottom: 2px !important; }
   .termo-texto { font-size: 12px !important; line-height: 1.4 !important; padding: .5rem .8rem !important; margin-bottom: .4rem !important; }
   /* Termos de consentimento e autorização de imagem: UMA folha, com folga (~20 mm) para nomes e
      endereços longos não empurrarem a assinatura para uma 2ª folha sozinha */
-  [id^="panel-termo-"] .doc-clinic-logo, #panel-autorizacao-imagem .doc-clinic-logo { height: 50px !important; }
   [id^="panel-termo-"] .sec-title, #panel-autorizacao-imagem .sec-title { margin-top: 8px !important; }
+  /* campos de CPF/RG viram texto simples (sem caixa), como no Atestado: ~10 mm a menos e visual mais limpo */
+  [id^="panel-termo-"] .fg, #panel-autorizacao-imagem .fg { margin-bottom: .35rem !important; gap: 8px !important; }
+  [id^="panel-termo-"] .fg input, #panel-autorizacao-imagem .fg input { border: none !important; background: none !important; padding: 1px 0 !important; font-weight: 600; }
   [id^="panel-termo-"] .sig-row, #panel-autorizacao-imagem .sig-row { margin-top: 8px !important; }
-  [id^="panel-termo-"] .sig-area canvas, #panel-autorizacao-imagem .sig-area canvas { max-height: 24mm; width: auto !important; }
+  [id^="panel-termo-"] .sig-area canvas, #panel-autorizacao-imagem .sig-area canvas { max-height: 24mm; width: auto !important; border: none !important; margin: 0 auto; }
   .pac-info { padding: 6px 12px !important; margin-bottom: .5rem !important; }
   .termo-texto p { margin-bottom: .45rem !important; }
   .termo-texto ul { margin: .35rem 0 .45rem 1.25rem !important; }
@@ -1087,7 +1105,9 @@ const db=sbClient();
 })();
 
 let pacs=[], pacSelecionada=null;
-const HOJE=new Date().toISOString().split('T')[0];
+// Data LOCAL (não UTC): toISOString() dá o dia seguinte a partir das 21h no Brasil, e o documento
+// saía com a data de amanhã.
+const HOJE=(()=>{ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().split('T')[0]; })();
 let profissionaisDoc=[];
 // Lista de profissionais (funcionários ativos) para vincular o atendimento realizado
 // ao relatório de comissão em index.html (financeiro.profissional_id)
@@ -1139,15 +1159,45 @@ function assinaturaDoDoc(doc){
   return {img:doc.assinatura_profissional||null,nome:d.assinanteNome,registro:d.assinanteRegistro||''};
 }
 
+// ── Local e data por extenso junto das assinaturas ──
+// Documento assinado precisa dizer onde e quando. Usa a cidade/UF cadastradas em Configurações e a
+// data de HOJE ou, ao reabrir um documento salvo, a data em que ele foi feito (_dataDocLocal).
+const MESES_EXTENSO=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function textoLocalData(iso){
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||'');
+  if(!m) return '';
+  const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
+  const local=[c.cidade,c.uf].filter(Boolean).join('/');
+  return (local?local+', ':'')+`${parseInt(m[3],10)} de ${MESES_EXTENSO[parseInt(m[2],10)-1]} de ${m[1]}`;
+}
+function garantirLocalData(painel, iso){
+  if(!painel) return;
+  const texto=textoLocalData(iso||HOJE);
+  if(!texto) return;
+  painel.querySelectorAll('.sig-row').forEach(linha=>{
+    const antes=linha.previousElementSibling;
+    const titulo=(antes&&antes.classList.contains('sec-title'))?antes:null;
+    let el=titulo?titulo.querySelector('.doc-local-data'):(antes&&antes.classList.contains('doc-local-data')?antes:null);
+    if(!el){
+      el=document.createElement(titulo?'span':'div');
+      el.className='doc-local-data';
+      if(titulo) titulo.appendChild(el); else linha.parentElement.insertBefore(el,linha);
+    }
+    el.textContent=texto;
+  });
+}
+
 function mostrarAssinatura(ass){
   _assinaturaExibida=ass||null;
   const c=(typeof CLINICA_CONFIG!=='undefined')?CLINICA_CONFIG:{};
-  const texto=ass?[ass.nome,ass.registro].filter(Boolean).join(' — '):[c.nome,c.registro].filter(Boolean).join(' — ');
+  // Carimbo legível: nome em negrito e registro (CRO/CRM) na linha de baixo
+  const nomeAss=ass?ass.nome:c.nome, regAss=ass?ass.registro:c.registro;
+  const html=nomeAss?`<strong>${escapeHtml(nomeAss)}</strong>${regAss?'<br>'+escapeHtml(regAss):''}`:escapeHtml(regAss||'');
   PAINEIS_RECEITA.forEach(tipo=>{
     const linha=document.querySelector(`#panel-${tipo} .doc-clinic-assinatura`);
     if(!linha) return;
     linha.parentElement.querySelectorAll('.doc-assinatura-img').forEach(el=>el.remove());
-    linha.textContent=texto;
+    linha.innerHTML=html;
     if(ass&&ass.img){
       const img=document.createElement('img');
       img.className='doc-assinatura-img';
@@ -1161,7 +1211,7 @@ function mostrarAssinatura(ass){
     }
   });
   const nomeAtestado=document.getElementById('atestado-assinatura-nome');
-  if(nomeAtestado) nomeAtestado.textContent=texto;
+  if(nomeAtestado) nomeAtestado.innerHTML=html;
 }
 
 // Desenha a assinatura no quadro do atestado mantendo a proporção
@@ -1235,7 +1285,6 @@ document.addEventListener('click',e=>{if(!e.target.closest('#busca-pac')&&!e.tar
 // ── COMPARTILHAR DOCUMENTO POR WHATSAPP (gera PDF real do que seria impresso) ──
 const CSS_PDF_RECEITUARIO_SIMPLES = `
 #panel-receituario-simples .card{width:794px!important;max-width:794px!important;box-sizing:border-box!important;padding:20px!important;margin:0!important}
-#panel-receituario-simples .doc-clinic-logo{height:50px!important;margin-bottom:0!important}
 #panel-receituario-simples .card>div:first-child{margin-bottom:8px!important}
 #panel-receituario-simples .card>div:first-child>div:last-child{margin-top:6px!important;padding:3px!important}
 #panel-receituario-simples .fgr{margin-bottom:8px!important}
@@ -1260,7 +1309,7 @@ async function gerarPdfDoPainel(tipo){
       // textos de exemplo (placeholder) de campos vazios não vão pro PDF
       doc.querySelectorAll('input, textarea').forEach(el => { if (!el.value) el.placeholder = ''; });
       const s = doc.createElement('style');
-      s.textContent = '#recs-area:empty:before{content:none!important}';
+      s.textContent = '#recs-area:empty:before{content:none!important} .doc-clinic-logo{height:52px!important;margin-bottom:2px!important}';
       // Receituário simples: largura fixa de A4 (794px) + espaçamento compacto, para o PDF sair
       // sempre em UMA folha, não importa o tamanho da janela de quem gerou (antes, em janela
       // estreita a proporção altura/largura passava da A4 e virava 2 folhas).
@@ -2488,8 +2537,10 @@ async function verDoc(id,tipo){
   // Ativa modo visualização para o iniciarSig não apagar o canvas
   _modoVer=true;
 
-  // Abre o painel (já preenche os campos base via abrirDoc)
-  await abrirDoc(tipo);
+  // Abre o painel (já preenche os campos base via abrirDoc). O local/data junto das assinaturas
+  // usa a data em que o documento foi feito, não a de hoje.
+  window._dataDocLocal=(data.data_assinatura||data.criado_em||'').split('T')[0]||null;
+  try{ await abrirDoc(tipo); } finally { window._dataDocLocal=null; }
 
   // Aguarda o DOM renderizar antes de preencher
   await new Promise(r=>setTimeout(r,120));
@@ -3008,6 +3059,7 @@ async function abrirDoc(tipo){
   else if(tipo.startsWith('termo-')) abrirTermo(tipo);
   const panel=document.getElementById('panel-'+tipo);
   if(panel)panel.classList.add('active');
+  garantirLocalData(panel, window._dataDocLocal);
   // Garantir linha inicial nos receituários
   if(tipo==='receituario'&&!document.querySelector('#rec-medicamentos > div')) addMedicamento();
   if(tipo==='receituario-estetico'&&!document.querySelector('#rece-produtos > div')) addProdutoEstetico();
@@ -3552,7 +3604,8 @@ carregar().then(()=>{
       return;
     }
 
-    await abrirDoc(tipo);
+    window._dataDocLocal = (doc.data_assinatura || doc.criado_em || '').split('T')[0] || null;
+    try { await abrirDoc(tipo); } finally { window._dataDocLocal = null; }
 
     await new Promise(r => setTimeout(r, 300));
 

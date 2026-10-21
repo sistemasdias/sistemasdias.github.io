@@ -155,6 +155,25 @@ test('resultadoReativacao: conta só quem foi chamada e voltou a agendar depois'
   assert.deepStrictEqual(r.voltaram.map(p => p.id), ['a', 'g']);
 });
 
+// ── Data local (não UTC) e "Cidade, data por extenso" nos documentos ─────
+test('_dataLocalISO: depois das 21h no Brasil continua sendo o dia de hoje (UTC já virou o dia)', () => {
+  const { _dataLocalISO } = montarDeCodigo(codigoIndex, [], {}, ['_dataLocalISO']);
+  // 21/10/2026 01:00 UTC = 20/10/2026 22:00 em Brasília (UTC-3 → offset 180)
+  const noite = { getTime: () => Date.UTC(2026, 9, 21, 1, 0), getTimezoneOffset: () => 180 };
+  assert.strictEqual(_dataLocalISO(noite), '2026-10-20');
+  const manha = { getTime: () => Date.UTC(2026, 9, 21, 13, 0), getTimezoneOffset: () => 180 };
+  assert.strictEqual(_dataLocalISO(manha), '2026-10-21');
+});
+test('textoLocalData: "Cidade/UF, 21 de outubro de 2026", sem cidade só a data, data inválida vazio', () => {
+  const codigoDocs = scriptsInline(ler('documentos.html')).join('\n');
+  const monta = CLINICA_CONFIG => montarDeCodigo(codigoDocs, ['textoLocalData'], { CLINICA_CONFIG }, ['MESES_EXTENSO']).textoLocalData;
+  assert.strictEqual(monta({ cidade: 'São José do Rio Preto', uf: 'SP' })('2026-10-21'), 'São José do Rio Preto/SP, 21 de outubro de 2026');
+  assert.strictEqual(monta({ cidade: 'Votuporanga' })('2026-03-05'), 'Votuporanga, 5 de março de 2026');
+  assert.strictEqual(monta({})('2026-12-01'), '1 de dezembro de 2026');
+  assert.strictEqual(monta({ cidade: 'X' })(''), '');
+  assert.strictEqual(monta({ cidade: 'X' })(null), '');
+});
+
 // ── Taxas da maquininha (Configurações) ───────────────────────────────────
 test('taxasCartaoLer: aceita vírgula e %, recusa valor inválido, vazio vira null', () => {
   const codigo = scriptsInline(ler('configuracoes.html')).join('\n');

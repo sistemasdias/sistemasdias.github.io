@@ -1051,9 +1051,12 @@ let agEditando=null,agPacId=null;
 let agMes,agDia,filtroAtivo='todos';
 
 const HOJE=new Date();
-const HOJE_STR=HOJE.toISOString().split('T')[0];
+// Data LOCAL (não UTC): toISOString() dá o dia seguinte a partir das 21h no Brasil, e o sistema
+// passava a achar que "hoje" já era amanhã (agenda, cobranças, retornos).
+const _dataLocalISO=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().split('T')[0];
+const HOJE_STR=_dataLocalISO(HOJE);
 const AMANHA=new Date(HOJE); AMANHA.setDate(AMANHA.getDate()+1);
-const AMANHA_STR=AMANHA.toISOString().split('T')[0];
+const AMANHA_STR=_dataLocalISO(AMANHA);
 const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const MESES_N=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 

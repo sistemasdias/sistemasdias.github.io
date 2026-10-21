@@ -83,7 +83,7 @@ function montarDeCodigo(codigo, nomes, contexto = {}, linhas = []) {
   const partes = linhas.map(l => extrairLinha(codigo, l));
   nomes.forEach(n => partes.push(extrairFuncao(codigo, n)));
   const chaves = Object.keys(contexto);
-  const fabrica = new Function(...chaves, partes.join('\n') + '\nreturn {' + nomes.join(',') + '};');
+  const fabrica = new Function(...chaves, partes.join('\n') + '\nreturn {' + [...nomes, ...linhas].join(',') + '};');
   return fabrica(...chaves.map(k => contexto[k]));
 }
 
