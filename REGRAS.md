@@ -77,6 +77,11 @@ Automações já ativas hoje (via `pg_cron`, ver `cron.job` no Supabase):
   assinatura paga. O prazo (14 dias) também está hardcoded em
   `admin-assinaturas.html` (`TRIAL_DIAS`) — mudar um exige mudar o outro.
 
+- `divulgacao-processar` (a cada minuto, **ligado em 10/11/2026 a pedido do dono**): chama a Edge Function de mesmo
+  nome, que envia no máximo uma mensagem de divulgação por clínica por rodada. Só age em clínica com
+  `config_clinica.divulgacao_whatsapp = true` (hoje: só a Dra. Anna Carolina Dias). Desligar tudo:
+  `select cron.unschedule('divulgacao-processar');`. Ver "Divulgação pelo WhatsApp" abaixo.
+
 ## Painel de assinaturas (admin-assinaturas.html)
 
 Ferramenta separada do sistema da clínica — é o painel **seu** (dono do
