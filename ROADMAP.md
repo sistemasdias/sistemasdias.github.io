@@ -220,5 +220,5 @@ intervalo/limite diário/horário, anexo de vídeo ou imagem, "responda SAIR". P
 - [x] publicar o site (merge na `main`);
 - [ ] testar "Enviar teste" com o vídeo real num número próprio;
 - [ ] quando pedido: aplicar `20261110_divulgacao_cron_LIGAR.sql` e ligar `divulgacao_whatsapp` na clínica;
-- [ ] atualizar `admin-roteiro.html` e o artefato externo de onboarding (o `ajuda.html` já foi atualizado);
-- [ ] falta marcar "não enviar divulgação" também na ficha da paciente (hoje só na tela de Divulgação e pelo SAIR).
+- [x] `admin-roteiro.html` e `ajuda.html` atualizados; **falta o artefato externo de onboarding**;
+- [x] "não enviar divulgação" também na ficha da paciente (Editar cadastro), além da tela de Divulgação e do SAIR.

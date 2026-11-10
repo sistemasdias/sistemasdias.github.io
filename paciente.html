@@ -534,6 +534,13 @@ textarea{resize:vertical;min-height:70px}
       </div>
       <div class="fgr"><label>Convênio / Plano</label><select id="e-convenio"><option value="">Particular (sem convênio)</option></select></div>
       <div class="fgr full"><label>Observações</label><textarea id="e-obs"></textarea></div>
+      <div class="fgr full">
+        <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="e-sem-divulgacao" style="width:17px;height:17px;flex-shrink:0"/>
+          🚫 Não enviar divulgações (eventos, novidades) para esta paciente
+        </label>
+        <div style="font-size:11px;color:var(--ct);margin-top:3px">Marcado automaticamente quando a paciente responde SAIR a uma divulgação. Lembretes e confirmações de consulta continuam normais.</div>
+      </div>
     </div>
     <div class="br">
       <button class="btn" onclick="fchEdit()">Cancelar</button>
@@ -1841,6 +1848,7 @@ function abrirEditarDados(){
   document.getElementById('e-facebook').value=p.facebook||'';
   document.getElementById('e-conheceu').value=p.como_conheceu||'';
   document.getElementById('e-obs').value=p.observacoes||'';
+  document.getElementById('e-sem-divulgacao').checked=!!p.sem_divulgacao;
 
   // Rascunho automático: se havia algo não salvo (sessão caiu, aba fechou, etc.), recupera
   const aviso=document.getElementById('e-rascunho-aviso');
@@ -1893,6 +1901,9 @@ async function salvarEdit(){
     responsavel_id:document.getElementById('e-resp-id').value||null,
     convenio_id:document.getElementById('e-convenio').value||null,
   };
+  // Só grava a marcação de divulgação se ela mudou (mantém a data de quando a paciente pediu para sair)
+  const semDiv=document.getElementById('e-sem-divulgacao').checked;
+  if(semDiv!==!!pac.sem_divulgacao){ updates.sem_divulgacao=semDiv; updates.sem_divulgacao_em=semDiv?new Date().toISOString():null; }
   const{error}=await db.from('pacientes').update(updates).eq('id',pac.id);
   if(error){toast('Erro ao salvar','vermelho');return;}
   rascunhoLimpar('paciente_edit_'+pac.id);
