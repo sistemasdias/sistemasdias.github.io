@@ -19,8 +19,9 @@ function bancoFalso(tabelas) {
     const linhas = () => (tabelas[nome] || []).filter(r => st.filtros.every(f => f(r)));
     const executar = () => {
       if (st.op === 'update') {
-        linhas().forEach(r => Object.assign(r, st.dados));
-        return { data: null, error: null };
+        const afetadas = linhas();
+        afetadas.forEach(r => Object.assign(r, st.dados));
+        return { data: afetadas, error: null };
       }
       if (st.op === 'upsert') {
         const novas = [];
@@ -40,6 +41,7 @@ function bancoFalso(tabelas) {
       gte(c, v) { st.filtros.push(r => r[c] >= v); return q; },
       lte(c, v) { st.filtros.push(r => r[c] <= v); return q; },
       in(c, vs) { st.filtros.push(r => vs.includes(r[c])); return q; },
+      like(c, p) { const fim = String(p).replace(/^%/, ''); st.filtros.push(r => String(r[c] || '').endsWith(fim)); return q; },
       order() { return q; },
       maybeSingle() { st.single = true; return Promise.resolve(executar()); },
       update(d) { st.op = 'update'; st.dados = d; return q; },
@@ -59,8 +61,8 @@ async function montarWebhook(tabelas) {
   const Deno = { env: { get: k => ({ EVOLUTION_API_URL: 'http://evo', EVOLUTION_API_KEY: 'k', SUPABASE_URL: 'u', SUPABASE_SERVICE_ROLE_KEY: 's' })[k] }, serve: h => { handler = h; } };
   const fetchFalso = async (url, o) => { enviados.push({ url, corpo: JSON.parse(o.body) }); return { ok: true }; };
   const mod = await import(pathToFileURL(path.join(DIR, 'resposta.mjs')).href);
-  new Function('createClient', 'classificarResposta', 'escolherConsulta', 'ultimos9', 'Deno', 'fetch',
-    fonte)(() => bancoFalso(tabelas), mod.classificarResposta, mod.escolherConsulta, mod.ultimos9, Deno, fetchFalso);
+  new Function('createClient', 'classificarResposta', 'classificarSaida', 'escolherConsulta', 'ultimos8', 'ultimos9', 'Deno', 'fetch',
+    fonte)(() => bancoFalso(tabelas), mod.classificarResposta, mod.classificarSaida, mod.escolherConsulta, mod.ultimos8, mod.ultimos9, Deno, fetchFalso);
   const chamar = (texto, { jid = '5517997716697@s.whatsapp.net', fromMe = false, id } = {}) =>
     handler({
       method: 'POST', url: 'http://x/', headers: { get: () => null },
@@ -146,5 +148,48 @@ test('número autorizado da clínica continua usando comandos e nunca é tratado
   const { chamar, enviados } = await montarWebhook(t);
   await chamar('1', { jid: '5517988887777@s.whatsapp.net' });
   assert.strictEqual(t.agenda[0].paciente_resposta, null);
+  assert.strictEqual(enviados.length, 0);
+});
+
+// ── "SAIR": paciente pede para não receber mais divulgações ──
+function cenarioDivulgacao(extra = {}) {
+  const ontem = new Date(Date.now() - 24 * 3600e3).toISOString();
+  return cenario('off', {
+    pacientes: [{ id: 'P1', clinica_id: 'C1', telefone: '(17) 99771-6697', sem_divulgacao: false }],
+    divulgacao_envios: [
+      { id: 'E1', clinica_id: 'C1', paciente_id: 'P1', numero: '5517997716697', status: 'enviado', enviado_em: ontem },
+      { id: 'E2', clinica_id: 'C1', paciente_id: 'P1', numero: '5517997716697', status: 'pendente', enviado_em: null }, // outra divulgação na fila
+      { id: 'E3', clinica_id: 'C1', paciente_id: 'P9', numero: '5517911112222', status: 'pendente', enviado_em: null }, // outra paciente
+    ],
+    ...extra,
+  });
+}
+
+test('SAIR: marca a paciente, tira da fila o que estava pendente para ela e confirma uma única vez', async () => {
+  const t = cenarioDivulgacao(); const { chamar, enviados } = await montarWebhook(t);
+  await chamar('Sair');
+  assert.strictEqual(t.pacientes[0].sem_divulgacao, true);
+  assert.ok(t.pacientes[0].sem_divulgacao_em);
+  assert.strictEqual(t.divulgacao_envios[1].status, 'pulado');
+  assert.strictEqual(t.divulgacao_envios[2].status, 'pendente');   // outra paciente: intacta
+  assert.strictEqual(enviados.length, 1);
+  assert.match(enviados[0].corpo.text, /não vai mais receber/);
+  await chamar('SAIR');                                            // repetiu
+  assert.strictEqual(enviados.length, 1);                          // sem vai-e-vem
+});
+
+test('SAIR: funciona mesmo com o WhatsApp chegando sem o 9 na frente do número', async () => {
+  const t = cenarioDivulgacao(); const { chamar } = await montarWebhook(t);
+  await chamar('parar', { jid: '551797716697@s.whatsapp.net' });
+  assert.strictEqual(t.pacientes[0].sem_divulgacao, true);
+});
+
+test('SAIR: quem não recebeu divulgação, frase longa ou mensagem da própria clínica não marcam ninguém', async () => {
+  const t = cenarioDivulgacao(); const { chamar, enviados } = await montarWebhook(t);
+  await chamar('sair', { jid: '5517900000000@s.whatsapp.net' });   // nunca recebeu
+  await chamar('vou sair mais cedo do trabalho hoje, posso ir antes?');
+  await chamar('sair', { fromMe: true });
+  assert.strictEqual(t.pacientes[0].sem_divulgacao, false);
+  assert.strictEqual(t.divulgacao_envios[1].status, 'pendente');
   assert.strictEqual(enviados.length, 0);
 });

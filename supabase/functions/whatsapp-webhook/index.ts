@@ -6,7 +6,7 @@
 // Só grava com a service_role key, que ignora RLS por natureza.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { classificarResposta, escolherConsulta, ultimos9 } from './resposta.mjs';
+import { classificarResposta, classificarSaida, escolherConsulta, ultimos8, ultimos9 } from './resposta.mjs';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -246,6 +246,59 @@ async function processarRespostaPaciente(
     ? `Obrigada, ${primeiroNome}! Sua consulta de ${quando} está confirmada. Te esperamos! 💚`
     : `Tudo bem, ${primeiroNome}! Avisei a equipe e logo entramos em contato para encontrar um novo horário. 😊`;
   await enviarTexto(instanciaNome, numeroRemetente, msg);
+}
+
+// A paciente respondeu "SAIR" a uma divulgação: marca a ficha como "não enviar divulgação" e tira
+// da fila o que ainda estava pendente para ela. Só age se esse número RECEBEU uma divulgação nos
+// últimos 60 dias — "sair" solto, fora desse contexto, é conversa e fica para a recepção.
+// Devolve true se tratou a mensagem. Vale sempre, mesmo com a confirmação de consulta desligada:
+// pedido de saída não pode depender de configuração (LGPD, direito de oposição).
+async function processarSaidaDivulgacao(
+  adminClient: ReturnType<typeof createClient>,
+  clinicaId: string,
+  instanciaNome: string,
+  numeroRemetente: string,
+): Promise<boolean> {
+  const n8 = ultimos8(numeroRemetente);
+  if (!n8) return false;
+
+  const limite = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: recebidos } = await adminClient
+    .from('divulgacao_envios')
+    .select('paciente_id')
+    .eq('clinica_id', clinicaId)
+    .eq('status', 'enviado')
+    .gte('enviado_em', limite)
+    .like('numero', `%${n8}`);
+  if (!recebidos || !recebidos.length) return false;
+
+  // Tira da fila qualquer envio pendente para esse número (de qualquer divulgação da clínica)
+  await adminClient
+    .from('divulgacao_envios')
+    .update({ status: 'pulado', erro: 'Paciente respondeu SAIR' })
+    .eq('clinica_id', clinicaId)
+    .eq('status', 'pendente')
+    .like('numero', `%${n8}`);
+
+  const ids = [...new Set(recebidos.map((r: any) => r.paciente_id).filter(Boolean))];
+  let novas = 0;
+  if (ids.length) {
+    const { data: marcadas } = await adminClient
+      .from('pacientes')
+      .update({ sem_divulgacao: true, sem_divulgacao_em: new Date().toISOString() })
+      .eq('clinica_id', clinicaId)
+      .eq('sem_divulgacao', false)
+      .in('id', ids)
+      .select('id');
+    novas = (marcadas || []).length;
+  }
+
+  // Confirma uma única vez (se já estava marcada, não responde de novo: evita vai-e-vem)
+  if (novas) {
+    await enviarTexto(instanciaNome, numeroRemetente,
+      'Pronto! Você não vai mais receber nossas divulgações por aqui. 💚');
+  }
+  return true;
 }
 
 async function processarComandoListarAgenda(
@@ -893,6 +946,12 @@ Deno.serve(async (req) => {
       const texto = (linha.texto || '').trim();
       const numeroRemetente = soDigitos((linha.remote_jid || '').split('@')[0]);
       if (!numeroRemetente) continue;
+
+      // "SAIR" de quem recebeu divulgação: atende sempre, antes de qualquer outra regra.
+      if (!linha.from_me && classificarSaida(texto)
+        && await processarSaidaDivulgacao(adminClient, instancia.clinica_id, instanciaNome, numeroRemetente)) {
+        continue;
+      }
 
       // Mensagem RECEBIDA de quem não é número autorizado (a paciente): só interessa como
       // resposta de confirmação. Comandos (agenda:, cancelar:...) continuam só para autorizados.

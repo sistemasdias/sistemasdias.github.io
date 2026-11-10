@@ -1,6 +1,7 @@
 // Edge Function: whatsapp-enviar
 // Chamada pelo frontend (usuário logado) para mandar uma mensagem de texto
-// pela instância Evolution API da própria clínica. A EVOLUTION_API_URL e a
+// (ou, na tela de Divulgação, um teste com vídeo/imagem) pela instância
+// Evolution API da própria clínica. A EVOLUTION_API_URL e a
 // EVOLUTION_API_KEY nunca chegam ao navegador — ficam só como secrets aqui.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -59,9 +60,18 @@ Deno.serve(async (req) => {
     clinicaId = chamador.clinica_id;
 
     // 3. Lê os dados da mensagem
-    const { paciente_id, numero, texto } = await req.json();
-    if (!numero || !texto) {
+    // midia_* é opcional: anexo (vídeo/imagem) já enviado ao bucket divulgacao-midia. Usado pelo
+    // "enviar teste" da tela de Divulgação — o envio em lista passa pela fila (divulgacao-processar).
+    const { paciente_id, numero, texto, midia_caminho, midia_tipo, midia_mime, midia_nome } = await req.json();
+    if (!numero || (!texto && !midia_caminho)) {
       return jsonResponse({ error: 'Informe número e texto da mensagem.' }, 400);
+    }
+    // O anexo tem de estar na pasta da própria clínica — nunca o arquivo de outra.
+    if (midia_caminho && (!String(midia_caminho).startsWith(`${clinicaId}/`) || String(midia_caminho).includes('..'))) {
+      return jsonResponse({ error: 'Anexo inválido.' }, 400);
+    }
+    if (midia_caminho && !['video', 'image'].includes(midia_tipo)) {
+      return jsonResponse({ error: 'Tipo de anexo inválido.' }, 400);
     }
     const numeroLimpo = String(numero).replace(/\D/g, '');
     if (!numeroLimpo) {
@@ -85,15 +95,35 @@ Deno.serve(async (req) => {
     // 5. Chama a Evolution API
     const evolutionUrl = Deno.env.get('EVOLUTION_API_URL')!;
     const evolutionKey = Deno.env.get('EVOLUTION_API_KEY')!;
-    const r = await fetch(`${evolutionUrl}/message/sendText/${instanciaNome}`, {
+    let caminhoEvolution = `message/sendText/${instanciaNome}`;
+    let corpoEvolution: Record<string, unknown> = { number: numeroLimpo, text: texto };
+    if (midia_caminho) {
+      const { data: link, error: linkErro } = await adminClient.storage
+        .from('divulgacao-midia')
+        .createSignedUrl(String(midia_caminho), 900);
+      if (linkErro || !link?.signedUrl) {
+        return jsonResponse({ error: 'Não encontrei o anexo. Envie o arquivo de novo.' }, 400);
+      }
+      caminhoEvolution = `message/sendMedia/${instanciaNome}`;
+      corpoEvolution = {
+        number: numeroLimpo,
+        mediatype: midia_tipo,
+        mimetype: midia_mime || undefined,
+        caption: texto || '',
+        media: link.signedUrl,
+        fileName: midia_nome || 'divulgacao',
+      };
+    }
+    const r = await fetch(`${evolutionUrl}/${caminhoEvolution}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: evolutionKey },
-      body: JSON.stringify({ number: numeroLimpo, text: texto }),
+      body: JSON.stringify(corpoEvolution),
     });
     const d = await r.json().catch(() => ({}));
 
     if (!r.ok) {
-      const erro = d?.message || d?.error || `Evolution API retornou ${r.status}`;
+      const bruto = d?.response?.message ?? d?.message ?? d?.error ?? `Evolution API retornou ${r.status}`;
+      const erro = typeof bruto === 'string' ? bruto : JSON.stringify(bruto);
       await adminClient.from('whatsapp_mensagens_enviadas').insert({
         clinica_id: clinicaId,
         instancia_nome: instanciaNome,

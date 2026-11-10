@@ -457,6 +457,7 @@ const SECOES_PERMISSAO = [
   {chave:'backup',label:'Backup',emoji:'🗄️'},
   {chave:'ficha_tecnica',label:'Ficha técnica',emoji:'📋'},
   {chave:'convenios',label:'Convênios',emoji:'💳'},
+  {chave:'divulgacao',label:'Divulgação (WhatsApp)',emoji:'📣'},
 ];
 
 let _usuarioAtualCache=null;

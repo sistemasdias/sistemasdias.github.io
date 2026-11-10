@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Divulgação — Clínica</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --verde:#1D9E75;--verde-c:#E1F5EE;--verde-e:#0F6E56;
+      --vermelho:#E24B4A;--amarelo:#E0A100;--amarelo-c:#FFF6DA;
+      --txt:#1a1916;--ct:#6B6860;--bg:#F7F6F3;--card:#fff;--borda:#E8E6E1;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);font-size:15px}
+
+    .hdr{background:var(--verde-e);color:#fff;padding:0 1.5rem;display:flex;align-items:center;gap:1rem;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+    .hdr a{color:rgba(255,255,255,.75);text-decoration:none;font-size:13px}
+    .hdr a:hover{color:#fff}
+    .hdr h1{font-size:15px;font-weight:600;flex:1}
+    .badge{background:rgba(255,255,255,.2);font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px}
+
+    .wrap{max-width:820px;margin:0 auto;padding:1.5rem 1rem 4rem}
+    .secao{background:var(--card);border-radius:14px;border:1px solid var(--borda);margin-bottom:1.25rem;overflow:hidden}
+    .sec-hdr{padding:1rem 1.25rem;border-bottom:1px solid var(--borda);display:flex;align-items:center;gap:.625rem}
+    .sec-num{width:24px;height:24px;border-radius:50%;background:var(--verde);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .sec-title{font-size:14px;font-weight:700}
+    .sec-sub{font-size:12px;color:var(--ct);margin-left:auto;text-align:right}
+    .sec-body{padding:1.25rem}
+
+    .fg{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    .fg.tres{grid-template-columns:1fr 1fr 1fr}
+    @media(max-width:600px){.fg,.fg.tres{grid-template-columns:1fr}}
+    .fi{display:flex;flex-direction:column;gap:.375rem;margin-bottom:.875rem}
+    .fi label{font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.05em}
+    .fi input,.fi textarea,.fi select{padding:.55rem .875rem;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;font-family:inherit;color:var(--txt);background:var(--card);width:100%}
+    .fi textarea{resize:vertical;line-height:1.5}
+    .fi input:focus,.fi textarea:focus,.fi select:focus{outline:none;border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+    .hint{font-size:12px;color:var(--ct);line-height:1.5}
+
+    .bsalvar{background:var(--verde);color:#fff;border:none;border-radius:10px;padding:.7rem 1.5rem;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+    .bsalvar:hover{background:var(--verde-e)}
+    .bsalvar:disabled{opacity:.5;cursor:not-allowed}
+    .btn2{background:var(--bg);color:var(--txt);border:1.5px solid var(--borda);border-radius:8px;padding:.45rem .9rem;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+    .btn2:hover{border-color:var(--verde);color:var(--verde-e)}
+    .btn2.dan{color:var(--vermelho)}
+    .btn2.dan:hover{border-color:var(--vermelho);color:var(--vermelho)}
+    .btn2:disabled{opacity:.5;cursor:not-allowed}
+
+    .aviso{border-radius:12px;padding:.875rem 1rem;font-size:13px;line-height:1.55;margin-bottom:1.25rem;border:1.5px solid var(--amarelo);background:var(--amarelo-c);color:#6b4e00}
+    .aviso.ok{border-color:var(--verde);background:var(--verde-c);color:var(--verde-e)}
+    .aviso.err{border-color:var(--vermelho);background:#FDECEC;color:#8f2322}
+
+    .previa{background:#E7F8D8;border-radius:10px 10px 10px 2px;padding:.75rem .875rem;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-width:420px;border:1px solid #cfe9b8}
+    .previa-midia{font-size:12px;font-weight:600;color:var(--verde-e);margin-bottom:.4rem}
+
+    .lista{max-height:380px;overflow-y:auto;border:1px solid var(--borda);border-radius:10px}
+    .pac{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--borda);cursor:pointer}
+    .pac:last-child{border-bottom:none}
+    .pac:hover{background:var(--bg)}
+    .pac input{width:17px;height:17px;accent-color:var(--verde);cursor:pointer;flex-shrink:0}
+    .pac-nome{font-size:13px;font-weight:600}
+    .pac-sub{font-size:11px;color:var(--ct)}
+    .pac-acao{margin-left:auto;font-size:11px;color:var(--ct);background:none;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;padding:4px 6px;border-radius:6px}
+    .pac-acao:hover{color:var(--vermelho);background:#FDECEC}
+    .vazio{text-align:center;padding:1.5rem 1rem;color:var(--ct);font-size:13px}
+
+    .dv{border:1.5px solid var(--borda);border-radius:12px;padding:.875rem 1rem;margin-bottom:.75rem}
+    .dv-topo{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+    .dv-tit{font-size:14px;font-weight:700;flex:1;min-width:140px}
+    .selo{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:var(--bg);color:var(--ct);white-space:nowrap}
+    .selo.enviando{background:var(--verde-c);color:var(--verde-e)}
+    .selo.pausada{background:var(--amarelo-c);color:#6b4e00}
+    .selo.cancelada{background:#FDECEC;color:#8f2322}
+    .barra{height:8px;border-radius:99px;background:var(--borda);overflow:hidden;margin:.6rem 0 .35rem}
+    .barra div{height:100%;background:var(--verde);border-radius:99px;transition:.3s}
+    .dv-num{font-size:12px;color:var(--ct);line-height:1.5}
+    .dv-acoes{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem}
+    .dv-envios{margin-top:.6rem;max-height:240px;overflow-y:auto;border-top:1px solid var(--borda);padding-top:.4rem;font-size:12px}
+    .dv-envios div{padding:3px 0;display:flex;gap:6px}
+
+    .toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:999;background:var(--txt);color:#fff;padding:.625rem 1.25rem;border-radius:10px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:.25s;transform:translateY(8px);max-width:calc(100vw - 3rem)}
+    .toast.show{opacity:1;transform:none}
+    .toast.err{background:var(--vermelho)}
+  </style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="index.html">← Início</a>
+  <h1>📣 Divulgação pelo WhatsApp</h1>
+  <span class="badge">Vídeo · imagem · texto · link</span>
+</div>
+
+<div class="wrap">
+
+  <div id="dv-estado" class="aviso" style="display:none"></div>
+
+  <!-- 1. MENSAGEM -->
+  <div class="secao">
+    <div class="sec-hdr"><span class="sec-num">1</span><span class="sec-title">O que enviar</span></div>
+    <div class="sec-body">
+      <div class="fi">
+        <label for="dv-titulo">Nome desta divulgação (só para você)</label>
+        <input type="text" id="dv-titulo" maxlength="80" placeholder="Ex: Evento de botox — dezembro"/>
+      </div>
+      <div class="fi">
+        <label for="dv-msg">Mensagem</label>
+        <textarea id="dv-msg" rows="6" maxlength="900" placeholder="Olá {nome}, tudo bem? 😊&#10;&#10;Escreva aqui a mensagem. Pode colar links (Instagram, site, formulário de inscrição...)." oninput="atualizarPrevia()"></textarea>
+        <span class="hint">Use <strong>{nome}</strong> onde quiser o nome da paciente. Links podem ir no meio do texto.</span>
+      </div>
+      <div class="fi">
+        <label for="dv-arquivo">Vídeo ou imagem (opcional)</label>
+        <input type="file" id="dv-arquivo" accept="video/mp4,image/jpeg,image/png" onchange="arquivoEscolhido()"/>
+        <span class="hint" id="dv-arquivo-info">Vídeo em MP4 ou imagem JPG/PNG, até 16 MB (limite do próprio WhatsApp). Sem anexo, vai só o texto.</span>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Como a paciente vai receber</div>
+      <div class="previa"><div class="previa-midia" id="dv-previa-midia" style="display:none"></div><span id="dv-previa"></span></div>
+      <div class="hint" style="margin-top:.4rem">A última frase é colocada pelo sistema em toda divulgação: quem responder SAIR deixa de receber, automaticamente.</div>
+
+      <div style="height:1px;background:var(--borda);margin:1rem 0"></div>
+      <div class="fi" style="margin-bottom:.5rem">
+        <label for="dv-teste-num">Testar antes: enviar só para este número</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="tel" id="dv-teste-num" placeholder="Seu WhatsApp, com DDD — ex: 17 99999-9999" style="flex:1;min-width:200px"/>
+          <button class="btn2" id="dv-btn-teste" onclick="enviarTeste()">📲 Enviar teste</button>
+        </div>
+        <span class="hint">Chega na hora, exatamente como as pacientes vão ver. Confira o vídeo no celular antes de enviar para a lista.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. QUEM RECEBE -->
+  <div class="secao">
+    <div class="sec-hdr">
+      <span class="sec-num">2</span><span class="sec-title">Quem recebe</span>
+      <span class="sec-sub" id="dv-contagem"></span>
+    </div>
+    <div class="sec-body">
+      <div class="fg tres">
+        <div class="fi">
+          <label for="dv-busca">Nome</label>
+          <input type="text" id="dv-busca" placeholder="Buscar por nome" oninput="renderPacientes()"/>
+        </div>
+        <div class="fi">
+          <label for="dv-proc">Já fez (procedimento)</label>
+          <input type="text" id="dv-proc" list="dv-proc-lista" placeholder="Ex: botox" oninput="renderPacientes()"/>
+          <datalist id="dv-proc-lista"></datalist>
+        </div>
+        <div class="fi">
+          <label for="dv-visita">Última visita</label>
+          <select id="dv-visita" onchange="renderPacientes()">
+            <option value="">Qualquer data</option>
+            <option value="ate6">Nos últimos 6 meses</option>
+            <option value="ate12">No último ano</option>
+            <option value="mais3">Há mais de 3 meses</option>
+            <option value="mais6">Há mais de 6 meses</option>
+            <option value="mais12">Há mais de 1 ano</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:.6rem">
+        <button class="btn2" onclick="marcarLista(true)">☑️ Marcar todas da lista</button>
+        <button class="btn2" onclick="marcarLista(false)">Desmarcar todas da lista</button>
+        <button class="btn2" onclick="limparSelecao()">Limpar seleção</button>
+      </div>
+      <div class="lista" id="dv-lista"><div class="vazio">Carregando pacientes...</div></div>
+      <div class="hint" style="margin-top:.6rem" id="dv-fora"></div>
+      <div id="dv-bloq-lista" style="display:none;margin-top:.5rem" class="lista"></div>
+    </div>
+  </div>
+
+  <!-- 3. RITMO -->
+  <div class="secao">
+    <div class="sec-hdr"><span class="sec-num">3</span><span class="sec-title">Ritmo de envio (proteção do número)</span></div>
+    <div class="sec-body">
+      <div class="fg tres">
+        <div class="fi">
+          <label for="dv-limite">Máximo por dia</label>
+          <select id="dv-limite" onchange="atualizarEstimativa()">
+            <option value="20">20 mensagens</option>
+            <option value="30">30 mensagens</option>
+            <option value="40" selected>40 mensagens (recomendado)</option>
+            <option value="50">50 mensagens</option>
+            <option value="60">60 mensagens</option>
+          </select>
+        </div>
+        <div class="fi">
+          <label for="dv-intervalo">Intervalo entre mensagens</label>
+          <select id="dv-intervalo" onchange="atualizarEstimativa()">
+            <option value="60-150" selected>1 a 3 minutos (recomendado)</option>
+            <option value="120-300">2 a 5 minutos</option>
+            <option value="240-600">4 a 10 minutos (mais seguro)</option>
+          </select>
+        </div>
+        <div class="fi">
+          <label for="dv-horario">Horário de envio</label>
+          <select id="dv-horario" onchange="atualizarEstimativa()">
+            <option value="9-19" selected>9h às 19h</option>
+            <option value="9-12">Só de manhã (9h às 12h)</option>
+            <option value="13-19">Só à tarde (13h às 19h)</option>
+            <option value="8-20">8h às 20h</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint" id="dv-estimativa"></div>
+      <div class="hint" style="margin-top:.5rem">
+        O sistema envia sozinho, uma mensagem por vez, com intervalo variado, de segunda a sábado. Não precisa deixar esta tela aberta.
+        O limite por dia vale para a clínica inteira (somando todas as divulgações). Se três envios seguidos falharem, a divulgação pausa sozinha.
+      </div>
+      <div style="margin-top:1rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="bsalvar" id="dv-btn-iniciar" onclick="iniciarDivulgacao()">🚀 Começar a enviar</button>
+        <span class="hint" id="dv-iniciar-msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. ANDAMENTO -->
+  <div class="secao">
+    <div class="sec-hdr">
+      <span class="sec-num">4</span><span class="sec-title">Divulgações</span>
+      <span class="sec-sub"><button class="btn2" onclick="carregarHistorico()">↻ Atualizar</button></span>
+    </div>
+    <div class="sec-body">
+      <div id="dv-historico"><div class="vazio">Carregando...</div></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const sb = sbClient();
+
+// Mesma frase de supabase/functions/divulgacao-processar/fila.mjs (um teste confere que são iguais).
+const RODAPE_SAIDA = 'Se não quiser mais receber nossas novidades, responda SAIR.';
+const LIMITE_ARQUIVO = 16 * 1024 * 1024;
+
+let _clinicaId = null;
+let _recursoLigado = false;
+let _whatsConectado = false;
+let _pacs = [];            // pacientes que podem receber
+let _bloqueadas = [];      // pacientes marcadas "não enviar divulgação"
+let _semTelefone = 0;
+let _sel = new Set();      // ids selecionados
+let _visiveis = [];        // pacientes na lista atual (depois dos filtros)
+let _midia = null;         // {arquivo, caminho, tipo, mime, nome} — caminho só depois de enviado ao servidor
+let _aberta = null;        // id da divulgação com a lista de envios aberta
+let _enviosAberta = [];
+let _historico = [];
+let _timer = null;
+
+let toastT;
+function toast(msg, tipo='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=(tipo==='err'?'⚠️ ':'✅ ')+msg;
+  el.className='toast show '+(tipo==='err'?'err':'');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>el.classList.remove('show'),tipo==='err'?6000:3500);
+}
+function escapeHtml(s){if(s===null||s===undefined)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function semAcento(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function chamada(p){return (p.apelido||String(p.nome||'').trim().split(' ')[0]||'').trim();}
+
+// ── Regras puras (testadas em tests/divulgacao.test.js) ──
+
+// Número pronto para o WhatsApp, ou '' se o telefone não serve (fixo curto, incompleto...).
+function numeroValido(telefone){
+  const n=numeroWhatsApp(telefone);
+  return (n.length===12||n.length===13)?n:'';
+}
+
+// Data (AAAA-MM-DD) do último atendimento registrado na ficha; sem nenhum, a data do cadastro.
+function ultimaVisita(p){
+  const datas=[p.data_atendimento];
+  (p.tratamentos_adicionais||[]).forEach(t=>datas.push(t&&t.dataAtendimento));
+  const v=datas.filter(d=>d&&/^\d{4}-\d{2}-\d{2}/.test(d)).map(d=>String(d).slice(0,10)).sort();
+  return v.length?v[v.length-1]:(String(p.criado_em||'').slice(0,10)||null);
+}
+
+function procedimentosDe(p){
+  const nomes=[];
+  if(p.tratamento) nomes.push(p.tratamento);
+  (p.tratamentos_adicionais||[]).forEach(t=>{ if(t&&t.nome) nomes.push(t.nome); });
+  return nomes;
+}
+
+// Aplica os filtros da tela. `hojeStr` no formato AAAA-MM-DD.
+function filtrarPacientes(lista, filtros, hojeStr){
+  const busca=semAcento(filtros.busca).trim();
+  const proc=semAcento(filtros.proc).trim();
+  const meses={ate6:6,ate12:12,mais3:3,mais6:6,mais12:12}[filtros.visita]||0;
+  let lim='';
+  if(meses){ const d=new Date(hojeStr+'T12:00:00'); d.setMonth(d.getMonth()-meses); lim=d.toISOString().slice(0,10); }
+  return lista.filter(p=>{
+    if(busca && !semAcento(p.nome+' '+(p.apelido||'')).includes(busca)) return false;
+    if(proc && !procedimentosDe(p).some(n=>semAcento(n).includes(proc))) return false;
+    if(meses){
+      const ult=ultimaVisita(p);
+      if(!ult) return false;
+      if(filtros.visita.startsWith('ate') ? ult<lim : ult>=lim) return false;
+    }
+    return true;
+  });
+}
+
+// Monta a fila: uma linha por NÚMERO (mãe e filha com o mesmo celular recebem uma vez só).
+function montarEnvios(pacientes){
+  const vistos=new Set();
+  const envios=[];
+  for(const p of pacientes){
+    const numero=numeroValido(p.telefone);
+    if(!numero||vistos.has(numero)) continue;
+    vistos.add(numero);
+    envios.push({paciente_id:p.id,nome:p.nome,chamada:chamada(p),numero});
+  }
+  return envios;
+}
+
+// Texto final que a paciente recebe — igual ao montarTexto() do servidor.
+function textoFinal(mensagem,nome){
+  const n=String(nome||'').trim();
+  let t=String(mensagem||'').trim();
+  t = n ? t.replace(/\{nome\}/gi,n) : t.replace(/\s*\{nome\}/gi,'');
+  return (t?t+'\n\n':'')+RODAPE_SAIDA;
+}
+
+// Quantos dias a lista leva e quanto dura o envio de cada dia.
+function estimar(total,limiteDia,intMin,intMax){
+  if(!total) return {dias:0,minutosPorDia:0};
+  const porDia=Math.min(total,limiteDia);
+  // O agendador roda de minuto em minuto: o intervalo real nunca é menor que 1 minuto.
+  const medio=Math.max(60,(intMin+intMax)/2);
+  return {dias:Math.ceil(total/limiteDia),minutosPorDia:Math.round(porDia*medio/60)};
+}
+
+function hojeStr(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function fmtData(iso){
+  if(!iso) return '';
+  const d=new Date(iso);
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtDia(aaaammdd){
+  if(!aaaammdd) return '';
+  const [y,m,d]=aaaammdd.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// ── Estado do recurso ──
+function mostrarEstado(){
+  const el=document.getElementById('dv-estado');
+  el.style.display='block';
+  if(!_recursoLigado){
+    el.className='aviso';
+    el.innerHTML='<strong>O envio automático ainda não está liberado para esta clínica.</strong> Você já pode montar a mensagem e mandar um teste para o seu número. Para liberar o envio para a lista, fale com o suporte do sistema.';
+  }else if(!_whatsConectado){
+    el.className='aviso err';
+    el.innerHTML='<strong>Nenhum WhatsApp conectado.</strong> Conecte o WhatsApp da clínica em Configurações antes de enviar.';
+  }else{
+    el.className='aviso ok';
+    el.innerHTML='✅ Envio automático liberado. O sistema respeita o limite por dia e o intervalo entre mensagens que você escolher abaixo.';
+  }
+  document.getElementById('dv-btn-iniciar').disabled=!(_recursoLigado&&_whatsConectado);
+  document.getElementById('dv-iniciar-msg').textContent=
+    !_recursoLigado?'Envio para a lista ainda não liberado.':(!_whatsConectado?'WhatsApp não conectado.':'');
+}
+
+// ── Mensagem / anexo / prévia ──
+function arquivoEscolhido(){
+  const inp=document.getElementById('dv-arquivo');
+  const info=document.getElementById('dv-arquivo-info');
+  const f=inp.files&&inp.files[0];
+  _midia=null;
+  if(!f){ info.textContent='Vídeo em MP4 ou imagem JPG/PNG, até 16 MB (limite do próprio WhatsApp). Sem anexo, vai só o texto.'; info.style.color=''; atualizarPrevia(); return; }
+  const tipos={'video/mp4':'video','image/jpeg':'image','image/png':'image'};
+  const mb=(f.size/1024/1024).toFixed(1).replace('.',',');
+  if(!tipos[f.type]){
+    inp.value=''; info.style.color='var(--vermelho)';
+    info.textContent='Esse formato não é aceito. Use vídeo MP4 ou imagem JPG/PNG. (Vídeo gravado no iPhone costuma sair em .MOV: envie para você mesma no WhatsApp e salve de volta — ele vira MP4.)';
+    atualizarPrevia(); return;
+  }
+  if(f.size>LIMITE_ARQUIVO){
+    inp.value=''; info.style.color='var(--vermelho)';
+    info.textContent=`O arquivo tem ${mb} MB e o WhatsApp aceita até 16 MB. Diminua o vídeo (ou mande o link dele no texto).`;
+    atualizarPrevia(); return;
+  }
+  _midia={arquivo:f,caminho:null,tipo:tipos[f.type],mime:f.type,nome:f.name};
+  info.style.color='var(--verde-e)';
+  info.textContent=`✅ ${f.name} — ${mb} MB`;
+  atualizarPrevia();
+}
+
+function atualizarPrevia(){
+  const exemplo=_pacs.find(p=>_sel.has(p.id))||_pacs[0];
+  document.getElementById('dv-previa').textContent=textoFinal(document.getElementById('dv-msg').value,exemplo?chamada(exemplo):'Maria');
+  const m=document.getElementById('dv-previa-midia');
+  if(_midia){ m.style.display='block'; m.textContent=(_midia.tipo==='video'?'🎬 Vídeo: ':'🖼️ Imagem: ')+_midia.nome; }
+  else m.style.display='none';
+}
+
+// Envia o anexo ao servidor uma única vez (o teste e a divulgação usam o mesmo arquivo).
+async function garantirUpload(){
+  if(!_midia) return null;
+  if(_midia.caminho) return _midia;
+  const ext=_midia.mime==='video/mp4'?'mp4':(_midia.mime==='image/png'?'png':'jpg');
+  const caminho=`${_clinicaId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const {error}=await sb.storage.from('divulgacao-midia').upload(caminho,_midia.arquivo,{contentType:_midia.mime,upsert:false});
+  if(error) throw new Error('Não consegui enviar o arquivo: '+error.message);
+  _midia.caminho=caminho;
+  return _midia;
+}
+
+async function enviarTeste(){
+  const numero=numeroValido(document.getElementById('dv-teste-num').value);
+  const msg=document.getElementById('dv-msg').value.trim();
+  if(!numero){ toast('Digite um número de WhatsApp com DDD para o teste','err'); return; }
+  if(!msg&&!_midia){ toast('Escreva a mensagem ou escolha um vídeo/imagem','err'); return; }
+  if(!navigator.onLine){ toast('Sem internet — o teste não foi enviado','err'); return; }
+  const btn=document.getElementById('dv-btn-teste');
+  btn.disabled=true; btn.textContent='Enviando...';
+  try{
+    const midia=await garantirUpload();
+    await renovarTokenSeNecessario();
+    const auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+    if(!auth.access_token) throw new Error('Sessão expirada, faça login novamente');
+    const corpo={numero,texto:textoFinal(msg,'Teste')};
+    if(midia) Object.assign(corpo,{midia_caminho:midia.caminho,midia_tipo:midia.tipo,midia_mime:midia.mime,midia_nome:midia.nome});
+    const res=await fetch(`${SB_URL}/functions/v1/whatsapp-enviar`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${auth.access_token}`,'apikey':SB_KEY},
+      body:JSON.stringify(corpo)
+    });
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(d.error||'falha ao enviar');
+    toast('Teste enviado! Confira no celular.');
+  }catch(e){
+    toast('Teste não enviado: '+(e.message||e),'err');
+  }finally{
+    btn.disabled=false; btn.textContent='📲 Enviar teste';
+  }
+}
+
+// ── Pacientes ──
+async function carregarPacientes(){
+  const todos=[];
+  for(let ini=0;;ini+=1000){
+    const {data,error}=await sb.from('pacientes')
+      .select('id,nome,apelido,telefone,tratamento,tratamentos_adicionais,data_atendimento,criado_em,sem_divulgacao,exemplo,cadastro_pendente')
+      .order('nome').range(ini,ini+999);
+    if(error) throw new Error(error.message);
+    todos.push(...(data||[]));
+    if(!data||data.length<1000) break;
+  }
+  const reais=todos.filter(p=>!p.exemplo&&!p.cadastro_pendente);
+  _bloqueadas=reais.filter(p=>p.sem_divulgacao);
+  const livres=reais.filter(p=>!p.sem_divulgacao);
+  _pacs=livres.filter(p=>numeroValido(p.telefone));
+  _semTelefone=livres.length-_pacs.length;
+  [..._sel].forEach(id=>{ if(!_pacs.some(p=>p.id===id)) _sel.delete(id); });
+
+  const procs=new Set();
+  _pacs.forEach(p=>procedimentosDe(p).forEach(n=>procs.add(n)));
+  document.getElementById('dv-proc-lista').innerHTML=[...procs].sort((a,b)=>a.localeCompare(b,'pt-BR')).map(n=>`<option value="${escapeHtml(n)}"></option>`).join('');
+}
+
+function renderPacientes(){
+  _visiveis=filtrarPacientes(_pacs,{
+    busca:document.getElementById('dv-busca').value,
+    proc:document.getElementById('dv-proc').value,
+    visita:document.getElementById('dv-visita').value
+  },hojeStr());
+  const el=document.getElementById('dv-lista');
+  if(!_visiveis.length){
+    el.innerHTML='<div class="vazio">Nenhuma paciente com esses filtros.</div>';
+  }else{
+    el.innerHTML=_visiveis.map(p=>{
+      const procs=procedimentosDe(p);
+      const ult=ultimaVisita(p);
+      const sub=[procs.slice(0,2).join(', ')+(procs.length>2?'…':''),ult?'última visita '+fmtDia(ult):'',p.telefone].filter(Boolean).join(' · ');
+      return `<label class="pac">
+        <input type="checkbox" ${_sel.has(p.id)?'checked':''} onchange="alternar('${p.id}',this.checked)"/>
+        <div><div class="pac-nome">${escapeHtml(p.nome)}</div><div class="pac-sub">${escapeHtml(sub)}</div></div>
+        <button class="pac-acao" title="Esta paciente não recebe mais divulgações" onclick="event.preventDefault();bloquear('${p.id}',true)">🚫 não enviar</button>
+      </label>`;
+    }).join('');
+  }
+  const fora=[];
+  if(_semTelefone) fora.push(`${_semTelefone} sem celular válido no cadastro`);
+  document.getElementById('dv-fora').innerHTML=
+    (fora.length?'Fora da lista: '+fora.join(', ')+'. ':'')+
+    (_bloqueadas.length?`<a href="#" onclick="event.preventDefault();alternarBloqueadas()" style="color:var(--verde-e);font-weight:600">${_bloqueadas.length} paciente(s) não recebem divulgação — ver</a>`:'');
+  renderBloqueadas();
+  atualizarContagem();
+}
+
+function atualizarContagem(){
+  const nums=montarEnvios(_pacs.filter(p=>_sel.has(p.id))).length;
+  document.getElementById('dv-contagem').textContent=`${_visiveis.length} na lista · ${nums} selecionada${nums!==1?'s':''}`;
+  atualizarEstimativa();
+  atualizarPrevia();
+}
+
+function alternar(id,marcado){ if(marcado) _sel.add(id); else _sel.delete(id); atualizarContagem(); }
+function marcarLista(marcar){ _visiveis.forEach(p=>{ if(marcar) _sel.add(p.id); else _sel.delete(p.id); }); renderPacientes(); }
+function limparSelecao(){ _sel.clear(); renderPacientes(); }
+
+function alternarBloqueadas(){
+  const el=document.getElementById('dv-bloq-lista');
+  el.style.display=el.style.display==='none'?'block':'none';
+}
+function renderBloqueadas(){
+  const el=document.getElementById('dv-bloq-lista');
+  if(!_bloqueadas.length){ el.style.display='none'; el.innerHTML=''; return; }
+  el.innerHTML=_bloqueadas.map(p=>`<div class="pac" style="cursor:default">
+      <div><div class="pac-nome">${escapeHtml(p.nome)}</div><div class="pac-sub">não recebe divulgação · ${escapeHtml(p.telefone||'sem telefone')}</div></div>
+      <button class="pac-acao" onclick="bloquear('${p.id}',false)">↩ voltar a enviar</button>
+    </div>`).join('');
+}
+
+async function bloquear(id,bloq){
+  const p=[..._pacs,..._bloqueadas].find(x=>x.id===id);
+  if(!p) return;
+  if(!bloq && !confirm(`${p.nome} pediu para não receber divulgações (ou foi marcada assim pela clínica).\n\nVoltar a enviar só se ela mesma autorizou. Confirmar?`)) return;
+  const {error}=await sb.from('pacientes').update({sem_divulgacao:bloq,sem_divulgacao_em:bloq?new Date().toISOString():null}).eq('id',id);
+  if(error){ toast('Não consegui salvar: '+error.message,'err'); return; }
+  toast(bloq?`${chamada(p)} não recebe mais divulgações`:`${chamada(p)} voltou para a lista`);
+  await carregarPacientes();
+  renderPacientes();
+}
+
+// ── Ritmo ──
+function lerRitmo(){
+  const [iMin,iMax]=document.getElementById('dv-intervalo').value.split('-').map(Number);
+  const [hIni,hFim]=document.getElementById('dv-horario').value.split('-').map(Number);
+  return {limite:Number(document.getElementById('dv-limite').value),iMin,iMax,hIni,hFim};
+}
+function atualizarEstimativa(){
+  const r=lerRitmo();
+  const total=montarEnvios(_pacs.filter(p=>_sel.has(p.id))).length;
+  const el=document.getElementById('dv-estimativa');
+  if(!total){ el.textContent='Selecione as pacientes para ver quanto tempo o envio leva.'; return; }
+  const e=estimar(total,r.limite,r.iMin,r.iMax);
+  const horas=e.minutosPorDia>=90?`cerca de ${Math.round(e.minutosPorDia/60)} horas`:`cerca de ${e.minutosPorDia} minutos`;
+  el.innerHTML=`<strong>${total} paciente${total!==1?'s':''}</strong> → ${e.dias===1?'termina no mesmo dia':`leva <strong>${e.dias} dias</strong> de envio`}, com ${horas} de envio por dia.`;
+}
+
+// ── Começar ──
+async function iniciarDivulgacao(){
+  const titulo=document.getElementById('dv-titulo').value.trim();
+  const msg=document.getElementById('dv-msg').value.trim();
+  const envios=montarEnvios(_pacs.filter(p=>_sel.has(p.id)));
+  const r=lerRitmo();
+  if(!titulo){ toast('Dê um nome para esta divulgação','err'); document.getElementById('dv-titulo').focus(); return; }
+  if(!msg&&!_midia){ toast('Escreva a mensagem ou escolha um vídeo/imagem','err'); return; }
+  if(!envios.length){ toast('Selecione ao menos uma paciente','err'); return; }
+  if(!navigator.onLine){ toast('Sem internet — nada foi salvo. Tente de novo quando a conexão voltar.','err'); return; }
+  const e=estimar(envios.length,r.limite,r.iMin,r.iMax);
+  if(!confirm(`Enviar "${titulo}" para ${envios.length} paciente(s)?\n\n• até ${r.limite} por dia, das ${r.hIni}h às ${r.hFim}h, de segunda a sábado\n• ${e.dias===1?'termina no mesmo dia':'leva cerca de '+e.dias+' dias'}\n\nVocê pode pausar ou cancelar a qualquer momento.`)) return;
+
+  const btn=document.getElementById('dv-btn-iniciar');
+  btn.disabled=true; btn.textContent='Preparando...';
+  let divId=null;
+  try{
+    const midia=await garantirUpload();
+    const usuario=await usuarioAtual();
+    const agora=new Date().toISOString();
+    const {data:nova,error}=await sb.from('divulgacoes').insert({
+      titulo,mensagem:msg,
+      midia_caminho:midia?midia.caminho:null,midia_tipo:midia?midia.tipo:null,midia_mime:midia?midia.mime:null,midia_nome:midia?midia.nome:null,
+      status:'rascunho',
+      intervalo_min_seg:r.iMin,intervalo_max_seg:r.iMax,limite_dia:r.limite,hora_inicio:r.hIni,hora_fim:r.hFim,
+      criado_por:usuario?usuario.id:null
+    }).select('id').single();
+    if(error) throw new Error(error.message);
+    divId=nova.id;
+    for(let i=0;i<envios.length;i+=200){
+      const lote=envios.slice(i,i+200).map(x=>({...x,divulgacao_id:divId}));
+      const {error:eLote}=await sb.from('divulgacao_envios').insert(lote);
+      if(eLote) throw new Error(eLote.message);
+    }
+    // Só vira "enviando" depois que a lista inteira foi gravada: nunca começa pela metade.
+    const {error:eIni}=await sb.from('divulgacoes').update({status:'enviando',iniciado_em:agora,proximo_envio_em:agora}).eq('id',divId);
+    if(eIni) throw new Error(eIni.message);
+    toast('Divulgação iniciada! O sistema envia sozinho a partir de agora.');
+    document.getElementById('dv-titulo').value='';
+    _sel.clear();
+    renderPacientes();
+    await carregarHistorico();
+    document.getElementById('dv-historico').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(err){
+    if(divId) await sb.from('divulgacoes').update({status:'cancelada',motivo_pausa:'Erro ao montar a lista'}).eq('id',divId);
+    toast('Não consegui iniciar: '+(err.message||err),'err');
+  }finally{
+    btn.textContent='🚀 Começar a enviar';
+    mostrarEstado();
+  }
+}
+
+// ── Andamento ──
+const ROTULO={rascunho:'Rascunho',enviando:'Enviando',pausada:'Pausada',concluida:'Concluída',cancelada:'Cancelada'};
+
+async function carregarHistorico(){
+  const {data:divs,error}=await sb.from('divulgacoes').select('*').order('criado_em',{ascending:false}).limit(20);
+  if(error){ document.getElementById('dv-historico').innerHTML=`<div class="vazio">Erro ao carregar: ${escapeHtml(error.message)}</div>`; return; }
+  const ids=(divs||[]).map(d=>d.id);
+  let resumo={};
+  if(ids.length){
+    const {data:rs}=await sb.from('divulgacao_resumo').select('*').in('divulgacao_id',ids);
+    (rs||[]).forEach(r=>{ resumo[r.divulgacao_id]=r; });
+  }
+  _historico=(divs||[]).map(d=>({...d,r:resumo[d.id]||{total:0,enviados:0,pendentes:0,erros:0,pulados:0}}));
+  if(_aberta) await carregarEnviosAberta();
+  renderHistorico();
+  clearTimeout(_timer);
+  if(_historico.some(d=>d.status==='enviando')) _timer=setTimeout(carregarHistorico,30000);
+}
+
+function renderHistorico(){
+  const el=document.getElementById('dv-historico');
+  if(!_historico.length){ el.innerHTML='<div class="vazio">Nenhuma divulgação ainda.</div>'; return; }
+  el.innerHTML=_historico.map(d=>{
+    const r=d.r;
+    const feitos=r.enviados+r.erros+r.pulados;
+    const pct=r.total?Math.round(feitos/r.total*100):0;
+    const partes=[`<strong>${r.enviados}</strong> de ${r.total} enviadas`];
+    if(r.pendentes) partes.push(`${r.pendentes} na fila`);
+    if(r.erros) partes.push(`<span style="color:var(--vermelho)">${r.erros} com erro</span>`);
+    if(r.pulados) partes.push(`${r.pulados} não enviadas (pediram para sair)`);
+    let situacao='';
+    if(d.status==='enviando'){
+      const prox=new Date(d.proximo_envio_em);
+      situacao=prox.getTime()-Date.now()>20*60*1000
+        ? `Volta a enviar em ${fmtData(d.proximo_envio_em)} (limite do dia ou fora do horário).`
+        : (r.ultimo_envio_em?`Último envio: ${fmtData(r.ultimo_envio_em)}.`:'Começando...');
+    }else if(d.status==='pausada'){
+      situacao=d.motivo_pausa?escapeHtml(d.motivo_pausa):'Pausada por você.';
+    }else if(d.status==='concluida'){
+      situacao=`Terminou em ${fmtData(d.concluido_em)}.`;
+    }
+    const acoes=[];
+    if(d.status==='enviando') acoes.push(`<button class="btn2" onclick="mudarStatus('${d.id}','pausada')">⏸ Pausar</button>`);
+    if(d.status==='pausada') acoes.push(`<button class="btn2" onclick="mudarStatus('${d.id}','enviando')">▶ Continuar</button>`);
+    if(d.status==='enviando'||d.status==='pausada') acoes.push(`<button class="btn2 dan" onclick="mudarStatus('${d.id}','cancelada')">✕ Cancelar</button>`);
+    acoes.push(`<button class="btn2" onclick="abrirEnvios('${d.id}')">${_aberta===d.id?'Fechar lista':'Ver quem recebeu'}</button>`);
+    const lista=_aberta===d.id?`<div class="dv-envios">${_enviosAberta.length?_enviosAberta.map(e=>{
+        const ic={pendente:'⏳',enviado:'✅',erro:'⚠️',pulado:'🚫'}[e.status]||'';
+        const det=e.status==='enviado'?fmtData(e.enviado_em):(e.status==='pendente'?'na fila':(e.erro||''));
+        return `<div><span>${ic}</span><span style="flex:1">${escapeHtml(e.nome||e.numero)}</span><span style="color:var(--ct)">${escapeHtml(det)}</span></div>`;
+      }).join(''):'<div>Lista vazia.</div>'}</div>`:'';
+    return `<div class="dv">
+      <div class="dv-topo">
+        <span class="dv-tit">${d.midia_tipo==='video'?'🎬 ':d.midia_tipo==='image'?'🖼️ ':'💬 '}${escapeHtml(d.titulo)}</span>
+        <span class="selo ${d.status}">${ROTULO[d.status]||d.status}</span>
+      </div>
+      <div class="barra"><div style="width:${pct}%"></div></div>
+      <div class="dv-num">${partes.join(' · ')}</div>
+      ${situacao?`<div class="dv-num">${situacao}</div>`:''}
+      <div class="dv-acoes">${acoes.join('')}</div>
+      ${lista}
+    </div>`;
+  }).join('');
+}
+
+async function mudarStatus(id,status){
+  const d=_historico.find(x=>x.id===id);
+  if(!d) return;
+  if(status==='cancelada' && !confirm(`Cancelar "${d.titulo}"?\n\nQuem ainda está na fila não recebe. O que já foi enviado não volta atrás.`)) return;
+  const mud={status};
+  if(status==='enviando') Object.assign(mud,{motivo_pausa:null,erros_seguidos:0,proximo_envio_em:new Date().toISOString()});
+  if(status==='pausada') mud.motivo_pausa=null;
+  const {error}=await sb.from('divulgacoes').update(mud).eq('id',id);
+  if(error){ toast('Não consegui alterar: '+error.message,'err'); return; }
+  toast(status==='pausada'?'Divulgação pausada':status==='enviando'?'Divulgação retomada':'Divulgação cancelada');
+  await carregarHistorico();
+}
+
+async function carregarEnviosAberta(){
+  const {data}=await sb.from('divulgacao_envios').select('nome,numero,status,erro,enviado_em')
+    .eq('divulgacao_id',_aberta).order('enviado_em',{ascending:false,nullsFirst:false}).limit(1000);
+  _enviosAberta=data||[];
+}
+async function abrirEnvios(id){
+  if(_aberta===id){ _aberta=null; _enviosAberta=[]; renderHistorico(); return; }
+  _aberta=id;
+  await carregarEnviosAberta();
+  renderHistorico();
+}
+
+async function init(){
+  if(!(await exigirPermissao('divulgacao'))) return;
+  atualizarPrevia();
+  try{
+    const {data:cfg,error}=await sb.from('config_clinica').select('clinica_id,divulgacao_whatsapp').limit(1).maybeSingle();
+    if(error) throw new Error(error.message);
+    _clinicaId=cfg?cfg.clinica_id:null;
+    _recursoLigado=!!(cfg&&cfg.divulgacao_whatsapp===true);
+    const {data:inst}=await sb.from('whatsapp_instancias').select('id').eq('ativo',true).limit(1);
+    _whatsConectado=!!(inst&&inst.length);
+    await carregarPacientes();
+  }catch(e){
+    const el=document.getElementById('dv-estado');
+    el.style.display='block'; el.className='aviso err';
+    el.innerHTML='<strong>A divulgação ainda não está instalada neste sistema.</strong> Fale com o suporte. <span style="opacity:.7">('+escapeHtml(e.message||e)+')</span>';
+    document.getElementById('dv-btn-iniciar').disabled=true;
+    document.getElementById('dv-btn-teste').disabled=true;
+    document.getElementById('dv-lista').innerHTML='<div class="vazio">—</div>';
+    document.getElementById('dv-historico').innerHTML='<div class="vazio">—</div>';
+    return;
+  }
+  mostrarEstado();
+  renderPacientes();
+  await carregarHistorico();
+}
+init();
+</script>
+</body>
+</html>

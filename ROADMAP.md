@@ -212,3 +212,12 @@ pacotes de sessões (`pacotes_sessoes`, trigger em `agenda`).
 **Ainda não iniciadas:**
 - **Testes do banco e do visual** (RLS, funções SQL, telas no navegador): os testes de hoje cobrem só
   sintaxe, estrutura e regras em JavaScript (ver REGRAS.md → Testes automáticos).
+
+**Divulgação pelo WhatsApp (10/11/2026) — código pronto, AINDA NÃO PUBLICADO:** tela `divulgacao.html`, fila com
+intervalo/limite diário/horário, anexo de vídeo ou imagem, "responda SAIR". Para entrar no ar, nesta ordem:
+- [ ] aplicar `supabase/migrations/20261110_divulgacao_whatsapp.sql` em produção;
+- [ ] publicar as Edge Functions `whatsapp-enviar`, `whatsapp-webhook` e `divulgacao-processar` (esta com `verify_jwt: false`);
+- [ ] publicar o site (merge na `main`) e testar "Enviar teste" com o vídeo real num número próprio;
+- [ ] quando pedido: aplicar `20261110_divulgacao_cron_LIGAR.sql` e ligar `divulgacao_whatsapp` na clínica;
+- [ ] atualizar `admin-roteiro.html` e o artefato externo de onboarding (o `ajuda.html` já foi atualizado);
+- [ ] falta marcar "não enviar divulgação" também na ficha da paciente (hoje só na tela de Divulgação e pelo SAIR).

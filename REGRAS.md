@@ -155,3 +155,25 @@ publique de novo** (o GitHub Pages não publica Edge Functions). `tests/webhook.
 consulta com `pacote_id` que vira "realizado" soma 1; sair de "realizado", trocar de pacote ou apagar a consulta devolve.
 Por isso vale para qualquer caminho (botão, "Fechar dia", fechamento guiado, WhatsApp) sem mexer em cada tela.
 
+## Divulgação pelo WhatsApp (vídeo, imagem, texto, link)
+
+Tela `divulgacao.html` (botão "🎬 Divulgação" ao lado de Campanhas; permissão `divulgacao`). A clínica escreve a mensagem,
+anexa vídeo/imagem (bucket privado `divulgacao-midia`, até 16 MB, MP4/JPG/PNG), escolhe as pacientes e o sistema envia
+sozinho. A fila fica em `divulgacoes` + `divulgacao_envios`; quem envia é a Edge Function `divulgacao-processar`
+(`verify_jwt: false`, protegida pelo header `x-cron-secret` conferido no Vault), chamada a cada minuto pelo `pg_cron`.
+
+**Proteção do número (não afrouxar sem motivo):** uma mensagem por clínica por rodada; intervalo sorteado entre o mínimo e
+o máximo (mínimo absoluto 45 s; na prática ≥ 1 min, porque o cron roda de minuto em minuto); limite por dia **da clínica**
+(somando todas as divulgações; teto de 80 no banco); só de segunda a sábado, entre 7h e 21h no máximo; três erros seguidos
+pausam a divulgação sozinha. Os tetos são `check` das tabelas — a tela não consegue pedir um ritmo mais agressivo.
+
+**Nasce desligada, com três travas:** (1) `config_clinica.divulgacao_whatsapp = false` por clínica; (2) sem o segredo
+`divulgacao_cron_secret` no Vault a função recusa tudo; (3) o job do cron só existe depois de aplicar
+`supabase/migrations/20261110_divulgacao_cron_LIGAR.sql`. O "Enviar teste" (um número só, via `whatsapp-enviar`) funciona
+mesmo com tudo desligado.
+
+**LGPD:** toda divulgação termina com "responda SAIR" (frase única em `fila.mjs`, repetida na tela; um teste confere).
+Quem responde SAIR/parar (só mensagem curta, e só se recebeu divulgação nos últimos 60 dias) é marcada em
+`pacientes.sem_divulgacao`, sai das filas pendentes e nunca mais entra em lista — o servidor confere de novo na hora de
+enviar. A clínica também pode marcar/desmarcar na própria tela. Mudou `fila.mjs`, `processar.mjs`, `resposta.mjs` ou os
+`index.ts`: **publique as Edge Functions de novo** (o GitHub Pages não publica função).

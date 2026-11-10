@@ -40,6 +40,27 @@ export function classificarResposta(texto) {
   return null;
 }
 
+// Pedido para NÃO receber mais divulgações (resposta à frase "responda SAIR").
+// Mesma regra de ouro: só mensagem curta e inequívoca. "Quero sair mais cedo da consulta" não é.
+const SAIDA = new Set([
+  'sair', 'sai', 'parar', 'pare', 'para', 'stop', 'remover', 'remova', 'descadastrar', 'cancelar envio',
+  'nao quero receber', 'nao quero mais receber', 'nao quero mais', 'nao enviar', 'nao envie mais',
+  'nao me envie mais', 'nao mande mais', 'nao me mande mais', 'me tira da lista', 'me tire da lista',
+]);
+
+export function classificarSaida(texto) {
+  const bruto = String(texto ?? '');
+  if (bruto.length > 40) return false;
+  return SAIDA.has(normalizar(bruto));
+}
+
+// Últimos 8 dígitos: contas antigas do WhatsApp chegam sem o "9" na frente do celular,
+// então comparar 9 dígitos deixaria de reconhecer a paciente.
+export function ultimos8(telefone) {
+  const d = String(telefone ?? '').replace(/\D/g, '');
+  return d.length >= 8 ? d.slice(-8) : '';
+}
+
 // Últimos 9 dígitos do telefone (tolera +55, 0 do DDD, formatação)
 export function ultimos9(telefone) {
   const d = String(telefone ?? '').replace(/\D/g, '');
