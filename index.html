@@ -2087,7 +2087,7 @@ function renderPac(){
   }
 }
 
-async function excluir(id,nome){if(!confirm(`Excluir ${nome}?`))return;const{error}=await db.from('pacientes').delete().eq('id',id);if(error){toast('Erro','vermelho');return;}toast('Excluído');carregar();}
+async function excluir(id,nome){if(!confirm(`Excluir ${nome}?\n\nO cadastro, as fichas e os orçamentos ficam guardados na Lixeira (Gestão → Lixeira) e podem ser restaurados.`))return;const{error}=await db.from('pacientes').delete().eq('id',id);if(error){toast('Erro','vermelho');return;}toast('Excluído');carregar();}
 
 // RELATÓRIO
 async function renderRel(){

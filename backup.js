@@ -29,6 +29,7 @@ const TABELAS = [
   'financeiro',
   'fornecedores',
   'historico_paciente',
+  'lixeira',
   'pacientes',
   'plano_itens',
   'planos_tratamento',

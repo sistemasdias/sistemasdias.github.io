@@ -182,3 +182,22 @@ Quem responde SAIR/parar (só mensagem curta, e só se recebeu divulgação nos 
 `pacientes.sem_divulgacao`, sai das filas pendentes e nunca mais entra em lista — o servidor confere de novo na hora de
 enviar. A clínica também pode marcar/desmarcar na própria tela. Mudou `fila.mjs`, `processar.mjs`, `resposta.mjs` ou os
 `index.ts`: **publique as Edge Functions de novo** (o GitHub Pages não publica função).
+
+## Lixeira (nada excluído some de vez)
+
+Criada em 11/11/2026 depois que a Dra. Anna Carolina relatou orçamentos/fichas "sumidos" e não havia como saber se foram
+excluídos, por quem ou quando (o backup diário não pega o que é criado e apagado no mesmo dia). Migração
+`supabase/migrations/20261111_lixeira.sql`; tela `lixeira.html` (card em Gestão; permissão `lixeira`, admin sempre tem).
+
+- Gatilho `trg_lixeira` (BEFORE DELETE) em `pacientes`, `documentos`, `planos_tratamento`, `plano_itens`, `financeiro` e
+  `pacotes_sessoes` copia a linha inteira para `public.lixeira` com `excluido_por`/`excluido_por_nome`. Pega exclusão pela
+  tela, pelas funções do banco e em cascata. **Tabela nova com dado de paciente que pode ser excluído: incluir no gatilho
+  e no `check` de `lixeira.tabela`, e em `lixeira_restaurar` (ordem de restauração).**
+- O gatilho nunca trava uma exclusão (falha vira `warning` no log). Dados de exemplo (`exemplo = true`) não entram.
+- `lixeira` não aceita escrita da tela: só leitura (RLS por clínica + seção). Restaurar = `lixeira_restaurar(ids)`
+  (devolve sempre para a clínica dona); apagar de vez = `lixeira_apagar(ids)`, só `eh_admin`.
+- Sem limpeza automática (regra de automação). O admin tem o botão "apagar de vez itens com mais de 90 dias".
+- Não cobre: exclusão de atendimento (é `update` em `pacientes.atendimentos`/`tratamentos_adicionais`) e arquivos do
+  Storage (fotos, ficha digitalizada). Restaurar orçamento não volta a descontar o estoque.
+- Teste: a migração foi testada em Postgres local (PGlite) com esqueleto das tabelas — exemplo não entra, RLS por
+  clínica/permissão, restauração completa e parcial, idempotência, exclusão sem usuário não trava.

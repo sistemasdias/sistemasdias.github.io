@@ -1645,7 +1645,7 @@ async function excluirDoc(id){
 
   // Documentos comuns — exclusão simples
   if(doc.tipo!=='orcamento'){
-    if(!confirm('Excluir este documento?')) return;
+    if(!confirm('Excluir este documento?\n\nEle fica guardado na Lixeira (Gestão → Lixeira) e pode ser restaurado.')) return;
     const{error:eDelDoc}=await db.from('documentos').delete().eq('id',id);
     if(eDelDoc){toast('Erro ao excluir documento','vermelho');return;}
     toast('Documento excluído');
@@ -1655,7 +1655,7 @@ async function excluirDoc(id){
   }
 
   // ── ORÇAMENTO: exclusão em CASCATA (financeiro + estoque + plano) ──
-  if(!confirm('⚠️ EXCLUIR ORÇAMENTO\n\nSerão excluídos também:\n• Lançamentos financeiros vinculados\n• Estorno dos produtos baixados no estoque\n• O plano de tratamento e seus itens\n\nEsta ação não pode ser desfeita. Continuar?'))return;
+  if(!confirm('⚠️ EXCLUIR ORÇAMENTO\n\nSerão excluídos também:\n• Lançamentos financeiros vinculados\n• Estorno dos produtos baixados no estoque\n• O plano de tratamento e seus itens\n\nO orçamento fica guardado na Lixeira (Gestão → Lixeira) e pode ser restaurado, mas o estoque estornado não é descontado de novo. Continuar?'))return;
 
   let planoId = doc.dados?.plano_id || null;
 
